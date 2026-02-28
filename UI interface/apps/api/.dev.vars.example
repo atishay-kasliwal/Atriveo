@@ -1,0 +1,10 @@
+# Copy to `.dev.vars` (do not commit).
+# Used by `wrangler dev` for local development.
+NEON_DATABASE_URL=postgresql://user:password@host/db?sslmode=require
+
+# If set, the API accepts `Authorization: Bearer <token>` for all /api/* routes.
+# If unset, you'll need to login via /auth/login (OWNER_* vars below).
+API_SHARED_TOKEN=
+
+# Optional owner email used only when API_SHARED_TOKEN is used.
+OWNER_EMAIL=you@example.com

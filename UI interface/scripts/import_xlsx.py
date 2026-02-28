@@ -10,6 +10,8 @@ from typing import Any
 import pandas as pd
 import psycopg
 
+DEFAULT_OWNER_EMAIL = "katishay@gmail.com"
+
 
 @dataclass
 class ImportStats:
@@ -68,7 +70,20 @@ def get_df(xls: pd.ExcelFile, sheet_name: str) -> pd.DataFrame:
     return pd.read_excel(xls, sheet_name=sheet_name)
 
 
-def import_jobs(cur: psycopg.Cursor, xls: pd.ExcelFile, stats: ImportStats) -> None:
+def resolve_owner_user_id(cur: psycopg.Cursor) -> int:
+    owner_email = (os.getenv("OWNER_EMAIL") or DEFAULT_OWNER_EMAIL).strip().lower()
+    cur.execute(
+        "INSERT INTO dashboard_users (email) VALUES (%s) ON CONFLICT (email) DO NOTHING",
+        (owner_email,),
+    )
+    cur.execute("SELECT id FROM dashboard_users WHERE email = %s LIMIT 1", (owner_email,))
+    row = cur.fetchone()
+    if not row:
+        raise RuntimeError(f"Failed to resolve owner user for email: {owner_email}")
+    return int(row[0])
+
+
+def import_jobs(cur: psycopg.Cursor, xls: pd.ExcelFile, stats: ImportStats, user_id: int) -> None:
     df = get_df(xls, "Enhanced Jobs Data")
     for idx, row in df.iterrows():
         if idx == 0:
@@ -82,10 +97,10 @@ def import_jobs(cur: psycopg.Cursor, xls: pd.ExcelFile, stats: ImportStats) -> N
             INSERT INTO jobs (
               source, source_row, date_saved, role, company, location_raw, job_link,
               oa_status, referral_status, response_status, application_count,
-              applied_time_raw, applicant_count_raw, notes
+              applied_time_raw, applicant_count_raw, notes, user_id
             )
             VALUES (
-              'import', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+              'import', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
             )
             """,
             (
@@ -102,12 +117,13 @@ def import_jobs(cur: psycopg.Cursor, xls: pd.ExcelFile, stats: ImportStats) -> N
                 normalize_nan(row.get("Application Applied Time")),
                 normalize_nan(row.get("Number of Applicant")),
                 normalize_nan(row.get("Comment")),
+                user_id,
             ),
         )
         stats.jobs_inserted += 1
 
 
-def import_referrals(cur: psycopg.Cursor, xls: pd.ExcelFile, stats: ImportStats) -> None:
+def import_referrals(cur: psycopg.Cursor, xls: pd.ExcelFile, stats: ImportStats, user_id: int) -> None:
     df = get_df(xls, "Archive Referral List")
     for idx, row in df.iterrows():
         if idx == 0:
@@ -119,10 +135,10 @@ def import_referrals(cur: psycopg.Cursor, xls: pd.ExcelFile, stats: ImportStats)
             """
             INSERT INTO referrals (
               source, source_row, company, request_log, request_date, updated_date,
-              request_link, referral_received, comment, message_ready, resume_ready
+              request_link, referral_received, comment, message_ready, resume_ready, user_id
             )
             VALUES (
-              'import', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+              'import', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
             )
             """,
             (
@@ -136,12 +152,13 @@ def import_referrals(cur: psycopg.Cursor, xls: pd.ExcelFile, stats: ImportStats)
                 normalize_nan(row.get("Comment")),
                 normalize_nan(row.get("Message Ready")),
                 normalize_nan(row.get("Resume Ready")),
+                user_id,
             ),
         )
         stats.referrals_inserted += 1
 
 
-def import_notes(cur: psycopg.Cursor, xls: pd.ExcelFile, stats: ImportStats) -> None:
+def import_notes(cur: psycopg.Cursor, xls: pd.ExcelFile, stats: ImportStats, user_id: int) -> None:
     df = get_df(xls, "Daily Notes")
     cols = list(df.columns)
     if len(cols) < 2:
@@ -156,15 +173,15 @@ def import_notes(cur: psycopg.Cursor, xls: pd.ExcelFile, stats: ImportStats) -> 
             continue
         cur.execute(
             """
-            INSERT INTO daily_notes (source, source_row, note_date, comments)
-            VALUES ('import', %s, %s, %s)
+            INSERT INTO daily_notes (source, source_row, note_date, comments, user_id)
+            VALUES ('import', %s, %s, %s, %s)
             """,
-            (idx + 2, str(note_date) if note_date is not None else None, comment),
+            (idx + 2, str(note_date) if note_date is not None else None, comment, user_id),
         )
         stats.notes_inserted += 1
 
 
-def import_pending(cur: psycopg.Cursor, xls: pd.ExcelFile, stats: ImportStats) -> None:
+def import_pending(cur: psycopg.Cursor, xls: pd.ExcelFile, stats: ImportStats, user_id: int) -> None:
     df = get_df(xls, "Pending Work 23th Feb")
     for idx, row in df.iterrows():
         if idx == 0:
@@ -176,9 +193,9 @@ def import_pending(cur: psycopg.Cursor, xls: pd.ExcelFile, stats: ImportStats) -
             """
             INSERT INTO pending_items (
               source, source_row, company, position_name, pending_date, updated_date,
-              comment, link, drafted_message
+              comment, link, drafted_message, user_id
             )
-            VALUES ('import', %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES ('import', %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
             (
                 idx + 2,
@@ -189,6 +206,7 @@ def import_pending(cur: psycopg.Cursor, xls: pd.ExcelFile, stats: ImportStats) -
                 normalize_nan(row.get("Comment")),
                 normalize_nan(row.get("Link")),
                 normalize_nan(row.iloc[-1]) if len(row) > 0 else None,
+                user_id,
             ),
         )
         stats.pending_inserted += 1
@@ -202,16 +220,17 @@ def run_import(db_url: str, source_file: Path, report_path: Path) -> dict[str, A
 
     with psycopg.connect(db_url) as conn:
         with conn.cursor() as cur:
+            user_id = resolve_owner_user_id(cur)
             cur.execute(
                 "INSERT INTO import_runs (source_file, success, details) VALUES (%s, FALSE, '{}'::jsonb) RETURNING id",
                 (str(source_file),),
             )
             run_id = cur.fetchone()[0]
 
-            import_jobs(cur, xls, stats)
-            import_referrals(cur, xls, stats)
-            import_notes(cur, xls, stats)
-            import_pending(cur, xls, stats)
+            import_jobs(cur, xls, stats, user_id)
+            import_referrals(cur, xls, stats, user_id)
+            import_notes(cur, xls, stats, user_id)
+            import_pending(cur, xls, stats, user_id)
 
             details = {
                 "started_at": started,
@@ -230,11 +249,11 @@ def run_import(db_url: str, source_file: Path, report_path: Path) -> dict[str, A
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Import Job Tracker Excel data into Neon Postgres.")
+    parser = argparse.ArgumentParser(description="Import Job Tracker Excel data into Postgres.")
     parser.add_argument(
         "--db-url",
-        default=os.getenv("NEON_DATABASE_URL"),
-        help="Postgres connection URL. Defaults to NEON_DATABASE_URL env var.",
+        default=os.getenv("DATABASE_URL") or os.getenv("NEON_DATABASE_URL"),
+        help="Postgres connection URL. Defaults to DATABASE_URL, then NEON_DATABASE_URL.",
     )
     default_xlsx = Path(__file__).resolve().parent.parent / "Job Tracker by Resumary.com.xlsx"
     parser.add_argument(
@@ -250,7 +269,7 @@ def main() -> None:
     args = parser.parse_args()
 
     if not args.db_url:
-        raise SystemExit("Missing database URL. Provide --db-url or set NEON_DATABASE_URL.")
+        raise SystemExit("Missing database URL. Provide --db-url or set DATABASE_URL/NEON_DATABASE_URL.")
 
     source_file = Path(args.xlsx_path)
     if not source_file.exists():

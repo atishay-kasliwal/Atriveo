@@ -6,8 +6,6 @@ type AuthPageProps = {
   onAuthenticated: (session: AuthSession) => void;
 };
 
-const OWNER_EMAIL = "katishay@gmail.com";
-
 type SparkPoint = {
   value: number;
   date: string; // YYYY-MM-DD
@@ -176,7 +174,7 @@ function HeroMetricCard({ title, subtitle, primary, change, seedKey }: HeroMetri
 
 export default function AuthPage({ onAuthenticated }: AuthPageProps) {
   const navigate = useNavigate();
-  const [email, setEmail] = useState(OWNER_EMAIL);
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -186,10 +184,6 @@ export default function AuthPage({ onAuthenticated }: AuthPageProps) {
     setError("");
     if (!email.trim() || !password.trim()) {
       setError("Email and password are required.");
-      return;
-    }
-    if (email.trim().toLowerCase() !== OWNER_EMAIL) {
-      setError("Only owner access is enabled.");
       return;
     }
 
@@ -214,7 +208,7 @@ export default function AuthPage({ onAuthenticated }: AuthPageProps) {
     <div className="auth-page">
       <section className="auth-hero" aria-label="Preview of upcoming dashboard">
         <p className="auth-hero-kicker">Currently building something meaningful.</p>
-        <h1 className="auth-hero-title">Private workspace. Owner access only.</h1>
+        <h1 className="auth-hero-title">Private workspace. Authorized users only.</h1>
         <p className="auth-hero-subtitle">Launching soon. This space is under active development.</p>
         <p className="auth-hero-description">
           Live, market-style signals below are illustrative snapshots of the type of insights this
@@ -239,7 +233,7 @@ export default function AuthPage({ onAuthenticated }: AuthPageProps) {
         <p className="auth-hero-footnote">Data is illustrative only. Product insights coming soon.</p>
       </section>
 
-      <section className="auth-card-wrap" aria-label="Owner login">
+      <section className="auth-card-wrap" aria-label="Dashboard login">
         <div className="auth-card">
           <div className="auth-card-accent" aria-hidden />
           <div className="auth-card-icon" aria-hidden>
@@ -258,7 +252,7 @@ export default function AuthPage({ onAuthenticated }: AuthPageProps) {
             </svg>
           </div>
           <h1 className="auth-card-title">Private access</h1>
-          <p className="auth-card-subtitle">Owner access only. Sign in to continue.</p>
+          <p className="auth-card-subtitle">Authorized users only. Sign in to continue.</p>
           <form className="auth-form" onSubmit={onSubmit}>
             <label className="auth-label" htmlFor="email">
               Email
@@ -270,7 +264,7 @@ export default function AuthPage({ onAuthenticated }: AuthPageProps) {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder={OWNER_EMAIL}
+              placeholder="Enter your email"
             />
             <label className="auth-label" htmlFor="password">
               Password
@@ -282,7 +276,7 @@ export default function AuthPage({ onAuthenticated }: AuthPageProps) {
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter owner password"
+              placeholder="Enter your password"
             />
             {error ? <div className="auth-error">{error}</div> : null}
             <button type="submit" className="auth-submit" disabled={isLoading}>

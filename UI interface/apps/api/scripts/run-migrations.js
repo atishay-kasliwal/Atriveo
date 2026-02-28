@@ -1,6 +1,6 @@
 /**
- * Run SQL migrations from db/migrations against NEON_DATABASE_URL.
- * Usage (from repo root): NEON_DATABASE_URL='postgresql://...' node apps/api/scripts/run-migrations.js
+ * Run SQL migrations from db/migrations against DATABASE_URL/NEON_DATABASE_URL.
+ * Usage (from repo root): DATABASE_URL='postgresql://...' node apps/api/scripts/run-migrations.js
  * Splits on ";" but respects dollar-quoted strings ($$ ... $$) so CREATE FUNCTION / DO blocks stay intact.
  */
 import { neon } from "@neondatabase/serverless";
@@ -69,9 +69,9 @@ function splitSqlStatements(body) {
   return statements;
 }
 
-const url = process.env.NEON_DATABASE_URL;
+const url = process.env.DATABASE_URL || process.env.NEON_DATABASE_URL;
 if (!url) {
-  console.error("Set NEON_DATABASE_URL to run migrations.");
+  console.error("Set DATABASE_URL (or NEON_DATABASE_URL) to run migrations.");
   process.exit(1);
 }
 

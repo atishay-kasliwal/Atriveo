@@ -1,46 +1,68 @@
 # Private Job Tracker Dashboard
 
-React dashboard + Cloudflare Worker API + Neon Postgres migration from your existing workbook.
+React dashboard + Cloudflare Worker API + Postgres database.
 
 ## Project structure
 
-- `db/migrations/001_init.sql` - Postgres schema
-- `db/migrations/002_app_user_template.sql` - least-privilege app user template
+- `db/migrations/*.sql` - ordered Postgres schema migrations
+- `scripts/run_migration.py` - run all DB migrations
 - `scripts/import_xlsx.py` - one-time importer from `Job Tracker by Resumary.com.xlsx`
-- `apps/api` - Cloudflare Worker API
+- `apps/api` - Cloudflare Worker API (runs locally with `wrangler dev`)
 - `apps/web` - React dashboard
-- `docs/deploy.md` - deployment and **hosting at atishaykasliwal.com/dashboard**
+- `docker-compose.yml` - local Postgres (`db` service)
 
-## Quick start (dashboard working with no token)
+## Local run (recommended)
 
-If you hit 401 and want the dashboard to work immediately:
-
-1. **Open API (no auth):** From `apps/api` run `npx wrangler secret delete API_SHARED_TOKEN`, then `npx wrangler deploy`. The API will allow all requests.
-2. **Web env:** In `apps/web/.env` set only `VITE_API_URL=https://job-tracker-api.katishay.workers.dev` (leave `VITE_API_TOKEN` empty).
-3. **Run:** From repo root run `npm run dev:web`. Reload the dashboard.
-
-You can add `API_SHARED_TOKEN` again later to lock the API.
-
----
-
-## Full quick start
-
-1. **Install dependencies:** `npm install` (from repo root).
-2. **API secrets** (in `apps/api`):
-   - `npx wrangler secret put NEON_DATABASE_URL` (required for DB)
-   - `npx wrangler secret put API_SHARED_TOKEN` (optional; if unset, API is open and dashboard works without a token)
-3. **Apply DB migration** (once, with Neon URL in env):
+1. Install dependencies:
+   - `npm install`
    - `pip3 install -r scripts/requirements.txt`
-   - `export NEON_DATABASE_URL="postgresql://..."`
-   - `python3 scripts/run_migration.py`
-4. **Import Excel data** (once):
-   - `python3 scripts/import_xlsx.py` (uses `NEON_DATABASE_URL`; writes `import_report.json`).
-5. **Web app env:** Copy `apps/web/.env.example` to `apps/web/.env` and set `VITE_API_URL` (your Worker URL). Set `VITE_API_TOKEN` only if you set `API_SHARED_TOKEN` on the Worker (use the same value).
-6. **Run locally:**
-   - API: `npm run dev:api` (or deploy with `npx wrangler deploy` from `apps/api`).
-   - Web: `npm run dev:web` — then open **http://localhost:5173/dashboard/** (app is built for the `/dashboard` path).
+2. Start local Postgres:
+   - `npm run db:up`
+3. Set DB URL for this terminal:
+   - `export DATABASE_URL='postgresql://job_tracker:job_tracker@127.0.0.1:5432/job_tracker'`
+4. Run migrations + import workbook:
+   - `npm run db:migrate`
+   - `npm run db:import`
+5. Seed login users (no signup flow):
+   - `npm run users:seed`
+   - First run: creates 4 default users and prints passwords.
+   - Next runs: keeps existing passwords unchanged.
+   - To rotate all passwords intentionally: `npm run users:reset-passwords`
+6. Configure API local env:
+   - `cp apps/api/.dev.vars.example apps/api/.dev.vars`
+   - In `apps/api/.dev.vars`, set `NEON_DATABASE_URL=$DATABASE_URL` (or paste a Neon URL directly)
+7. Configure web local env:
+   - `cp apps/web/.env.example apps/web/.env`
+   - Set `VITE_API_URL=http://127.0.0.1:8787`
+   - Leave `VITE_API_TOKEN=` empty unless you set `API_SHARED_TOKEN`
+8. Run apps (two terminals):
+   - Terminal A: `npm run dev:api`
+   - Terminal B: `npm run dev:web`
+9. Open:
+   - `http://localhost:5173/dashboard/`
 
-## Notes
+## Using your Neon DB URL instead of local Postgres
 
-- **Auth:** If `API_SHARED_TOKEN` is not set on the Worker, the API allows all requests (handy for local use). To lock it down, set the secret and use the same value as `VITE_API_TOKEN` in `apps/web/.env`. Cloudflare Access email header also grants access.
-- Keep DB URL and API token out of git.
+If you want to use Neon directly (including the `psql 'postgresql://...'` URL you shared):
+
+1. Export it:
+   - `export DATABASE_URL='postgresql://...your-neon-url...'`
+2. Run:
+   - `npm run db:migrate`
+   - `npm run db:import`
+   - `npm run users:seed`
+3. Put the same URL in `apps/api/.dev.vars` as:
+   - `NEON_DATABASE_URL=postgresql://...your-neon-url...`
+
+You do not need `docker compose` in this Neon mode.
+
+## Useful commands
+
+- `npm run db:up` - start local Postgres
+- `npm run db:down` - stop local Postgres
+- `npm run db:migrate` - apply all migrations
+- `npm run db:import` - import workbook into DB
+- `npm run users:seed` - create users once; keep passwords unchanged later
+- `npm run users:reset-passwords` - force-generate new passwords for all seeded users
+- `npm run dev:api` - run Worker API locally
+- `npm run dev:web` - run React app locally

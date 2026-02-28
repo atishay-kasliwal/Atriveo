@@ -3,6 +3,7 @@ export type Bindings = {
   API_SHARED_TOKEN: string;
   OWNER_DASHBOARD_PASSWORD?: string;
   OWNER_EMAIL?: string;
+  OWNER_ACCESS_ONLY?: string;
   SESSION_TTL_DAYS?: string;
   APP_ENV?: string;
 };

@@ -4,10 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev src/index.ts --local",
+    "dev": "wrangler dev src/index.ts --local --show-interactive-dev-session=false",
     "build": "wrangler deploy --dry-run",
     "deploy": "wrangler deploy",
-    "migrate": "node scripts/run-migrations.js"
+    "migrate": "node scripts/run-migrations.js",
+    "seed:users": "node scripts/seed-users.js",
+    "seed:users:reset": "node scripts/seed-users.js --reset"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.1",

@@ -5,15 +5,6 @@ compatibility_date = "2025-02-22"
 [vars]
 APP_ENV = "development"
 
-# Local-only development overrides. These should NOT be committed with production secrets.
-# For production use `wrangler secret put ...` instead.
-OWNER_DASHBOARD_PASSWORD = "owner-local-pass"
-API_SHARED_TOKEN = "sTq8vR4kZx2mJ9bQpLy6HuN3wF0aYeV7"
-NEON_DATABASE_URL = "postgresql://neondb_owner:npg_Ea7kCirMyn8R@ep-aged-block-aimpudad-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
-
-# Set with:
-# wrangler secret put NEON_DATABASE_URL
-# wrangler secret put API_SHARED_TOKEN
-# wrangler secret put OWNER_DASHBOARD_PASSWORD
-# Optional:
-# wrangler secret put OWNER_EMAIL
+# Local development config:
+# - Put secrets in `apps/api/.dev.vars` (Wrangler reads it automatically for `wrangler dev`)
+# - For production use `wrangler secret put ...`

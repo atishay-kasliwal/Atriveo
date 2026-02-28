@@ -18,6 +18,12 @@ import {
   type AuthSession,
 } from "./lib/api";
 
+const BASENAME = (() => {
+  const baseUrl = import.meta.env.BASE_URL || "/";
+  if (baseUrl === "/") return "/";
+  return baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
+})();
+
 export default function App() {
   const [session, setSession] = useState<AuthSession | null>(() => getStoredSession());
   const [checkingSession, setCheckingSession] = useState(true);
@@ -61,7 +67,7 @@ export default function App() {
 
   if (checkingSession) {
     return (
-      <BrowserRouter basename="/dashboard">
+      <BrowserRouter basename={BASENAME}>
         <SiteShell>
           <div className="spinner-wrap">
             <div className="spinner" />
@@ -72,7 +78,7 @@ export default function App() {
   }
 
   return (
-    <BrowserRouter basename="/dashboard">
+    <BrowserRouter basename={BASENAME}>
       <SiteShell>
         <Routes>
           <Route

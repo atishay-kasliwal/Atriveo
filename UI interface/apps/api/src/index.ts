@@ -4,10 +4,9 @@ import { z } from "zod";
 import {
   authMiddleware,
   createSession,
-  ensureOwnerUser,
-  getOwnerEmail,
   normalizeEmail,
   revokeSession,
+  verifyPassword,
 } from "./auth";
 import { query } from "./db";
 import type { AuthUser, Bindings } from "./types";
@@ -43,25 +42,42 @@ app.post("/auth/login", async (c) => {
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
 
   const email = normalizeEmail(parsed.data.email);
-  const ownerEmail = getOwnerEmail(c.env);
-  const ownerPassword = c.env.OWNER_DASHBOARD_PASSWORD?.trim();
+  const [user] = await query<{
+    id: number;
+    email: string;
+    password_hash: string | null;
+    password_salt: string | null;
+    password_iterations: number | null;
+  }>(
+    c.env,
+    `
+    SELECT id, email, password_hash, password_salt, password_iterations
+    FROM dashboard_users
+    WHERE email = $1
+    LIMIT 1
+    `,
+    [email],
+  );
 
-  if (email !== ownerEmail) {
-    return c.json({ error: "Only owner access is enabled." }, 403);
-  }
-  if (!ownerPassword) {
-    return c.json(
-      { error: "Owner password is not configured yet. Set OWNER_DASHBOARD_PASSWORD on the API and redeploy." },
-      403,
-    );
-  }
-  if (parsed.data.password !== ownerPassword) {
+  if (!user?.password_hash || !user?.password_salt) {
     return c.json({ error: "Invalid email or password." }, 401);
   }
 
-  const owner = await ensureOwnerUser(c.env);
-  const token = await createSession(c.env, owner.id);
-  return c.json({ token, user: owner });
+  const passwordOk = await verifyPassword(
+    parsed.data.password,
+    user.password_hash,
+    user.password_salt,
+    Number(user.password_iterations ?? 210000),
+  );
+  if (!passwordOk) {
+    return c.json({ error: "Invalid email or password." }, 401);
+  }
+
+  const token = await createSession(c.env, Number(user.id));
+  return c.json({
+    token,
+    user: { id: Number(user.id), email: String(user.email) },
+  });
 });
 
 app.use("/api/*", authMiddleware);

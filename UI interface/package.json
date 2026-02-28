@@ -7,6 +7,12 @@
     "apps/web"
   ],
   "scripts": {
+    "db:up": "docker compose up -d db",
+    "db:down": "docker compose down",
+    "db:migrate": "python3 scripts/run_migration.py",
+    "db:import": "python3 scripts/import_xlsx.py",
+    "users:seed": "npm run seed:users -w @job-tracker/api",
+    "users:reset-passwords": "npm run seed:users:reset -w @job-tracker/api",
     "dev:web": "npm run dev -w @job-tracker/web",
     "dev:api": "npm run dev -w @job-tracker/api",
     "build:web": "npm run build -w @job-tracker/web",

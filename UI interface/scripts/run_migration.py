@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run db/migrations/001_init.sql against NEON_DATABASE_URL. Run once before import."""
+"""Run all db/migrations/*.sql against DATABASE_URL/NEON_DATABASE_URL."""
 import os
 import sys
 from pathlib import Path
@@ -7,23 +7,31 @@ from pathlib import Path
 import psycopg
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-MIGRATION_FILE = REPO_ROOT / "db" / "migrations" / "001_init.sql"
+MIGRATIONS_DIR = REPO_ROOT / "db" / "migrations"
 
 
 def main() -> None:
-    url = os.getenv("NEON_DATABASE_URL")
+    url = os.getenv("DATABASE_URL") or os.getenv("NEON_DATABASE_URL")
     if not url:
-        print("Set NEON_DATABASE_URL and run again.", file=sys.stderr)
+        print("Set DATABASE_URL (or NEON_DATABASE_URL) and run again.", file=sys.stderr)
         sys.exit(1)
-    if not MIGRATION_FILE.exists():
-        print(f"Migration not found: {MIGRATION_FILE}", file=sys.stderr)
+    if not MIGRATIONS_DIR.exists():
+        print(f"Migrations directory not found: {MIGRATIONS_DIR}", file=sys.stderr)
         sys.exit(1)
-    sql = MIGRATION_FILE.read_text()
+
+    migration_files = sorted(MIGRATIONS_DIR.glob("*.sql"))
+    if not migration_files:
+        print(f"No migrations found in {MIGRATIONS_DIR}", file=sys.stderr)
+        sys.exit(1)
+
     with psycopg.connect(url) as conn:
         with conn.cursor() as cur:
-            cur.execute(sql)
+            for migration_file in migration_files:
+                sql = migration_file.read_text()
+                cur.execute(sql)
+                print(f"Applied: {migration_file.name}")
         conn.commit()
-    print("Migration 001_init.sql applied successfully.")
+    print("All migrations applied successfully.")
 
 
 if __name__ == "__main__":
