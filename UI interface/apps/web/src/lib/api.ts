@@ -158,14 +158,57 @@ export function getJobs(params: GetJobsParams = {}) {
   );
 }
 
+export type JobsCsvExportRange = "30" | "60" | "90" | "all";
+
+export function importJobsCsv(csv: string) {
+  return request<{
+    imported: number;
+    skippedEmptyRows: number;
+    skippedMissingRequired: number;
+    skippedInvalidDate: number;
+    defaultsApplied: number;
+    rowsReceived: number;
+    requiredHeaders: string[];
+    optionalHeaders: string[];
+    warnings: string[];
+  }>("/api/jobs/import/csv", {
+    method: "POST",
+    body: JSON.stringify({ csv }),
+  });
+}
+
+export async function exportJobsCsv(range: JobsCsvExportRange): Promise<Blob> {
+  const authToken = runtimeToken || API_TOKEN;
+  const headers: HeadersInit = {
+    ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+  };
+  const res = await fetch(`${API_URL}/api/jobs/export/csv?range=${encodeURIComponent(range)}`, {
+    method: "GET",
+    headers,
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    if (res.status === 401) throw new Error("Unauthorized. Please login again to continue.");
+    let msg = text;
+    try {
+      const json = JSON.parse(text) as { error?: string };
+      if (json?.error) msg = json.error;
+    } catch {
+      // Keep plain text.
+    }
+    throw new Error(`API ${res.status}: ${msg}`);
+  }
+  return res.blob();
+}
+
 export type GetListParams = { page?: number; limit?: number };
 
-export type GetReferralsParams = GetListParams & { filter?: "open" };
+export type GetReferralsParams = GetListParams & { filter?: "open" | "applied" };
 
 export function getReferrals(params: GetReferralsParams = {}) {
   const { page = 1, limit = 25, filter } = params;
   const search = new URLSearchParams({ page: String(page), limit: String(Math.min(limit, 100)) });
-  if (filter === "open") search.set("filter", "open");
+  if (filter === "open" || filter === "applied") search.set("filter", filter);
   return request<{ page: number; limit: number; data: Array<Record<string, unknown>> }>(
     `/api/referrals?${search.toString()}`
   );

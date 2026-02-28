@@ -1,7 +1,7 @@
 import { randomBytes, pbkdf2Sync } from "crypto";
 import { neon } from "@neondatabase/serverless";
 
-const DEFAULT_ITERATIONS = 210000;
+const DEFAULT_ITERATIONS = 100000;
 const DEFAULT_USERS = [
   "katishay@gmail.com",
   "meetbrahmbhatt1224@gmail.com",

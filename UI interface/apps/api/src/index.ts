@@ -67,7 +67,7 @@ app.post("/auth/login", async (c) => {
     parsed.data.password,
     user.password_hash,
     user.password_salt,
-    Number(user.password_iterations ?? 210000),
+    Number(user.password_iterations ?? 100000),
   );
   if (!passwordOk) {
     return c.json({ error: "Invalid email or password." }, 401);
@@ -233,14 +233,19 @@ app.get("/api/dashboard/summary", async (c) => {
   const referralTrendRaw = await query<{ referral_status: string; total: number }>(
     env,
     `
-    SELECT TRIM(COALESCE(referral_status, '')) AS referral_status, COUNT(*)::int AS total
+    SELECT
+      CASE
+        WHEN TRIM(COALESCE(referral_status, '')) IN ('Pending', 'Applied without referral') THEN 'No'
+        ELSE TRIM(COALESCE(referral_status, ''))
+      END AS referral_status,
+      COUNT(*)::int AS total
     FROM jobs
     WHERE user_id = $1
-    GROUP BY TRIM(COALESCE(referral_status, ''))
+    GROUP BY 1
     `,
     [userId],
   );
-  const referralOrder = ["Yes", "No", "Pending"];
+  const referralOrder = ["Yes", "No"];
   const referralTrend = referralOrder
     .map((status) => {
       const row = referralTrendRaw.find((r) => r.referral_status === status);
@@ -393,6 +398,148 @@ function isJobsSortColumn(s: string): s is JobsSortColumn {
   return (JOBS_SORT_COLUMNS as readonly string[]).includes(s);
 }
 
+const CSV_MAX_BYTES = 1024 * 1024;
+const IMPORT_REQUIRED_HEADERS = ["role", "company", "date_saved"] as const;
+const IMPORT_OPTIONAL_HEADERS = [
+  "location_raw",
+  "job_link",
+  "keyword_matching",
+  "oa_status",
+  "referral_status",
+  "response_status",
+  "application_status",
+  "notes",
+] as const;
+type CsvImportRow = {
+  role: string;
+  company: string;
+  date_saved: string;
+  location_raw: string;
+  job_link: string | null;
+  keyword_matching: "Strong" | "Medium" | "Weak";
+  oa_status: string;
+  referral_status: string;
+  response_status: string;
+  application_status: string;
+  notes: string;
+};
+
+function parseCsvText(csv: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < csv.length; i += 1) {
+    const ch = csv[i];
+    const next = csv[i + 1];
+    if (inQuotes) {
+      if (ch === "\"") {
+        if (next === "\"") {
+          cell += "\"";
+          i += 1;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        cell += ch;
+      }
+      continue;
+    }
+    if (ch === "\"") {
+      inQuotes = true;
+      continue;
+    }
+    if (ch === ",") {
+      row.push(cell.trim());
+      cell = "";
+      continue;
+    }
+    if (ch === "\n") {
+      row.push(cell.trim());
+      rows.push(row);
+      row = [];
+      cell = "";
+      continue;
+    }
+    if (ch === "\r") continue;
+    cell += ch;
+  }
+  row.push(cell.trim());
+  if (row.some((entry) => entry.length > 0)) rows.push(row);
+  return rows;
+}
+
+function csvEscape(value: unknown): string {
+  const raw = String(value ?? "");
+  if (raw.includes(",") || raw.includes("\"") || raw.includes("\n")) {
+    return `"${raw.replace(/"/g, "\"\"")}"`;
+  }
+  return raw;
+}
+
+const KEYWORD_MATCHING_ALLOWED: Record<string, "Strong" | "Medium" | "Weak"> = {
+  strong: "Strong",
+  medium: "Medium",
+  week: "Weak",
+  weak: "Weak",
+};
+
+const OA_STATUS_ALLOWED: Record<string, string> = {
+  yes: "Yes",
+  no: "No",
+  pending: "Pending",
+  done: "Done",
+};
+
+const REFERRAL_STATUS_ALLOWED: Record<string, string> = {
+  requested: "Requested",
+  yes: "Yes",
+  no: "No",
+  pending: "No",
+  "applied without referral": "No",
+};
+
+const RESPONSE_STATUS_ALLOWED: Record<string, string> = {
+  review: "Review",
+  screening: "Screening",
+  interview: "Interview",
+  rejected: "Rejected",
+  offer: "Offer",
+  "no response": "No Response",
+};
+
+const APPLICATION_STATUS_ALLOWED: Record<string, string> = {
+  applied: "Applied",
+  review: "Review",
+  interview: "Interview",
+  rejected: "Rejected",
+  offer: "Offer",
+};
+
+function normalizeAllowed(value: string, allowed: Record<string, string>, fallback: string): string {
+  const key = value.trim().toLowerCase();
+  if (!key) return fallback;
+  return allowed[key] ?? fallback;
+}
+
+function normalizeKeywordMatching(value: unknown): "Strong" | "Medium" | "Weak" | null {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (!raw) return null;
+  if (raw === "strong") return "Strong";
+  if (raw === "medium") return "Medium";
+  if (raw === "week" || raw === "weak") return "Weak";
+  return null;
+}
+
+function normalizeReferralStatus(value: unknown): "Requested" | "Yes" | "No" | null {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (!raw) return null;
+  if (raw === "requested") return "Requested";
+  if (raw === "yes") return "Yes";
+  return "No";
+}
+
 app.get("/api/jobs", async (c) => {
   const userId = c.get("authUser").id;
   const page = Number(c.req.query("page") ?? 1);
@@ -441,7 +588,7 @@ const jobInput = z.object({
   company: z.string().min(1),
   location_raw: z.string().optional(),
   job_link: z.string().url().optional(),
-  keyword_matching: z.enum(["Strong", "Medium", "Week"]).optional(),
+  keyword_matching: z.enum(["Strong", "Medium", "Weak", "Week"]).optional(),
   oa_status: z.string().optional(),
   referral_status: z.string().optional(),
   response_status: z.string().optional(),
@@ -468,9 +615,9 @@ app.post("/api/jobs", async (c) => {
       p.company,
       p.location_raw ?? null,
       p.job_link ?? null,
-      p.keyword_matching ?? null,
+      normalizeKeywordMatching(p.keyword_matching),
       p.oa_status ?? null,
-      p.referral_status ?? null,
+      normalizeReferralStatus(p.referral_status),
       p.response_status ?? null,
       p.application_status ?? null,
       p.notes ?? null,
@@ -480,12 +627,259 @@ app.post("/api/jobs", async (c) => {
   return c.json(row, 201);
 });
 
+const jobsCsvImportInput = z.object({
+  csv: z.string().min(1),
+});
+
+app.post("/api/jobs/import/csv", async (c) => {
+  const userId = c.get("authUser").id;
+  const parsed = jobsCsvImportInput.safeParse(await c.req.json());
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
+  const csv = parsed.data.csv;
+  const csvBytes = new TextEncoder().encode(csv).length;
+  if (csvBytes > CSV_MAX_BYTES) {
+    return c.json({ error: "CSV file is too large. Maximum allowed size is 1 MB." }, 413);
+  }
+
+  const rows = parseCsvText(csv);
+  if (rows.length < 2) {
+    return c.json({ error: "CSV must include a header row and at least one data row." }, 400);
+  }
+
+  const headerRow = rows[0].map((h) => h.trim().toLowerCase());
+  const headerMap = new Map<string, number>();
+  headerRow.forEach((name, idx) => {
+    if (!headerMap.has(name)) headerMap.set(name, idx);
+  });
+
+  const missingHeaders = IMPORT_REQUIRED_HEADERS.filter((h) => !headerMap.has(h));
+  if (missingHeaders.length > 0) {
+    return c.json({ error: `Missing required header(s): ${missingHeaders.join(", ")}` }, 400);
+  }
+
+  const imports: CsvImportRow[] = [];
+  let skippedEmptyRows = 0;
+  let skippedMissingRequired = 0;
+  let skippedInvalidDate = 0;
+  let defaultsApplied = 0;
+  const warnings: string[] = [];
+
+  for (let i = 1; i < rows.length; i += 1) {
+    const csvRow = rows[i];
+    const rowNumber = i + 1;
+    const getCell = (field: string): string => {
+      const idx = headerMap.get(field);
+      if (idx == null) return "";
+      return (csvRow[idx] ?? "").trim();
+    };
+
+    const role = getCell("role");
+    const company = getCell("company");
+    const dateSaved = getCell("date_saved");
+    if (!role && !company && !dateSaved) {
+      skippedEmptyRows += 1;
+      continue;
+    }
+    if (!role || !company || !dateSaved) {
+      skippedMissingRequired += 1;
+      if (warnings.length < 12) {
+        warnings.push(`Row ${rowNumber} skipped: role, company and date_saved are mandatory.`);
+      }
+      continue;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateSaved)) {
+      skippedInvalidDate += 1;
+      if (warnings.length < 12) {
+        warnings.push(`Row ${rowNumber} skipped: date_saved must be YYYY-MM-DD.`);
+      }
+      continue;
+    }
+
+    const jobLink = getCell("job_link");
+    let normalizedJobLink: string | null = null;
+    if (jobLink) {
+      try {
+        new URL(jobLink);
+        normalizedJobLink = jobLink;
+      } catch {
+        defaultsApplied += 1;
+        if (warnings.length < 12) warnings.push(`Row ${rowNumber}: invalid job_link replaced with default (empty).`);
+      }
+    }
+
+    const keywordMatchingRaw = getCell("keyword_matching");
+    const keywordMatching = normalizeAllowed(
+      keywordMatchingRaw,
+      KEYWORD_MATCHING_ALLOWED,
+      "Medium",
+    ) as "Strong" | "Medium" | "Weak";
+    if (keywordMatchingRaw && keywordMatchingRaw.trim().toLowerCase() !== keywordMatching.toLowerCase()) {
+      defaultsApplied += 1;
+      if (warnings.length < 12) warnings.push(`Row ${rowNumber}: keyword_matching normalized to ${keywordMatching}.`);
+    }
+    const oaStatusRaw = getCell("oa_status");
+    const oaStatus = normalizeAllowed(oaStatusRaw, OA_STATUS_ALLOWED, "No");
+    if (oaStatusRaw && oaStatusRaw.trim().toLowerCase() !== oaStatus.toLowerCase()) {
+      defaultsApplied += 1;
+      if (warnings.length < 12) warnings.push(`Row ${rowNumber}: oa_status normalized to ${oaStatus}.`);
+    }
+    const referralRaw = getCell("referral_status");
+    const referralStatus = normalizeAllowed(referralRaw, REFERRAL_STATUS_ALLOWED, "No");
+    if (referralRaw && referralRaw.trim().toLowerCase() !== referralStatus.toLowerCase()) {
+      defaultsApplied += 1;
+      if (warnings.length < 12) warnings.push(`Row ${rowNumber}: referral_status normalized to ${referralStatus}.`);
+    }
+    const responseRaw = getCell("response_status");
+    const responseStatus = normalizeAllowed(responseRaw, RESPONSE_STATUS_ALLOWED, "Review");
+    if (responseRaw && responseRaw.trim().toLowerCase() !== responseStatus.toLowerCase()) {
+      defaultsApplied += 1;
+      if (warnings.length < 12) warnings.push(`Row ${rowNumber}: response_status normalized to ${responseStatus}.`);
+    }
+    const applicationRaw = getCell("application_status");
+    const applicationStatus = normalizeAllowed(applicationRaw, APPLICATION_STATUS_ALLOWED, "Applied");
+    if (applicationRaw && applicationRaw.trim().toLowerCase() !== applicationStatus.toLowerCase()) {
+      defaultsApplied += 1;
+      if (warnings.length < 12) warnings.push(`Row ${rowNumber}: application_status normalized to ${applicationStatus}.`);
+    }
+
+    const locationRaw = getCell("location_raw") || "Not specified";
+    const notes = getCell("notes") || "Imported via CSV";
+    if (!getCell("location_raw")) defaultsApplied += 1;
+    if (!getCell("notes")) defaultsApplied += 1;
+
+    imports.push({
+      role,
+      company,
+      date_saved: dateSaved,
+      location_raw: locationRaw,
+      job_link: normalizedJobLink,
+      keyword_matching: keywordMatching,
+      oa_status: oaStatus,
+      referral_status: referralStatus,
+      response_status: responseStatus,
+      application_status: applicationStatus,
+      notes,
+    });
+  }
+
+  if (imports.length === 0) {
+    return c.json({ error: "No valid CSV rows found. Ensure role, company and date_saved are present." }, 400);
+  }
+
+  for (const row of imports) {
+    await query(
+      c.env,
+      `
+      INSERT INTO jobs (user_id, source, role, company, location_raw, job_link, keyword_matching, oa_status, referral_status, response_status, application_status, notes, date_saved)
+      VALUES ($1, 'import-csv', $2, $3, $4, $5, COALESCE($6, 'Medium'), $7, $8, $9, COALESCE($10, 'Applied'), $11, ($12::date)::timestamp)
+      `,
+      [
+        userId,
+        row.role,
+        row.company,
+        row.location_raw,
+        row.job_link,
+        row.keyword_matching,
+        row.oa_status,
+        row.referral_status,
+        row.response_status,
+        row.application_status,
+        row.notes,
+        row.date_saved,
+      ],
+    );
+  }
+
+  return c.json({
+    imported: imports.length,
+    skippedEmptyRows,
+    skippedMissingRequired,
+    skippedInvalidDate,
+    defaultsApplied,
+    rowsReceived: rows.length - 1,
+    requiredHeaders: IMPORT_REQUIRED_HEADERS,
+    optionalHeaders: IMPORT_OPTIONAL_HEADERS,
+    warnings,
+  });
+});
+
+app.get("/api/jobs/export/csv", async (c) => {
+  const userId = c.get("authUser").id;
+  const range = String(c.req.query("range") ?? "30").toLowerCase();
+  const validRange = range === "30" || range === "60" || range === "90" || range === "all" ? range : "30";
+  const params: unknown[] = [userId];
+  let whereDate = "";
+  if (validRange !== "all") {
+    whereDate = " AND date_saved >= (CURRENT_DATE - ($2::text || ' days')::interval)";
+    params.push(Number(validRange));
+  }
+
+  const rows = await query<Record<string, unknown>>(
+    c.env,
+    `
+    SELECT
+      TO_CHAR(COALESCE(date_saved, NOW())::date, 'YYYY-MM-DD') AS date_saved,
+      role,
+      company,
+      location_raw,
+      job_link,
+      keyword_matching,
+      oa_status,
+      referral_status,
+      response_status,
+      application_status,
+      notes
+    FROM jobs
+    WHERE user_id = $1${whereDate}
+    ORDER BY date_saved DESC NULLS LAST, id DESC
+    `,
+    params,
+  );
+
+  const headers = [
+    "date_saved",
+    "role",
+    "company",
+    "location_raw",
+    "job_link",
+    "keyword_matching",
+    "oa_status",
+    "referral_status",
+    "response_status",
+    "application_status",
+    "notes",
+  ];
+  const csvLines = [headers.join(",")];
+  rows.forEach((row) => {
+    csvLines.push(
+      headers
+        .map((key) => {
+          if (key === "keyword_matching") {
+            const raw = String(row[key] ?? "");
+            if (raw.trim().toLowerCase() === "week") return csvEscape("Weak");
+          }
+          return csvEscape(row[key]);
+        })
+        .join(","),
+    );
+  });
+  const csv = csvLines.join("\n");
+  const today = new Date().toISOString().slice(0, 10);
+  return new Response(csv, {
+    headers: {
+      "content-type": "text/csv; charset=utf-8",
+      "content-disposition": `attachment; filename="jobs_${validRange}_${today}.csv"`,
+      "cache-control": "no-store",
+    },
+  });
+});
+
 const jobUpdateInput = z.object({
   role: z.string().min(1).optional(),
   company: z.string().min(1).optional(),
   location_raw: z.string().optional(),
   job_link: z.string().url().optional().nullable(),
-  keyword_matching: z.enum(["Strong", "Medium", "Week"]).optional().nullable(),
+  keyword_matching: z.enum(["Strong", "Medium", "Weak", "Week"]).optional().nullable(),
   oa_status: z.string().optional().nullable(),
   referral_status: z.string().optional().nullable(),
   response_status: z.string().optional().nullable(),
@@ -528,9 +922,9 @@ app.patch("/api/jobs/:id", async (c) => {
       p.company ?? null,
       p.location_raw ?? null,
       p.job_link ?? null,
-      p.keyword_matching ?? null,
+      normalizeKeywordMatching(p.keyword_matching),
       p.oa_status ?? null,
-      p.referral_status ?? null,
+      normalizeReferralStatus(p.referral_status),
       p.response_status ?? null,
       p.application_status ?? null,
       p.notes ?? null,
@@ -561,7 +955,7 @@ const referralInput = z.object({
   request_date: z.string().optional(),
   request_link: z.string().url().optional(),
   referral_received: z.string().optional(),
-  keyword_matching: z.enum(["Strong", "Medium", "Week"]).optional(),
+  keyword_matching: z.enum(["Strong", "Medium", "Weak", "Week"]).optional(),
   referred_by_name: z.string().optional(),
   comment: z.string().optional(),
 });
@@ -571,10 +965,12 @@ app.get("/api/referrals", async (c) => {
   const page = Number(c.req.query("page") ?? 1);
   const limit = Math.min(Number(c.req.query("limit") ?? 25), 100);
   const offset = (page - 1) * limit;
-  const filterOpen = c.req.query("filter") === "open";
-  const sql = filterOpen
-    ? "SELECT * FROM referrals WHERE user_id = $1 AND COALESCE(TRIM(referral_received), '') IN ('Requested', 'Pending') ORDER BY request_date DESC NULLS LAST, id DESC LIMIT $2 OFFSET $3"
-    : "SELECT * FROM referrals WHERE user_id = $1 ORDER BY request_date DESC NULLS LAST, id DESC LIMIT $2 OFFSET $3";
+  const filter = c.req.query("filter");
+  const sql = filter === "open"
+    ? "SELECT * FROM referrals WHERE user_id = $1 AND COALESCE(TRIM(referral_received), '') = 'Requested' ORDER BY request_date DESC NULLS LAST, id DESC LIMIT $2 OFFSET $3"
+    : filter === "applied"
+      ? "SELECT * FROM referrals WHERE user_id = $1 AND COALESCE(TRIM(referral_received), '') = 'Yes' ORDER BY COALESCE(updated_date, request_date) DESC NULLS LAST, id DESC LIMIT $2 OFFSET $3"
+      : "SELECT * FROM referrals WHERE user_id = $1 ORDER BY request_date DESC NULLS LAST, id DESC LIMIT $2 OFFSET $3";
   const rows = await query(c.env, sql, [userId, limit, offset]);
   return c.json({ page, limit, data: rows });
 });
@@ -597,8 +993,8 @@ app.post("/api/referrals", async (c) => {
       p.request_log ?? null,
       p.request_date ?? null,
       p.request_link ?? null,
-      p.referral_received ?? null,
-      p.keyword_matching ?? null,
+      normalizeReferralStatus(p.referral_received),
+      normalizeKeywordMatching(p.keyword_matching),
       p.referred_by_name ?? null,
       p.comment ?? null,
     ],
@@ -669,7 +1065,7 @@ const referralUpdateInput = z.object({
   request_date: z.string().optional(),
   request_link: z.string().url().optional().nullable(),
   referral_received: z.string().optional().nullable(),
-  keyword_matching: z.enum(["Strong", "Medium", "Week"]).optional().nullable(),
+  keyword_matching: z.enum(["Strong", "Medium", "Weak", "Week"]).optional().nullable(),
   referred_by_name: z.string().optional().nullable(),
   comment: z.string().optional(),
 });
@@ -701,11 +1097,11 @@ app.patch("/api/referrals/:id", async (c) => {
   }
   if (p.referral_received !== undefined) {
     updates.push(`referral_received = $${i++}`);
-    values.push(p.referral_received);
+    values.push(p.referral_received == null ? null : normalizeReferralStatus(p.referral_received));
   }
   if (p.keyword_matching !== undefined) {
     updates.push(`keyword_matching = $${i++}`);
-    values.push(p.keyword_matching);
+    values.push(normalizeKeywordMatching(p.keyword_matching));
   }
   if (p.referred_by_name !== undefined) {
     updates.push(`referred_by_name = $${i++}`);

@@ -28,6 +28,7 @@ React dashboard + Cloudflare Worker API + Postgres database.
    - First run: creates 4 default users and prints passwords.
    - Next runs: keeps existing passwords unchanged.
    - To rotate all passwords intentionally: `npm run users:reset-passwords`
+   - If login fails after deploy with PBKDF2 iteration error, run `npm run users:reset-passwords` once.
 6. Configure API local env:
    - `cp apps/api/.dev.vars.example apps/api/.dev.vars`
    - In `apps/api/.dev.vars`, set `NEON_DATABASE_URL=$DATABASE_URL` (or paste a Neon URL directly)

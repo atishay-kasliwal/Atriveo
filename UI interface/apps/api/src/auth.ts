@@ -3,7 +3,7 @@ import { query } from "./db";
 import type { AuthUser, Bindings } from "./types";
 
 const DEFAULT_OWNER_EMAIL = "katishay@gmail.com";
-const DEFAULT_PASSWORD_ITERATIONS = 210000;
+const DEFAULT_PASSWORD_ITERATIONS = 100000;
 
 function unauthorized(c: Context) {
   return c.json({ error: "Unauthorized" }, 401);

@@ -711,24 +711,6 @@ export default function DashboardPage() {
         <KpiCard label="Applications this week" value={derivedKpis.jobsThisWeek} sparkline={kpiSparklineByMetric.thisWeek} />
         <KpiCard label="Applications today" value={derivedKpis.jobsToday} sparkline={kpiSparklineByMetric.todayWindow} />
         <KpiCard
-          label={derivedKpis.lastWeekSameWeekdayLabel}
-          value={derivedKpis.jobsLastWeekSameWeekday}
-          sparkline={
-            kpiSparklineByMetric.lastWeekWindow.length > 1
-              ? kpiSparklineByMetric.lastWeekWindow
-              : Array(7).fill(derivedKpis.jobsLastWeekSameWeekday)
-          }
-        />
-        <KpiCard
-          label={derivedKpis.lastMonthSameDayLabel}
-          value={derivedKpis.jobsLastMonthSameDay}
-          sparkline={
-            kpiSparklineByMetric.lastMonthWindow.length > 1
-              ? kpiSparklineByMetric.lastMonthWindow
-              : Array(14).fill(derivedKpis.jobsLastMonthSameDay)
-          }
-        />
-        <KpiCard
           label="Total applications with referral"
           value={derivedKpis.jobsWithReferral}
           sparkline={kpiSparklineByMetric.referral}

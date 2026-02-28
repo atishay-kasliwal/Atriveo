@@ -1,10 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { NavLink, Outlet, Link } from "react-router-dom";
 import {
   createJob,
   createReferral,
   createPending,
   createNote,
+  exportJobsCsv,
+  importJobsCsv,
+  type JobsCsvExportRange,
 } from "../lib/api";
 import { getLocalISODate } from "../lib/formatDate";
 
@@ -52,20 +55,113 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [showPendingTask, setShowPendingTask] = useState(false);
   const [showNoteModal, setShowNoteModal] = useState(false);
+  const [showCsvTools, setShowCsvTools] = useState(false);
+  const [showCsvModal, setShowCsvModal] = useState(false);
+  const [csvMode, setCsvMode] = useState<"import" | "export">("import");
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [csvRange, setCsvRange] = useState<JobsCsvExportRange>("30");
+  const [csvBusy, setCsvBusy] = useState(false);
+  const [csvError, setCsvError] = useState("");
+  const [csvSuccess, setCsvSuccess] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [modalError, setModalError] = useState("");
   const [form, setForm] = useState(emptyJobForm);
   const [pendingForm, setPendingForm] = useState(emptyPendingForm);
   const [noteForm, setNoteForm] = useState(emptyNoteForm);
+  const csvToolsRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!showQuickAdd && !showPendingTask && !showNoteModal) setModalError("");
   }, [showQuickAdd, showPendingTask, showNoteModal]);
 
+  useEffect(() => {
+    if (!showCsvTools) return;
+    function onDocumentClick(e: MouseEvent) {
+      const target = e.target as Node | null;
+      if (csvToolsRef.current && target && !csvToolsRef.current.contains(target)) {
+        setShowCsvTools(false);
+      }
+    }
+    document.addEventListener("mousedown", onDocumentClick);
+    return () => document.removeEventListener("mousedown", onDocumentClick);
+  }, [showCsvTools]);
+
+  function openCsvModal(mode: "import" | "export") {
+    setCsvMode(mode);
+    setCsvError("");
+    setCsvSuccess("");
+    setShowCsvTools(false);
+    setShowCsvModal(true);
+  }
+
+  function closeCsvModal() {
+    if (csvBusy) return;
+    setShowCsvModal(false);
+    setCsvError("");
+    setCsvSuccess("");
+    setCsvFile(null);
+  }
+
+  async function onImportCsv(e: React.FormEvent) {
+    e.preventDefault();
+    setCsvError("");
+    setCsvSuccess("");
+    if (!csvFile) {
+      setCsvError("Please choose a CSV file.");
+      return;
+    }
+    if (csvFile.size > 1024 * 1024) {
+      setCsvError("CSV file is too large. Maximum allowed size is 1 MB.");
+      return;
+    }
+    try {
+      setCsvBusy(true);
+      const csvText = await csvFile.text();
+      const result = await importJobsCsv(csvText);
+      const summary = [
+        `Imported ${result.imported} row(s).`,
+        `Skipped (missing mandatory): ${result.skippedMissingRequired}.`,
+        `Skipped (invalid date): ${result.skippedInvalidDate}.`,
+        `Defaults applied: ${result.defaultsApplied}.`,
+      ].join(" ");
+      const warningPreview = result.warnings?.length ? ` ${result.warnings.slice(0, 3).join(" ")}` : "";
+      setCsvSuccess(`${summary}${warningPreview}`);
+      window.dispatchEvent(new CustomEvent("dashboard-refresh"));
+    } catch (err) {
+      setCsvError((err as Error).message || "Failed to import CSV.");
+    } finally {
+      setCsvBusy(false);
+    }
+  }
+
+  async function onExportCsv(e: React.FormEvent) {
+    e.preventDefault();
+    setCsvError("");
+    setCsvSuccess("");
+    try {
+      setCsvBusy(true);
+      const blob = await exportJobsCsv(csvRange);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const today = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = `jobs_${csvRange}_${today}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      setCsvSuccess("CSV export downloaded.");
+    } catch (err) {
+      setCsvError((err as Error).message || "Failed to export CSV.");
+    } finally {
+      setCsvBusy(false);
+    }
+  }
+
   async function onCreateJob(e: React.FormEvent) {
     e.preventDefault();
     if (!form.company.trim()) return;
-    if (form.referral_status === "Requested" || form.referral_status === "Pending") {
+    if (form.referral_status === "Requested") {
       if (!form.role.trim()) return;
       try {
         setIsSaving(true);
@@ -189,7 +285,7 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
             Archive
           </NavLink>
           <NavLink to="/pending" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
-            Pending
+            Pending Tasks
           </NavLink>
           <NavLink to="/notes" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
             Notes
@@ -205,6 +301,30 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
           <button type="button" className="quick-add-btn pending-task-btn note-btn mid-btn" onClick={() => setShowNoteModal(true)}>
             Log Note
           </button>
+          <div className="csv-tools" ref={csvToolsRef}>
+            <button
+              type="button"
+              className="quick-add-btn settings-btn"
+              onClick={() => setShowCsvTools((prev) => !prev)}
+              aria-label="Open settings tools"
+              title="Settings"
+            >
+              Settings
+            </button>
+            {showCsvTools ? (
+              <div className="csv-tools-menu">
+                <button type="button" className="csv-tools-item" onClick={() => openCsvModal("import")}>
+                  Import CSV
+                </button>
+                <button type="button" className="csv-tools-item" onClick={() => openCsvModal("export")}>
+                  Export CSV
+                </button>
+                <a className="csv-tools-item" href="/jobs_import_sample.csv" download onClick={() => setShowCsvTools(false)}>
+                  Download Sample CSV
+                </a>
+              </div>
+            ) : null}
+          </div>
           <button type="button" className="quick-add-btn logout-btn" onClick={onLogout} title="Logout" aria-label="Logout">
             <span className="logout-emoji">⏻</span>
           </button>
@@ -213,6 +333,74 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
       <main className="page-main">
         <Outlet />
       </main>
+
+      {showCsvModal ? (
+        <div className="modal-overlay" onClick={closeCsvModal}>
+          <div className="modal modal--csv" onClick={(e) => e.stopPropagation()}>
+            <h3>{csvMode === "import" ? "Import Jobs CSV" : "Export Jobs CSV"}</h3>
+            {csvMode === "import" ? (
+              <form className="form" onSubmit={onImportCsv}>
+                <p className="csv-helper">
+                  Upload must be CSV, up to 1 MB.
+                  Mandatory per row: <code>role</code>, <code>company</code>, <code>date_saved</code> (YYYY-MM-DD). Rows missing these are skipped.
+                  Optional fields auto-default when blank or invalid.
+                  Allowed values:
+                  <code>keyword_matching</code> = Strong/Medium/Weak,
+                  <code>oa_status</code> = Yes/No/Pending/Done,
+                  <code>referral_status</code> = Requested/Yes/No,
+                  <code>response_status</code> = Review/Screening/Interview/Rejected/Offer/No Response,
+                  <code>application_status</code> = Applied/Review/Interview/Rejected/Offer.
+                </p>
+                <input
+                  type="file"
+                  accept=".csv,text/csv"
+                  onChange={(e) => setCsvFile(e.target.files?.[0] ?? null)}
+                />
+                <a className="table-link" href="/jobs_import_sample.csv" download>
+                  Download sample format
+                </a>
+                {csvError ? <div className="auth-error">{csvError}</div> : null}
+                {csvSuccess ? <div className="csv-success">{csvSuccess}</div> : null}
+                <div className="modal-actions">
+                  <button type="button" className="action-btn" onClick={closeCsvModal} disabled={csvBusy}>
+                    Close
+                  </button>
+                  <button type="submit" disabled={csvBusy || !csvFile}>
+                    {csvBusy ? "Importing..." : "Import CSV"}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form className="form" onSubmit={onExportCsv}>
+                <p className="csv-helper">Choose how much data to export from your jobs table.</p>
+                <div className="form-row">
+                  <label className="form-label">Range</label>
+                  <select
+                    className="form-select"
+                    value={csvRange}
+                    onChange={(e) => setCsvRange(e.target.value as JobsCsvExportRange)}
+                  >
+                    <option value="30">Last 30 days</option>
+                    <option value="60">Last 60 days</option>
+                    <option value="90">Last 90 days</option>
+                    <option value="all">All data</option>
+                  </select>
+                </div>
+                {csvError ? <div className="auth-error">{csvError}</div> : null}
+                {csvSuccess ? <div className="csv-success">{csvSuccess}</div> : null}
+                <div className="modal-actions">
+                  <button type="button" className="action-btn" onClick={closeCsvModal} disabled={csvBusy}>
+                    Close
+                  </button>
+                  <button type="submit" disabled={csvBusy}>
+                    {csvBusy ? "Exporting..." : "Export CSV"}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      ) : null}
 
       {showQuickAdd && (
         <div className="modal-overlay" onClick={() => !isSaving && setShowQuickAdd(false)}>
@@ -251,11 +439,9 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
                     <option value="Requested">Requested</option>
                     <option value="Yes">Yes</option>
                     <option value="No">No</option>
-                    <option value="Pending">Pending</option>
-                    <option value="Applied without referral">Applied without referral</option>
                   </select>
                 </div>
-                {(form.referral_status === "Requested" || form.referral_status === "Pending") && (
+                {form.referral_status === "Requested" && (
                   <p className="referral-hint">
                     This will add an entry on the <Link to="/referrals" className="table-link">Referrals</Link> page. Change its status there to create a job.
                   </p>
@@ -293,7 +479,7 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
                   >
                     <option value="Strong">Strong</option>
                     <option value="Medium">Medium</option>
-                    <option value="Week">Week</option>
+                    <option value="Weak">Weak</option>
                   </select>
                   <p className="form-helper">
                     {form.keyword_matching === "Strong"

@@ -21,8 +21,8 @@ import {
 } from "../lib/api";
 
 const LIMIT = 25;
-const REFERRAL_SHEET_STATUSES = ["Requested", "Pending"] as const;
-const JOB_STATUSES = ["Yes", "No", "Applied without referral"] as const;
+const REFERRAL_SHEET_STATUSES = ["Requested"] as const;
+const JOB_STATUSES = ["Yes", "No"] as const;
 const ALL_STATUS_OPTIONS = [...REFERRAL_SHEET_STATUSES, ...JOB_STATUSES] as const;
 
 const CHART_COLORS = {
@@ -57,10 +57,13 @@ function formatDayShort(day: string) {
 }
 
 export default function ReferralsPage() {
-  const [data, setData] = useState<Array<Record<string, unknown>>>([]);
+  const [openData, setOpenData] = useState<Array<Record<string, unknown>>>([]);
+  const [appliedData, setAppliedData] = useState<Array<Record<string, unknown>>>([]);
   const [page, setPage] = useState(1);
+  const [appliedPage, setAppliedPage] = useState(1);
   const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingOpen, setIsLoadingOpen] = useState(true);
+  const [isLoadingApplied, setIsLoadingApplied] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<number | string | null>(null);
   const [editing, setEditing] = useState<Record<string, unknown> | null>(null);
@@ -69,19 +72,33 @@ export default function ReferralsPage() {
   const [trendData, setTrendData] = useState<ReferralsTrendData>([]);
   const [isLoadingTrend, setIsLoadingTrend] = useState(true);
 
-  const load = useCallback(async () => {
+  const loadOpen = useCallback(async () => {
     try {
       setError("");
-      setIsLoading(true);
+      setIsLoadingOpen(true);
       const res = await getReferrals({ page, limit: LIMIT, filter: "open" });
-      setData(res.data ?? []);
+      setOpenData(res.data ?? []);
     } catch (e) {
       setError((e as Error).message);
-      setData([]);
+      setOpenData([]);
     } finally {
-      setIsLoading(false);
+      setIsLoadingOpen(false);
     }
   }, [page]);
+
+  const loadApplied = useCallback(async () => {
+    try {
+      setError("");
+      setIsLoadingApplied(true);
+      const res = await getReferrals({ page: appliedPage, limit: LIMIT, filter: "applied" });
+      setAppliedData(res.data ?? []);
+    } catch (e) {
+      setError((e as Error).message);
+      setAppliedData([]);
+    } finally {
+      setIsLoadingApplied(false);
+    }
+  }, [appliedPage]);
 
   const loadTrend = useCallback(async () => {
     try {
@@ -97,8 +114,12 @@ export default function ReferralsPage() {
   }, []);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    loadOpen();
+  }, [loadOpen]);
+
+  useEffect(() => {
+    loadApplied();
+  }, [loadApplied]);
 
   useEffect(() => {
     loadTrend();
@@ -106,12 +127,13 @@ export default function ReferralsPage() {
 
   useEffect(() => {
     const onRefresh = () => {
-      load();
+      loadOpen();
+      loadApplied();
       loadTrend();
     };
     window.addEventListener("dashboard-refresh", onRefresh);
     return () => window.removeEventListener("dashboard-refresh", onRefresh);
-  }, [load, loadTrend]);
+  }, [loadOpen, loadApplied, loadTrend]);
 
   const chartData = useMemo(
     () =>
@@ -158,7 +180,7 @@ export default function ReferralsPage() {
         });
       }
       setEditing(null);
-      await load();
+      await Promise.all([loadOpen(), loadApplied()]);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -166,8 +188,10 @@ export default function ReferralsPage() {
     }
   }
 
-  const hasNext = data.length === LIMIT;
+  const hasNext = openData.length === LIMIT;
   const hasPrev = page > 1;
+  const hasNextApplied = appliedData.length === LIMIT;
+  const hasPrevApplied = appliedPage > 1;
   const movesToJobs = JOB_STATUSES.includes(editStatus as (typeof JOB_STATUSES)[number]);
 
   async function onDelete(row: Record<string, unknown>) {
@@ -184,7 +208,7 @@ export default function ReferralsPage() {
       setError("");
       setDeletingId(id);
       await deleteReferral(id);
-      await load();
+      await Promise.all([loadOpen(), loadApplied()]);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -288,11 +312,11 @@ export default function ReferralsPage() {
       </div>
 
       <div className="card">
-        <h2>Referrals</h2>
-        {isLoading ? (
+        <h2>Open Referrals</h2>
+        {isLoadingOpen ? (
           <Spinner />
-        ) : data.length === 0 ? (
-          <div className="empty-state">No referrals with status Requested or Pending.</div>
+        ) : openData.length === 0 ? (
+          <div className="empty-state">No referrals with status Requested.</div>
         ) : (
           <>
             <div className="table-wrap">
@@ -310,7 +334,7 @@ export default function ReferralsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {data.map((r) => (
+                  {openData.map((r) => (
                     <tr key={String(r.id)} className="tr-hover">
                       <td>{formatTableDate((r as any).updated_date || r.request_date)}</td>
                       <td>{String(r.company ?? "—")}</td>
@@ -361,6 +385,80 @@ export default function ReferralsPage() {
         )}
       </div>
 
+      <div className="card" style={{ marginTop: "24px" }}>
+        <h2>Referral Records</h2>
+        {isLoadingApplied ? (
+          <Spinner />
+        ) : appliedData.length === 0 ? (
+          <div className="empty-state">No referral records yet.</div>
+        ) : (
+          <>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Updated</th>
+                    <th>Company</th>
+                    <th>Position</th>
+                    <th>Status</th>
+                    <th>Referred by</th>
+                    <th>Notes</th>
+                    <th>Link</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {appliedData.map((r) => (
+                    <tr key={String(r.id)} className="tr-hover data-referral">
+                      <td>{formatTableDate((r as any).updated_date || r.request_date)}</td>
+                      <td>{String(r.company ?? "—")}</td>
+                      <td>{String(r.request_log ?? "—")}</td>
+                      <td>{String(r.referral_received ?? "—")}</td>
+                      <td>{String(r.referred_by_name ?? "—")}</td>
+                      <td>{String(r.comment ?? "—")}</td>
+                      <td>
+                        {r.request_link ? (
+                          <a href={String(r.request_link)} target="_blank" rel="noopener noreferrer" className="table-link">
+                            Open
+                          </a>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      <td>
+                        <div style={{ display: "flex", gap: "0.5rem" }}>
+                          <button type="button" className="action-btn" onClick={() => openEdit(r)}>
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="action-btn"
+                            onClick={() => onDelete(r)}
+                            disabled={deletingId === r.id}
+                            aria-label="Delete referral"
+                          >
+                            {deletingId === r.id ? "…" : "🗑️"}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="pagination">
+              <button type="button" disabled={!hasPrevApplied} onClick={() => setAppliedPage((p) => p - 1)}>
+                Prev
+              </button>
+              <span>Page {appliedPage}</span>
+              <button type="button" disabled={!hasNextApplied} onClick={() => setAppliedPage((p) => p + 1)}>
+                Next
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+
       {editing && (
         <div className="modal-overlay" onClick={() => !isSaving && setEditing(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -388,7 +486,7 @@ export default function ReferralsPage() {
               </div>
               {movesToJobs && (
                 <p className="referral-hint">
-                  Saving as &quot;{editStatus}&quot; will create a job and remove this row from the referral sheet.
+                  Saving as &quot;{editStatus}&quot; will create a job and move this row to Referral Records.
                 </p>
               )}
               <div className="modal-actions">

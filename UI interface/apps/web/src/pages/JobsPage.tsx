@@ -17,7 +17,15 @@ import { formatTableDate } from "../lib/formatDate";
 import { deleteJob, getJobs, getJobsTrend, updateJob, type JobsTrendData } from "../lib/api";
 
 const LIMIT = 25;
-const REFERRAL_OPTIONS = ["", "Yes", "No", "Pending", "Applied without referral"];
+const REFERRAL_OPTIONS = ["", "Requested", "Yes", "No"];
+
+function normalizeReferralStatus(value: unknown): "Requested" | "Yes" | "No" | "" {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (!raw) return "";
+  if (raw === "requested") return "Requested";
+  if (raw === "yes") return "Yes";
+  return "No";
+}
 
 type SortField = "date_saved" | "company" | "role" | "referral_status" | "job_link";
 type SortOrder = "asc" | "desc";
@@ -121,6 +129,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
   });
   const [isSaving, setIsSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<number | string | null>(null);
+  const [archivingId, setArchivingId] = useState<number | string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -203,8 +212,11 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
       company: String(job.company ?? ""),
       location_raw: String(job.location_raw ?? ""),
       job_link: String(job.job_link ?? ""),
-      keyword_matching: String((job as any).keyword_matching ?? "Medium"),
-      referral_status: String(job.referral_status ?? ""),
+      keyword_matching:
+        String((job as any).keyword_matching ?? "Medium").trim().toLowerCase() === "week"
+          ? "Weak"
+          : String((job as any).keyword_matching ?? "Medium"),
+      referral_status: normalizeReferralStatus(job.referral_status),
       response_status: String(job.response_status ?? ""),
       application_status: String(job.application_status ?? "Applied"),
       notes: String(job.notes ?? ""),
@@ -297,6 +309,28 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     }
   }
 
+  async function onArchive(job: Record<string, unknown>) {
+    const id = job.id as number | string | undefined;
+    if (id === undefined || id === null) return;
+    const company = String(job.company ?? "").trim();
+    const role = String(job.role ?? "").trim();
+    const label = [company, role].filter(Boolean).join(" — ");
+    const confirmed = window.confirm(
+      `Archive this application${label ? ` (${label})` : ""}? It will move to Archive.`,
+    );
+    if (!confirmed) return;
+    try {
+      setError("");
+      setArchivingId(id);
+      await updateJob(id, { application_status: "Rejected" });
+      await load();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setArchivingId(null);
+    }
+  }
+
   function getStatusMeta(raw: string) {
     const value = String(raw || "").trim().toLowerCase();
     if (value === "rejected") return { label: "Rejected", cls: "status-chip status-chip--rejected" };
@@ -306,10 +340,10 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
   }
 
   function getKeywordMeta(raw: string) {
-    const value = String(raw || "Medium").trim();
-    if (value === "Strong") return { label: "Strong", cls: "status-chip status-chip--keyword-strong" };
-    if (value === "Week") return { label: "Week", cls: "status-chip status-chip--keyword-week" };
-    return { label: "Medium", cls: "status-chip status-chip--keyword-medium" };
+    const value = String(raw || "Medium").trim().toLowerCase();
+    if (value === "strong") return { label: "Strong", cls: "" };
+    if (value === "weak" || value === "week") return { label: "Weak", cls: "" };
+    return { label: "Medium", cls: "" };
   }
 
   function capitalizeFirst(value: string) {
@@ -683,10 +717,9 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                   {sortedData.map((j) => (
                     <tr
                       key={String(j.id)}
-                      className={`tr-hover ${String(j.referral_status ?? "") === "Yes" ? "data-referral" : ""} ${
+                      className={`tr-hover ${normalizeReferralStatus(j.referral_status) === "Yes" ? "data-referral" : ""} ${
                         String(j.application_status ?? "") === "Rejected" ? "data-rejected" : ""
-                      } ${String(j.referral_status ?? "") === "Pending" ? "data-pending" : ""} ${
-                        String(j.referral_status ?? "") === "No" ? "data-no" : ""
+                      } ${normalizeReferralStatus(j.referral_status) === "No" ? "data-no" : ""
                       }`}
                     >
                       <td>
@@ -704,7 +737,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                           </div>
                         </div>
                       </td>
-                      <td>{String(j.referral_status ?? "-")}</td>
+                      <td>{normalizeReferralStatus(j.referral_status) || "-"}</td>
                       <td>
                         <span className={getKeywordMeta(String((j as any).keyword_matching ?? "Medium")).cls}>
                           {getKeywordMeta(String((j as any).keyword_matching ?? "Medium")).label}
@@ -734,6 +767,18 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                           <button type="button" className="action-btn" onClick={() => openEdit(j)}>
                             Edit
                           </button>
+                          {statusFilter !== "rejected" ? (
+                            <button
+                              type="button"
+                              className="action-btn"
+                              onClick={() => onArchive(j)}
+                              disabled={archivingId === j.id}
+                              title="Archive application"
+                              aria-label="Archive application"
+                            >
+                              {archivingId === j.id ? "…" : "Archive"}
+                            </button>
+                          ) : null}
                           <button
                             type="button"
                             className="action-btn"
@@ -805,7 +850,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                 >
                   <option value="Strong">Strong</option>
                   <option value="Medium">Medium</option>
-                  <option value="Week">Week</option>
+                  <option value="Weak">Weak</option>
                 </select>
                 <p className="form-helper">
                   {editForm.keyword_matching === "Strong"
