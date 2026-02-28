@@ -8,6 +8,7 @@
     "build": "wrangler deploy --dry-run",
     "deploy": "wrangler deploy",
     "migrate": "node scripts/run-migrations.js",
+    "audit:dashboard": "node scripts/audit-dashboard-api.mjs",
     "seed:users": "node scripts/seed-users.js",
     "seed:users:reset": "node scripts/seed-users.js --reset"
   },

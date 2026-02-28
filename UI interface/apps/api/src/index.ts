@@ -102,7 +102,6 @@ app.get("/api/dashboard/summary", async (c) => {
   const rawAnchor = c.req.query("anchorDay");
   const anchorDayValid = rawAnchor && /^\d{4}-\d{2}-\d{2}$/.test(rawAnchor);
   const anchorDay = anchorDayValid ? rawAnchor : null;
-  const [jobCount] = await query<{ count: string }>(env, "SELECT COUNT(*)::text AS count FROM jobs WHERE user_id = $1", [userId]);
   const [referralCount] = await query<{ count: string }>(env, "SELECT COUNT(*)::text AS count FROM referrals WHERE user_id = $1", [userId]);
   const [pendingCount] = await query<{ count: string }>(
     env,
@@ -111,28 +110,62 @@ app.get("/api/dashboard/summary", async (c) => {
   );
   const [jobsThisMonth] = await query<{ count: string }>(
     env,
-    "SELECT COUNT(*)::text AS count FROM jobs WHERE user_id = $1 AND date_saved >= DATE_TRUNC('month', COALESCE($2::date, CURRENT_DATE))",
+    `
+    SELECT COUNT(*)::text AS count
+    FROM jobs
+    WHERE user_id = $1
+      AND date_saved IS NOT NULL
+      AND LOWER(TRIM(COALESCE(application_status, 'Applied'))) != 'rejected'
+      AND date_saved >= DATE_TRUNC('month', COALESCE($2::date, CURRENT_DATE))
+      AND date_saved::date <= COALESCE($2::date, CURRENT_DATE)
+    `,
     [userId, anchorDay],
   );
   const [jobsThisWeek] = await query<{ count: string }>(
     env,
-    "SELECT COUNT(*)::text AS count FROM jobs WHERE user_id = $1 AND date_saved >= DATE_TRUNC('week', COALESCE($2::date, CURRENT_DATE))",
+    `
+    SELECT COUNT(*)::text AS count
+    FROM jobs
+    WHERE user_id = $1
+      AND date_saved IS NOT NULL
+      AND LOWER(TRIM(COALESCE(application_status, 'Applied'))) != 'rejected'
+      AND date_saved >= DATE_TRUNC('week', COALESCE($2::date, CURRENT_DATE))
+      AND date_saved::date <= COALESCE($2::date, CURRENT_DATE)
+    `,
     [userId, anchorDay],
   );
   const [jobsToday] = await query<{ count: string }>(
     env,
-    "SELECT COUNT(*)::text AS count FROM jobs WHERE user_id = $1 AND date_saved::date = COALESCE($2::date, CURRENT_DATE)",
+    `
+    SELECT COUNT(*)::text AS count
+    FROM jobs
+    WHERE user_id = $1
+      AND date_saved IS NOT NULL
+      AND LOWER(TRIM(COALESCE(application_status, 'Applied'))) != 'rejected'
+      AND date_saved::date = COALESCE($2::date, CURRENT_DATE)
+    `,
     [userId, anchorDay],
   );
   const [jobsWithReferral] = await query<{ count: string }>(
     env,
-    "SELECT COUNT(*)::text AS count FROM jobs WHERE user_id = $1 AND TRIM(COALESCE(referral_status, '')) = 'Yes'",
+    `
+    SELECT COUNT(*)::text AS count
+    FROM jobs
+    WHERE user_id = $1
+      AND LOWER(TRIM(COALESCE(application_status, 'Applied'))) != 'rejected'
+      AND TRIM(COALESCE(referral_status, '')) = 'Yes'
+    `,
+    [userId],
+  );
+  const [activeJobCount] = await query<{ count: string }>(
+    env,
+    "SELECT COUNT(*)::text AS count FROM jobs WHERE user_id = $1 AND LOWER(TRIM(COALESCE(application_status, 'Applied'))) != 'rejected'",
     [userId],
   );
 
   const [rejectedCount] = await query<{ count: string }>(
     env,
-    "SELECT COUNT(*)::text AS count FROM jobs WHERE user_id = $1 AND application_status = 'Rejected'",
+    "SELECT COUNT(*)::text AS count FROM jobs WHERE user_id = $1 AND LOWER(TRIM(COALESCE(application_status, ''))) = 'rejected'",
     [userId],
   );
 
@@ -142,7 +175,7 @@ app.get("/api/dashboard/summary", async (c) => {
     SELECT d.day::text AS day, COALESCE(j.cnt, 0)::int AS total
     FROM (
       SELECT generate_series(
-        (COALESCE($2::date, CURRENT_DATE) - (${days}::text || ' days')::interval)::date,
+        (COALESCE($2::date, CURRENT_DATE) - (${days - 1}::text || ' days')::interval)::date,
         COALESCE($2::date, CURRENT_DATE)::date,
         '1 day'::interval
       )::date AS day
@@ -152,7 +185,7 @@ app.get("/api/dashboard/summary", async (c) => {
       FROM jobs
       WHERE user_id = $1
         AND date_saved IS NOT NULL
-        AND COALESCE(application_status, 'Applied') != 'Rejected'
+        AND LOWER(TRIM(COALESCE(application_status, 'Applied'))) != 'rejected'
       GROUP BY DATE(date_saved)
     ) j ON j.day = d.day
     ORDER BY d.day ASC
@@ -166,7 +199,7 @@ app.get("/api/dashboard/summary", async (c) => {
     SELECT d.day::text AS day, COALESCE(r.cnt, 0)::int AS total
     FROM (
       SELECT generate_series(
-        (COALESCE($2::date, CURRENT_DATE) - (${days}::text || ' days')::interval)::date,
+        (COALESCE($2::date, CURRENT_DATE) - (${days - 1}::text || ' days')::interval)::date,
         COALESCE($2::date, CURRENT_DATE)::date,
         '1 day'::interval
       )::date AS day
@@ -176,7 +209,7 @@ app.get("/api/dashboard/summary", async (c) => {
       FROM jobs
       WHERE user_id = $1
         AND date_saved IS NOT NULL
-        AND COALESCE(application_status, 'Applied') != 'Rejected'
+        AND LOWER(TRIM(COALESCE(application_status, 'Applied'))) != 'rejected'
         AND TRIM(COALESCE(referral_status, '')) = 'Yes'
       GROUP BY DATE(date_saved)
     ) r ON r.day = d.day
@@ -191,7 +224,7 @@ app.get("/api/dashboard/summary", async (c) => {
     SELECT d.day::text AS day, COALESCE(r.cnt, 0)::int AS total
     FROM (
       SELECT generate_series(
-        (COALESCE($2::date, CURRENT_DATE) - (${days}::text || ' days')::interval)::date,
+        (COALESCE($2::date, CURRENT_DATE) - (${days - 1}::text || ' days')::interval)::date,
         COALESCE($2::date, CURRENT_DATE)::date,
         '1 day'::interval
       )::date AS day
@@ -200,7 +233,7 @@ app.get("/api/dashboard/summary", async (c) => {
       SELECT DATE(COALESCE(archive_date, date_saved)) AS day, COUNT(*)::int AS cnt
       FROM jobs
       WHERE user_id = $1
-        AND application_status = 'Rejected'
+        AND LOWER(TRIM(COALESCE(application_status, ''))) = 'rejected'
         AND (archive_date IS NOT NULL OR date_saved IS NOT NULL)
       GROUP BY DATE(COALESCE(archive_date, date_saved))
     ) r ON r.day = d.day
@@ -215,7 +248,7 @@ app.get("/api/dashboard/summary", async (c) => {
     SELECT d.day::text AS day, COALESCE(p.cnt, 0)::int AS total
     FROM (
       SELECT generate_series(
-        (COALESCE($2::date, CURRENT_DATE) - (${days}::text || ' days')::interval)::date,
+        (COALESCE($2::date, CURRENT_DATE) - (${days - 1}::text || ' days')::interval)::date,
         COALESCE($2::date, CURRENT_DATE)::date,
         '1 day'::interval
       )::date AS day
@@ -244,7 +277,7 @@ app.get("/api/dashboard/summary", async (c) => {
       COUNT(*)::int AS total
     FROM jobs
     WHERE user_id = $1
-      AND COALESCE(application_status, 'Applied') != 'Rejected'
+      AND LOWER(TRIM(COALESCE(application_status, 'Applied'))) != 'rejected'
     GROUP BY 1
     `,
     [userId],
@@ -274,7 +307,10 @@ app.get("/api/dashboard/summary", async (c) => {
     counts AS (
       SELECT DATE_TRUNC('week', date_saved)::date AS week_start, COUNT(*)::int AS total
       FROM jobs
-      WHERE user_id = $1 AND date_saved IS NOT NULL
+      WHERE user_id = $1
+        AND date_saved IS NOT NULL
+        AND LOWER(TRIM(COALESCE(application_status, 'Applied'))) != 'rejected'
+        AND date_saved::date <= COALESCE($2::date, CURRENT_DATE)
       GROUP BY DATE_TRUNC('week', date_saved)
     )
     SELECT w.week_start::text AS week, COALESCE(c.total, 0)::int AS total
@@ -316,7 +352,11 @@ app.get("/api/dashboard/summary", async (c) => {
     `
     SELECT TO_CHAR(DATE_TRUNC('month', date_saved), 'YYYY-MM') AS month, COUNT(*)::int AS total
     FROM jobs
-    WHERE user_id = $1 AND date_saved IS NOT NULL AND date_saved >= (COALESCE($2::date, CURRENT_DATE) - INTERVAL '12 months')
+    WHERE user_id = $1
+      AND date_saved IS NOT NULL
+      AND LOWER(TRIM(COALESCE(application_status, 'Applied'))) != 'rejected'
+      AND date_saved >= (COALESCE($2::date, CURRENT_DATE) - INTERVAL '12 months')
+      AND date_saved::date <= COALESCE($2::date, CURRENT_DATE)
     GROUP BY DATE_TRUNC('month', date_saved)
     ORDER BY month ASC
     LIMIT 12
@@ -326,7 +366,7 @@ app.get("/api/dashboard/summary", async (c) => {
 
   return c.json({
     kpis: {
-      jobs: Number(jobCount?.count ?? 0),
+      jobs: Number(activeJobCount?.count ?? 0),
       referrals: Number(referralCount?.count ?? 0),
       pending: Number(pendingCount?.count ?? 0),
       rejected: Number(rejectedCount?.count ?? 0),
@@ -367,7 +407,7 @@ app.get("/api/jobs/trend", async (c) => {
       COALESCE(rejected.cnt, 0)::int AS rejected
     FROM (
       SELECT generate_series(
-        (${anchorDateSql} - (${days}::text || ' days')::interval)::date,
+        (${anchorDateSql} - (${days - 1}::text || ' days')::interval)::date,
         ${anchorDateSql}::date,
         '1 day'::interval
       )::date AS day
@@ -377,14 +417,14 @@ app.get("/api/jobs/trend", async (c) => {
       FROM jobs
       WHERE user_id = $1 
         AND date_saved IS NOT NULL
-        AND (application_status IS NULL OR application_status != 'Rejected')
+        AND LOWER(TRIM(COALESCE(application_status, 'Applied'))) != 'rejected'
       GROUP BY DATE(date_saved)
     ) applied ON applied.day = d.day
     LEFT JOIN (
       SELECT DATE(COALESCE(archive_date, date_saved)) AS day, COUNT(*)::int AS cnt
       FROM jobs
       WHERE user_id = $1 
-        AND application_status = 'Rejected'
+        AND LOWER(TRIM(COALESCE(application_status, ''))) = 'rejected'
         AND (archive_date IS NOT NULL OR date_saved IS NOT NULL)
       GROUP BY DATE(COALESCE(archive_date, date_saved))
     ) rejected ON rejected.day = d.day
@@ -573,9 +613,9 @@ app.get("/api/jobs", async (c) => {
   }
   // statusFilter semantics: 'rejected' => only Rejected, 'active' or empty => exclude Rejected, 'all' => no filter
   if (!statusFilter || statusFilter === "active") {
-    whereParts.push(`COALESCE(application_status, 'Applied') != 'Rejected'`);
+    whereParts.push(`LOWER(TRIM(COALESCE(application_status, 'Applied'))) != 'rejected'`);
   } else if (statusFilter === "rejected") {
-    whereParts.push(`application_status = 'Rejected'`);
+    whereParts.push(`LOWER(TRIM(COALESCE(application_status, ''))) = 'rejected'`);
   }
 
   const whereClause = ` WHERE ${whereParts.join(" AND ")}`;
@@ -914,7 +954,7 @@ app.patch("/api/jobs/:id", async (c) => {
       notes = COALESCE($10, notes),
       date_saved = COALESCE($11::date, date_saved),
       archive_date = CASE
-        WHEN $9 = 'Rejected' THEN COALESCE(archive_date, CURRENT_DATE)
+        WHEN LOWER(TRIM(COALESCE($9, ''))) = 'rejected' THEN COALESCE(archive_date, CURRENT_DATE)
         ELSE archive_date
       END,
       updated_at = NOW()
@@ -1044,7 +1084,7 @@ app.get("/api/referrals/trend", async (c) => {
       FROM jobs
       WHERE user_id = $1
         AND date_saved IS NOT NULL
-        AND COALESCE(application_status, 'Applied') != 'Rejected'
+        AND LOWER(TRIM(COALESCE(application_status, 'Applied'))) != 'rejected'
         AND TRIM(COALESCE(referral_status, '')) = 'Yes'
       GROUP BY DATE(date_saved)
     ) rec ON rec.day = d.day
