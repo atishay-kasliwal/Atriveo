@@ -1,6 +1,0 @@
-Contact: mailto:katishay@gmail.com
-Expires: 2026-12-31T00:00:00.000Z
-Preferred-Languages: en
-Policy: https://atishaykasliwal.com/
-Canonical: https://atishaykasliwal.com/security.txt
-Acknowledgments: We appreciate responsible disclosure.
