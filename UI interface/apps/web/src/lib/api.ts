@@ -171,10 +171,14 @@ export function getReferrals(params: GetReferralsParams = {}) {
   );
 }
 
-export function getNotes(params: GetListParams & { archive?: boolean } = {}) {
-  const { page = 1, limit = 25, archive } = params as GetListParams & { archive?: boolean };
+export function getNotes(params: GetListParams & { archive?: boolean; show_on_dashboard?: boolean } = {}) {
+  const { page = 1, limit = 25, archive, show_on_dashboard } = params as GetListParams & {
+    archive?: boolean;
+    show_on_dashboard?: boolean;
+  };
   const search = new URLSearchParams({ page: String(page), limit: String(Math.min(limit, 100)) });
   if (archive) search.set("archive", "true");
+  if (show_on_dashboard) search.set("show_on_dashboard", "true");
   return request<{ page: number; limit: number; data: Array<Record<string, unknown>> }>(
     `/api/notes?${search.toString()}`
   );
@@ -191,6 +195,7 @@ export function editPending(
     company?: string;
     position_name?: string;
     pending_date?: string;
+    end_date?: string;
     comment?: string;
     link?: string;
     is_done?: boolean;
@@ -206,6 +211,7 @@ export function createPending(payload: {
   company: string;
   position_name?: string;
   pending_date?: string;
+  end_date?: string;
   comment?: string;
   link?: string;
 }) {

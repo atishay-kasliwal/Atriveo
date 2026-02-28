@@ -154,6 +154,15 @@ function formatMonth(month: string) {
   }
 }
 
+function dayWithSuffix(day: number): string {
+  const mod10 = day % 10;
+  const mod100 = day % 100;
+  if (mod10 === 1 && mod100 !== 11) return `${day}st`;
+  if (mod10 === 2 && mod100 !== 12) return `${day}nd`;
+  if (mod10 === 3 && mod100 !== 13) return `${day}rd`;
+  return `${day}th`;
+}
+
 function MtdTooltip({
   active,
   payload,
@@ -296,6 +305,35 @@ export default function DashboardPage() {
         ? summary.weeklyTrend[summary.weeklyTrend.length - 1].total ?? 0
         : 0;
 
+    const lastWeekSameWeekday = (() => {
+      if (!seriesTodayIso) return 0;
+      const todayDate = utcDateFromIsoDay(seriesTodayIso);
+      if (!todayDate) return 0;
+      const lastWeekSameWeekdayIso = isoDayAddDays(seriesTodayIso, -7);
+      return daily.find((r) => r.day === lastWeekSameWeekdayIso)?.total ?? 0;
+    })();
+
+    const lastWeekSameWeekdayLabel = (() => {
+      if (!seriesTodayIso) return "Last week";
+      const d = utcDateFromIsoDay(seriesTodayIso);
+      if (!d) return "Last week";
+      const weekday = new Intl.DateTimeFormat(undefined, { weekday: "long", timeZone: "UTC" }).format(d);
+      return `Last week on ${weekday}`;
+    })();
+
+    const lastMonthSameDay = (() => {
+      if (!todayParts) return { label: "Last month", value: 0 };
+      const prevMonth = todayParts.m === 1 ? 12 : todayParts.m - 1;
+      const prevYear = todayParts.m === 1 ? todayParts.y - 1 : todayParts.y;
+      const daysInPrevMonth = new Date(Date.UTC(prevYear, prevMonth, 0)).getUTCDate();
+      const targetDay = Math.min(todayParts.d, daysInPrevMonth);
+      const targetIso = `${prevYear}-${String(prevMonth).padStart(2, "0")}-${String(targetDay).padStart(2, "0")}`;
+      return {
+        label: `Last month on ${dayWithSuffix(targetDay)}`,
+        value: daily.find((r) => r.day === targetIso)?.total ?? 0,
+      };
+    })();
+
     return {
       jobs: summary.kpis.jobs ?? 0,
       jobsToday,
@@ -304,6 +342,10 @@ export default function DashboardPage() {
       jobsWithReferral,
       pending: summary.kpis.pending ?? 0,
       rejected: summary.kpis.rejected ?? 0,
+      lastWeekSameWeekdayLabel,
+      jobsLastWeekSameWeekday: lastWeekSameWeekday,
+      lastMonthSameDayLabel: lastMonthSameDay.label,
+      jobsLastMonthSameDay: lastMonthSameDay.value,
     };
   }, [
     summary.dailyTrend,
@@ -422,6 +464,8 @@ export default function DashboardPage() {
         referral: [],
         pending: [],
         rejects: [],
+        lastWeekWindow: [],
+        lastMonthWindow: [],
       };
     }
 
@@ -467,6 +511,28 @@ export default function DashboardPage() {
     const pending = last14Days.map((day) => pendingMap.get(day) ?? 0);
     const rejects = last14Days.map((day) => rejectsMap.get(day) ?? 0);
 
+    let lastWeekWindow: number[] = [];
+    if (todayDate) {
+      const dayOfWeek = todayDate.getUTCDay();
+      const daysFromMonday = (dayOfWeek + 6) % 7;
+      const thisWeekStartIso = isoDayAddDays(seriesTodayIso, -daysFromMonday);
+      const lastWeekStartIso = isoDayAddDays(thisWeekStartIso, -7);
+      const lastWeekEndIso = isoDayAddDays(thisWeekStartIso, -1);
+      lastWeekWindow = daily
+        .filter((d) => String(d.day) >= lastWeekStartIso && String(d.day) <= lastWeekEndIso)
+        .map((d) => d.total ?? 0);
+    }
+
+    let lastMonthWindow: number[] = [];
+    if (todayParts) {
+      const prevMonth = todayParts.m === 1 ? 12 : todayParts.m - 1;
+      const prevYear = todayParts.m === 1 ? todayParts.y - 1 : todayParts.y;
+      const prevMonthKey = `${prevYear}-${String(prevMonth).padStart(2, "0")}`;
+      lastMonthWindow = daily
+        .filter((d) => String(d.day).startsWith(prevMonthKey))
+        .map((d) => d.total ?? 0);
+    }
+
     return {
       total,
       thisMonth,
@@ -475,6 +541,8 @@ export default function DashboardPage() {
       referral,
       pending,
       rejects,
+      lastWeekWindow,
+      lastMonthWindow,
     };
   }, [summary.dailyTrend, summary.referralDailyTrend, summary.pendingDailyTrend, summary.rejectedDailyTrend]);
 
@@ -642,6 +710,24 @@ export default function DashboardPage() {
         <KpiCard label="Applications this month" value={derivedKpis.jobsThisMonth} sparkline={kpiSparklineByMetric.thisMonth} />
         <KpiCard label="Applications this week" value={derivedKpis.jobsThisWeek} sparkline={kpiSparklineByMetric.thisWeek} />
         <KpiCard label="Applications today" value={derivedKpis.jobsToday} sparkline={kpiSparklineByMetric.todayWindow} />
+        <KpiCard
+          label={derivedKpis.lastWeekSameWeekdayLabel}
+          value={derivedKpis.jobsLastWeekSameWeekday}
+          sparkline={
+            kpiSparklineByMetric.lastWeekWindow.length > 1
+              ? kpiSparklineByMetric.lastWeekWindow
+              : Array(7).fill(derivedKpis.jobsLastWeekSameWeekday)
+          }
+        />
+        <KpiCard
+          label={derivedKpis.lastMonthSameDayLabel}
+          value={derivedKpis.jobsLastMonthSameDay}
+          sparkline={
+            kpiSparklineByMetric.lastMonthWindow.length > 1
+              ? kpiSparklineByMetric.lastMonthWindow
+              : Array(14).fill(derivedKpis.jobsLastMonthSameDay)
+          }
+        />
         <KpiCard
           label="Total applications with referral"
           value={derivedKpis.jobsWithReferral}

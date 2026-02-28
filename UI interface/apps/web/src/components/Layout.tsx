@@ -28,6 +28,7 @@ const emptyPendingForm = {
   company: "",
   position_name: "",
   pending_date: getLocalISODate(),
+  end_date: "",
   comment: "",
   link: "",
 };
@@ -42,6 +43,8 @@ const emptyNoteForm = {
   title: "",
   currentDate: getLocalISODate(),
   lastDate: getLocalISODatePlusDays(7),
+  priority: "High",
+  show_on_dashboard: "Yes",
   note: "",
 };
 
@@ -73,6 +76,7 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
           request_date: form.date_saved || getLocalISODate(),
           request_link: form.job_link.trim() || undefined,
           referral_received: form.referral_status,
+          keyword_matching: form.keyword_matching,
           comment: form.notes.trim() || undefined,
         });
         setForm({ ...emptyJobForm, date_saved: getLocalISODate() });
@@ -116,6 +120,7 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
         company: pendingForm.company.trim(),
         position_name: pendingForm.position_name.trim() || undefined,
         pending_date: pendingForm.pending_date || undefined,
+        end_date: pendingForm.end_date || undefined,
         comment: pendingForm.comment.trim() || undefined,
         link: pendingForm.link.trim() || undefined,
       });
@@ -143,9 +148,6 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
       if (noteForm.title.trim()) {
         lines.push(noteForm.title.trim());
       }
-      if (noteForm.lastDate.trim()) {
-        lines.push(`Last date: ${noteForm.lastDate.trim()}`);
-      }
       if (noteForm.note.trim()) {
         lines.push("");
         lines.push(noteForm.note.trim());
@@ -153,6 +155,8 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
       await createNote({
         note_date: noteForm.currentDate || getLocalISODate(),
         comments: lines.join("\n"),
+        priority: noteForm.priority,
+        show_on_dashboard: noteForm.show_on_dashboard === "Yes",
       });
       setNoteForm({
         ...emptyNoteForm,
@@ -339,6 +343,12 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
                 onChange={(e) => setPendingForm((p) => ({ ...p, pending_date: e.target.value }))}
               />
               <input
+                type="date"
+                placeholder="End date"
+                value={pendingForm.end_date}
+                onChange={(e) => setPendingForm((p) => ({ ...p, end_date: e.target.value }))}
+              />
+              <input
                 placeholder="Comment"
                 value={pendingForm.comment}
                 onChange={(e) => setPendingForm((p) => ({ ...p, comment: e.target.value }))}
@@ -367,37 +377,64 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
 
       {showNoteModal && (
         <div className="modal-overlay" onClick={() => !isSaving && setShowNoteModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal modal--note" onClick={(e) => e.stopPropagation()}>
             <h3>Add Note</h3>
             {modalError ? <div className="auth-error">{modalError}</div> : null}
-            <form className="form" onSubmit={onCreateNote}>
-              <input
-                placeholder="Title *"
-                value={noteForm.title}
-                onChange={(e) => setNoteForm((p) => ({ ...p, title: e.target.value }))}
-              />
-              <div className="form-row">
-                <label className="form-label">Current date</label>
+            <form className="form form--note-split" onSubmit={onCreateNote}>
+              <div className="note-split-left">
                 <input
-                  type="date"
-                  value={noteForm.currentDate}
-                  onChange={(e) => setNoteForm((p) => ({ ...p, currentDate: e.target.value }))}
+                  placeholder="Title *"
+                  value={noteForm.title}
+                  onChange={(e) => setNoteForm((p) => ({ ...p, title: e.target.value }))}
+                />
+                <div className="form-row">
+                  <label className="form-label">Current date</label>
+                  <input
+                    type="date"
+                    value={noteForm.currentDate}
+                    onChange={(e) => setNoteForm((p) => ({ ...p, currentDate: e.target.value }))}
+                  />
+                </div>
+                <div className="form-row">
+                  <label className="form-label">Last date</label>
+                  <input
+                    type="date"
+                    value={noteForm.lastDate}
+                    onChange={(e) => setNoteForm((p) => ({ ...p, lastDate: e.target.value }))}
+                  />
+                </div>
+                <div className="form-row">
+                  <label className="form-label">Priority</label>
+                  <select
+                    className="form-select"
+                    value={noteForm.priority}
+                    onChange={(e) => setNoteForm((p) => ({ ...p, priority: e.target.value }))}
+                  >
+                    <option value="High">High</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Low">Low</option>
+                  </select>
+                </div>
+                <div className="form-row">
+                  <label className="form-label">Show on Dashboard</label>
+                  <select
+                    className="form-select"
+                    value={noteForm.show_on_dashboard}
+                    onChange={(e) => setNoteForm((p) => ({ ...p, show_on_dashboard: e.target.value }))}
+                  >
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                  </select>
+                </div>
+              </div>
+              <div className="note-split-right">
+                <textarea
+                  placeholder="Note"
+                  rows={10}
+                  value={noteForm.note}
+                  onChange={(e) => setNoteForm((p) => ({ ...p, note: e.target.value }))}
                 />
               </div>
-              <div className="form-row">
-                <label className="form-label">Last date</label>
-                <input
-                  type="date"
-                  value={noteForm.lastDate}
-                  onChange={(e) => setNoteForm((p) => ({ ...p, lastDate: e.target.value }))}
-                />
-              </div>
-              <textarea
-                placeholder="Note"
-                rows={4}
-                value={noteForm.note}
-                onChange={(e) => setNoteForm((p) => ({ ...p, note: e.target.value }))}
-              />
               <div className="modal-actions">
                 <button type="button" className="action-btn" onClick={() => !isSaving && setShowNoteModal(false)} disabled={isSaving}>
                   Cancel

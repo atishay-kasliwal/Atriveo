@@ -152,6 +152,7 @@ export default function ReferralsPage() {
           company: String(editing.company ?? "").trim(),
           role: (editing.request_log as string)?.trim() || "(From referral)",
           job_link: jobLink,
+          keyword_matching: String((editing as any).keyword_matching ?? "Medium"),
           referral_status: newStatus,
           notes: (editing.comment as string)?.trim() || undefined,
         });

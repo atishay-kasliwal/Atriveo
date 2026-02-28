@@ -545,6 +545,7 @@ const referralInput = z.object({
   request_date: z.string().optional(),
   request_link: z.string().url().optional(),
   referral_received: z.string().optional(),
+  keyword_matching: z.enum(["Strong", "Medium", "Week"]).optional(),
   referred_by_name: z.string().optional(),
   comment: z.string().optional(),
 });
@@ -570,8 +571,8 @@ app.post("/api/referrals", async (c) => {
   const [row] = await query(
     c.env,
     `
-    INSERT INTO referrals (user_id, source, company, request_log, request_date, updated_date, request_link, referral_received, referred_by_name, comment)
-    VALUES ($1, 'manual', $2, $3, $4, $5::date, COALESCE($5::date, CURRENT_DATE), $6, $7, $8, $9)
+    INSERT INTO referrals (user_id, source, company, request_log, request_date, updated_date, request_link, referral_received, keyword_matching, referred_by_name, comment)
+    VALUES ($1, 'manual', $2, $3, $4::date, COALESCE($4::date, CURRENT_DATE), $5, $6, COALESCE($7, 'Medium'), $8, $9)
     RETURNING *
     `,
     [
@@ -581,6 +582,7 @@ app.post("/api/referrals", async (c) => {
       p.request_date ?? null,
       p.request_link ?? null,
       p.referral_received ?? null,
+      p.keyword_matching ?? null,
       p.referred_by_name ?? null,
       p.comment ?? null,
     ],
@@ -651,6 +653,7 @@ const referralUpdateInput = z.object({
   request_date: z.string().optional(),
   request_link: z.string().url().optional().nullable(),
   referral_received: z.string().optional().nullable(),
+  keyword_matching: z.enum(["Strong", "Medium", "Week"]).optional().nullable(),
   referred_by_name: z.string().optional().nullable(),
   comment: z.string().optional(),
 });
@@ -683,6 +686,10 @@ app.patch("/api/referrals/:id", async (c) => {
   if (p.referral_received !== undefined) {
     updates.push(`referral_received = $${i++}`);
     values.push(p.referral_received);
+  }
+  if (p.keyword_matching !== undefined) {
+    updates.push(`keyword_matching = $${i++}`);
+    values.push(p.keyword_matching);
   }
   if (p.referred_by_name !== undefined) {
     updates.push(`referred_by_name = $${i++}`);
@@ -722,12 +729,15 @@ app.get("/api/notes", async (c) => {
   const limit = Math.min(Number(c.req.query("limit") ?? 25), 100);
   const offset = (page - 1) * limit;
   const showArchive = c.req.query("archive") === "true";
+  const showOnDashboard = c.req.query("show_on_dashboard");
+  const onlyDashboard = showOnDashboard === "true";
+  const whereDashboard = onlyDashboard ? " AND show_on_dashboard = TRUE" : "";
   const rows = await query(
     c.env,
     `
     SELECT *
     FROM daily_notes
-    WHERE user_id = $1 AND is_done = $2
+    WHERE user_id = $1 AND is_done = $2${whereDashboard}
     ORDER BY id DESC
     LIMIT $3 OFFSET $4
     `,
@@ -739,6 +749,8 @@ app.get("/api/notes", async (c) => {
 const noteInput = z.object({
   note_date: z.string().optional(),
   comments: z.string().min(1),
+  priority: z.enum(["High", "Medium", "Low", "Archive"]).optional(),
+  show_on_dashboard: z.boolean().optional(),
 });
 
 app.post("/api/notes", async (c) => {
@@ -748,8 +760,8 @@ app.post("/api/notes", async (c) => {
   const p = parsed.data;
   const [row] = await query(
     c.env,
-    "INSERT INTO daily_notes (user_id, source, note_date, comments, is_done) VALUES ($1, 'manual', $2, $3, FALSE) RETURNING *",
-    [userId, p.note_date ?? null, p.comments],
+    "INSERT INTO daily_notes (user_id, source, note_date, comments, priority, show_on_dashboard, is_done) VALUES ($1, 'manual', $2, $3, $4, $5, FALSE) RETURNING *",
+    [userId, p.note_date ?? null, p.comments, p.priority ?? "Medium", p.show_on_dashboard ?? true],
   );
   return c.json(row, 201);
 });
@@ -757,6 +769,8 @@ app.post("/api/notes", async (c) => {
 const noteEditInput = z.object({
   note_date: z.string().optional(),
   comments: z.string().optional(),
+  priority: z.enum(["High", "Medium", "Low", "Archive"]).optional(),
+  show_on_dashboard: z.boolean().optional(),
   is_done: z.boolean().optional(),
 });
 
@@ -776,6 +790,14 @@ app.patch("/api/notes/:id", async (c) => {
   if (p.comments !== undefined) {
     updates.push(`comments = $${i++}`);
     values.push(p.comments);
+  }
+  if (p.priority !== undefined) {
+    updates.push(`priority = $${i++}`);
+    values.push(p.priority);
+  }
+  if (p.show_on_dashboard !== undefined) {
+    updates.push(`show_on_dashboard = $${i++}`);
+    values.push(p.show_on_dashboard);
   }
   if (p.is_done !== undefined) {
     updates.push(`is_done = $${i++}`);
@@ -829,6 +851,7 @@ const pendingPostInput = z.object({
   company: z.string().min(1),
   position_name: z.string().optional(),
   pending_date: z.string().optional(),
+  end_date: z.string().optional(),
   comment: z.string().optional(),
   link: z.union([z.string().url(), z.literal("")]).optional(),
 });
@@ -839,13 +862,14 @@ app.post("/api/pending", async (c) => {
   const p = parsed.data;
   const [row] = await query(
     c.env,
-    `INSERT INTO pending_items (user_id, source, company, position_name, pending_date, comment, link)
-     VALUES ($1, 'manual', $2, $3, $4::date, $5, $6) RETURNING *`,
+    `INSERT INTO pending_items (user_id, source, company, position_name, pending_date, end_date, comment, link)
+     VALUES ($1, 'manual', $2, $3, $4::date, $5::date, $6, $7) RETURNING *`,
     [
       userId,
       p.company.trim(),
       p.position_name?.trim() || null,
       p.pending_date || null,
+      p.end_date || null,
       p.comment?.trim() || null,
       p.link?.trim() || null,
     ],
@@ -857,6 +881,7 @@ const pendingEditInput = z.object({
   company: z.string().min(1).optional(),
   position_name: z.string().optional(),
   pending_date: z.string().optional(),
+  end_date: z.string().optional(),
   comment: z.string().optional(),
   link: z.union([z.string().url(), z.literal("")]).optional(),
   is_done: z.boolean().optional(),
@@ -882,6 +907,10 @@ app.patch("/api/pending/:id", async (c) => {
   if (p.pending_date !== undefined) {
     updates.push(`pending_date = $${i++}`);
     values.push(p.pending_date);
+  }
+  if (p.end_date !== undefined) {
+    updates.push(`end_date = $${i++}`);
+    values.push(p.end_date);
   }
   if (p.comment !== undefined) {
     updates.push(`comment = $${i++}`);
