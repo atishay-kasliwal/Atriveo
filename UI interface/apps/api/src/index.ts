@@ -150,7 +150,9 @@ app.get("/api/dashboard/summary", async (c) => {
     LEFT JOIN (
       SELECT DATE(date_saved) AS day, COUNT(*)::int AS cnt
       FROM jobs
-      WHERE user_id = $1 AND date_saved IS NOT NULL
+      WHERE user_id = $1
+        AND date_saved IS NOT NULL
+        AND COALESCE(application_status, 'Applied') != 'Rejected'
       GROUP BY DATE(date_saved)
     ) j ON j.day = d.day
     ORDER BY d.day ASC
@@ -174,6 +176,7 @@ app.get("/api/dashboard/summary", async (c) => {
       FROM jobs
       WHERE user_id = $1
         AND date_saved IS NOT NULL
+        AND COALESCE(application_status, 'Applied') != 'Rejected'
         AND TRIM(COALESCE(referral_status, '')) = 'Yes'
       GROUP BY DATE(date_saved)
     ) r ON r.day = d.day
@@ -241,6 +244,7 @@ app.get("/api/dashboard/summary", async (c) => {
       COUNT(*)::int AS total
     FROM jobs
     WHERE user_id = $1
+      AND COALESCE(application_status, 'Applied') != 'Rejected'
     GROUP BY 1
     `,
     [userId],
@@ -1040,6 +1044,7 @@ app.get("/api/referrals/trend", async (c) => {
       FROM jobs
       WHERE user_id = $1
         AND date_saved IS NOT NULL
+        AND COALESCE(application_status, 'Applied') != 'Rejected'
         AND TRIM(COALESCE(referral_status, '')) = 'Yes'
       GROUP BY DATE(date_saved)
     ) rec ON rec.day = d.day
