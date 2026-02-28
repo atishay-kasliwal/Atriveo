@@ -6,6 +6,7 @@ export default function NotesPreview() {
   const [rows, setRows] = useState<Array<Record<string, any>>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [selectedNote, setSelectedNote] = useState<Record<string, any> | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -54,17 +55,19 @@ export default function NotesPreview() {
                   .join("\n");
                 return (
                   <li key={String(n.id)} className="notes-preview-card">
-                    <div className="pending-item-head">
-                      <div className="title-row">
-                        <strong>{firstLine || "(Untitled note)"}</strong>
-                        {n.note_date ? (
-                          <span className="pending-meta">{String(n.note_date)}</span>
-                        ) : null}
+                    <button type="button" className="notes-preview-open" onClick={() => setSelectedNote(n)}>
+                      <div className="pending-item-head">
+                        <div className="title-row">
+                          <strong>{firstLine || "(Untitled note)"}</strong>
+                          {n.note_date ? (
+                            <span className="pending-meta">{String(n.note_date)}</span>
+                          ) : null}
+                        </div>
                       </div>
-                    </div>
-                    {subtitle ? (
-                      <div className="notes-preview-body">{subtitle}</div>
-                    ) : null}
+                      {subtitle ? (
+                        <div className="notes-preview-body">{subtitle}</div>
+                      ) : null}
+                    </button>
                   </li>
                 );
               })}
@@ -72,6 +75,27 @@ export default function NotesPreview() {
           </div>
         </>
       )}
+
+      {selectedNote ? (
+        <div className="modal-overlay" onClick={() => setSelectedNote(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>{String(selectedNote.comments ?? "").split("\n")[0]?.trim() || "(Untitled note)"}</h3>
+            {selectedNote.note_date ? <div className="pending-meta">{String(selectedNote.note_date)}</div> : null}
+            <div className="notes-preview-modal-body">
+              {String(selectedNote.comments ?? "")
+                .split("\n")
+                .slice(1)
+                .join("\n")
+                .trim() || "No extra details."}
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="action-btn" onClick={() => setSelectedNote(null)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
