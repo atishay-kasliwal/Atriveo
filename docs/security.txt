@@ -1,5 +1,0 @@
-Contact: mailto:katishay@gmail.com
-Policy: https://atishay-kasliwal.github.io/
-Preferred-Languages: en
-Canonical: https://atishay-kasliwal.github.io/security.txt
-Acknowledgments: We appreciate responsible disclosure.
