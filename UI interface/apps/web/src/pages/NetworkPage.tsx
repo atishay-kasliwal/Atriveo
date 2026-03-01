@@ -1078,7 +1078,7 @@ export default function NetworkPage() {
                               <th>Role</th>
                               <th>Date</th>
                               <th>OA</th>
-                              <th>OA Last Date</th>
+                              <th>OA Deadline</th>
                               <th>Job/App ID</th>
                               <th>Link</th>
                               <th>Action</th>
@@ -1232,7 +1232,7 @@ export default function NetworkPage() {
                   onChange={(e) => setPrefillForm((p) => ({ ...p, job_application_id: e.target.value }))}
                 />
                 <div className="form-row">
-                  <label className="form-label">OA Last Date (optional)</label>
+                  <label className="form-label">OA Deadline (optional)</label>
                   <input
                     type="date"
                     value={prefillForm.oa_deadline_date}

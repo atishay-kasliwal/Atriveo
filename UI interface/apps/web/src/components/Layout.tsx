@@ -799,7 +799,7 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
                   onChange={(e) => setForm((p) => ({ ...p, job_application_id: e.target.value }))}
                 />
                 <div className="form-row">
-                  <label className="form-label">OA Last Date (optional)</label>
+                  <label className="form-label">OA Deadline (optional)</label>
                   <input
                     type="date"
                     value={form.oa_deadline_date}

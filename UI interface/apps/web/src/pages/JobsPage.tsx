@@ -166,6 +166,8 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     application_status: "",
     notes: "",
     date_saved: "",
+    oa_result: "Completed",
+    oa_result_date: "",
     oa_completed_date: "",
   });
   const [isOaSaving, setIsOaSaving] = useState(false);
@@ -442,6 +444,8 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
       application_status: String(row.application_status ?? "Applied"),
       notes: String(row.notes ?? ""),
       date_saved: String(row.date_saved ?? "").slice(0, 10),
+      oa_result: String(row.oa_result ?? "Completed"),
+      oa_result_date: String((row as any).oa_result_date ?? row.oa_completed_date ?? "").slice(0, 10),
       oa_completed_date: String(row.oa_completed_date ?? "").slice(0, 10),
     });
   }
@@ -466,6 +470,8 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
         application_status: oaEditForm.application_status.trim() || null,
         notes: oaEditForm.notes.trim() || null,
         date_saved: oaEditForm.date_saved || null,
+        oa_result: oaEditForm.oa_result || null,
+        oa_result_date: oaEditForm.oa_result_date || null,
         oa_completed_date: oaEditForm.oa_completed_date || null,
       });
       setOaEditing(null);
@@ -841,7 +847,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                     </th>
                     <th>Keyword Match</th>
                     <th>OA</th>
-                    <th>OA Last Date</th>
+                    <th>OA Deadline</th>
                     <th>Job/App ID</th>
                     <th>
                       <button
@@ -985,7 +991,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
         <div className="card" style={{ padding: "24px", marginTop: "20px" }}>
           <div className="jobs-header">
             <h2>Online Assessment Records</h2>
-            <p className="chart-subtitle">Completed OA archive</p>
+            <p className="chart-subtitle">Completed and missed OA archive</p>
           </div>
           {oaArchiveError ? <div className="error">{oaArchiveError}</div> : null}
           {oaArchiveLoading ? (
@@ -998,7 +1004,8 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                 <thead>
                   <tr>
                     <th>No.</th>
-                    <th>OA Completed</th>
+                    <th>Record Date</th>
+                    <th>Result</th>
                     <th>Company / Position</th>
                     <th>OA Deadline</th>
                     <th>Job/App ID</th>
@@ -1011,7 +1018,8 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                   {oaArchiveData.map((row, idx) => (
                     <tr key={`oa-archive-${String(row.id)}`} className="tr-hover">
                       <td className="jobs-col-no">{idx + 1}</td>
-                      <td>{formatTableDateTime(row.oa_completed_date)}</td>
+                      <td>{formatTableDateTime((row as any).oa_result_date ?? row.oa_completed_date)}</td>
+                      <td>{String((row as any).oa_result ?? "Completed")}</td>
                       <td>
                         <div className="job-main">
                           <div className="job-company">{capitalizeFirst(String(row.company ?? "-"))}</div>
@@ -1100,7 +1108,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                 onChange={(e) => setEditForm((p) => ({ ...p, job_application_id: e.target.value }))}
               />
               <div className="form-row">
-                <label className="form-label">OA Last Date (optional)</label>
+                <label className="form-label">OA Deadline (optional)</label>
                 <input
                   type="date"
                   value={editForm.oa_deadline_date}
@@ -1196,7 +1204,26 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
             <h3>Edit OA Record</h3>
             <form className="form" onSubmit={onSaveOaEdit}>
               <div className="form-row">
-                <label className="form-label">OA Completed Date</label>
+                <label className="form-label">Record Date</label>
+                <input
+                  type="date"
+                  value={oaEditForm.oa_result_date}
+                  onChange={(e) => setOaEditForm((p) => ({ ...p, oa_result_date: e.target.value }))}
+                />
+              </div>
+              <div className="form-row">
+                <label className="form-label">Result</label>
+                <select
+                  value={oaEditForm.oa_result}
+                  onChange={(e) => setOaEditForm((p) => ({ ...p, oa_result: e.target.value }))}
+                  className="form-select"
+                >
+                  <option value="Completed">Completed</option>
+                  <option value="Missed">Missed</option>
+                </select>
+              </div>
+              <div className="form-row">
+                <label className="form-label">OA Completed Date (legacy)</label>
                 <input
                   type="date"
                   value={oaEditForm.oa_completed_date}
@@ -1237,7 +1264,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                 />
               </div>
               <div className="form-row">
-                <label className="form-label">OA Last Date</label>
+                <label className="form-label">OA Deadline</label>
                 <input
                   type="date"
                   value={oaEditForm.oa_deadline_date}

@@ -1741,6 +1741,93 @@ app.get("/api/oa/active", async (c) => {
   const rawAnchor = c.req.query("anchorDay");
   const anchorDayValid = rawAnchor && /^\d{4}-\d{2}-\d{2}$/.test(rawAnchor);
   const anchorDay = anchorDayValid ? rawAnchor : null;
+
+  // Auto-archive overdue OA items as missed so Active OA only shows actionable items.
+  await query(
+    c.env,
+    `
+    INSERT INTO online_assessment_records (
+      user_id,
+      job_id,
+      source,
+      role,
+      company,
+      location_raw,
+      job_link,
+      job_application_id,
+      oa_deadline_date,
+      keyword_matching,
+      oa_status,
+      referral_status,
+      response_status,
+      application_status,
+      notes,
+      date_saved,
+      applied_at,
+      archive_date,
+      oa_completed_date,
+      oa_completed_at,
+      oa_result,
+      oa_result_date
+    )
+    SELECT
+      j.user_id,
+      j.id,
+      'oa-auto-missed',
+      j.role,
+      j.company,
+      j.location_raw,
+      j.job_link,
+      j.job_application_id,
+      j.oa_deadline_date,
+      j.keyword_matching,
+      j.oa_status,
+      j.referral_status,
+      j.response_status,
+      j.application_status,
+      j.notes,
+      j.date_saved,
+      j.applied_at,
+      j.archive_date,
+      COALESCE($2::date, CURRENT_DATE),
+      NOW(),
+      'Missed',
+      COALESCE($2::date, CURRENT_DATE)
+    FROM jobs j
+    LEFT JOIN online_assessment_records oar
+      ON oar.job_id = j.id AND oar.user_id = j.user_id
+    WHERE j.user_id = $1
+      AND TRIM(COALESCE(j.oa_status, '')) = 'Yes'
+      AND LOWER(TRIM(COALESCE(j.application_status, 'Applied'))) != 'rejected'
+      AND j.oa_deadline_date IS NOT NULL
+      AND j.oa_deadline_date < COALESCE($2::date, CURRENT_DATE)
+      AND oar.id IS NULL
+    ON CONFLICT (job_id) DO UPDATE SET
+      source = EXCLUDED.source,
+      role = EXCLUDED.role,
+      company = EXCLUDED.company,
+      location_raw = EXCLUDED.location_raw,
+      job_link = EXCLUDED.job_link,
+      job_application_id = EXCLUDED.job_application_id,
+      oa_deadline_date = EXCLUDED.oa_deadline_date,
+      keyword_matching = EXCLUDED.keyword_matching,
+      oa_status = EXCLUDED.oa_status,
+      referral_status = EXCLUDED.referral_status,
+      response_status = EXCLUDED.response_status,
+      application_status = EXCLUDED.application_status,
+      notes = EXCLUDED.notes,
+      date_saved = EXCLUDED.date_saved,
+      applied_at = EXCLUDED.applied_at,
+      archive_date = EXCLUDED.archive_date,
+      oa_completed_date = EXCLUDED.oa_completed_date,
+      oa_completed_at = NOW(),
+      oa_result = 'Missed',
+      oa_result_date = EXCLUDED.oa_result_date,
+      updated_at = NOW()
+    `,
+    [userId, anchorDay],
+  );
+
   const rows = await query<Record<string, unknown>>(
     c.env,
     `
@@ -1822,6 +1909,9 @@ app.post("/api/oa/complete/:jobId", async (c) => {
       archive_date,
       oa_completed_date,
       oa_completed_at
+      ,
+      oa_result,
+      oa_result_date
     )
     SELECT
       j.user_id,
@@ -1843,7 +1933,9 @@ app.post("/api/oa/complete/:jobId", async (c) => {
       j.applied_at,
       j.archive_date,
       COALESCE($3::date, CURRENT_DATE),
-      NOW()
+      NOW(),
+      'Completed',
+      COALESCE($3::date, CURRENT_DATE)
     FROM jobs j
     WHERE j.id = $2
       AND j.user_id = $1
@@ -1867,6 +1959,8 @@ app.post("/api/oa/complete/:jobId", async (c) => {
       archive_date = EXCLUDED.archive_date,
       oa_completed_date = EXCLUDED.oa_completed_date,
       oa_completed_at = NOW(),
+      oa_result = 'Completed',
+      oa_result_date = EXCLUDED.oa_result_date,
       updated_at = NOW()
     RETURNING *
     `,
@@ -1905,13 +1999,15 @@ app.get("/api/oa/archive", async (c) => {
       date_saved::text AS date_saved,
       applied_at::text AS applied_at,
       archive_date::text AS archive_date,
+      oa_result,
+      oa_result_date::text AS oa_result_date,
       oa_completed_date::text AS oa_completed_date,
       oa_completed_at::text AS oa_completed_at,
       created_at::text AS created_at,
       updated_at::text AS updated_at
     FROM online_assessment_records oar
     WHERE oar.user_id = $1
-    ORDER BY oar.oa_completed_date DESC NULLS LAST, oar.oa_completed_at DESC NULLS LAST, oar.id DESC
+    ORDER BY oar.oa_result_date DESC NULLS LAST, oar.oa_completed_at DESC NULLS LAST, oar.id DESC
     LIMIT 200
     `,
     [userId],
@@ -1933,6 +2029,8 @@ const oaArchiveUpdateInput = z.object({
   application_status: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
   date_saved: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  oa_result: z.enum(["Completed", "Missed"]).optional().nullable(),
+  oa_result_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
   oa_completed_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
 });
 
@@ -1997,6 +2095,14 @@ app.patch("/api/oa/archive/:id", async (c) => {
   if (p.date_saved !== undefined) {
     updates.push(`date_saved = $${i++}::date`);
     values.push(p.date_saved ?? null);
+  }
+  if (p.oa_result !== undefined) {
+    updates.push(`oa_result = $${i++}`);
+    values.push(p.oa_result ?? null);
+  }
+  if (p.oa_result_date !== undefined) {
+    updates.push(`oa_result_date = $${i++}::date`);
+    values.push(p.oa_result_date ?? null);
   }
   if (p.oa_completed_date !== undefined) {
     updates.push(`oa_completed_date = $${i++}::date`);
