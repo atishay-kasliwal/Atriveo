@@ -35,6 +35,19 @@ const loginInput = z.object({
   password: z.string().min(1).max(128),
 });
 
+const MAX_FRIENDS = 10;
+
+const friendRequestInput = z.object({
+  receiver_id: z.coerce.number().int().positive().optional(),
+  email: z.string().email().optional(),
+});
+
+const targetsUpsertInput = z.object({
+  daily_target: z.number().int().min(0).nullable().optional(),
+  weekly_target: z.number().int().min(0).nullable().optional(),
+  monthly_target: z.number().int().min(0).nullable().optional(),
+});
+
 app.post("/auth/signup", async (c) => c.json({ error: "Signup is disabled for this dashboard." }, 403));
 
 app.post("/auth/login", async (c) => {
@@ -45,13 +58,15 @@ app.post("/auth/login", async (c) => {
   const [user] = await query<{
     id: number;
     email: string;
+    first_name: string | null;
+    last_name: string | null;
     password_hash: string | null;
     password_salt: string | null;
     password_iterations: number | null;
   }>(
     c.env,
     `
-    SELECT id, email, password_hash, password_salt, password_iterations
+    SELECT id, email, first_name, last_name, password_hash, password_salt, password_iterations
     FROM dashboard_users
     WHERE email = $1
     LIMIT 1
@@ -76,7 +91,12 @@ app.post("/auth/login", async (c) => {
   const token = await createSession(c.env, Number(user.id));
   return c.json({
     token,
-    user: { id: Number(user.id), email: String(user.email) },
+    user: {
+      id: Number(user.id),
+      email: String(user.email),
+      first_name: user.first_name ?? null,
+      last_name: user.last_name ?? null,
+    },
   });
 });
 
@@ -93,6 +113,676 @@ app.post("/api/auth/logout", async (c) => {
     await revokeSession(c.env, bearer);
   }
   return c.json({ ok: true });
+});
+
+app.get("/api/targets", async (c) => {
+  const userId = c.get("authUser").id;
+  const [row] = await query<{
+    daily_target: number | null;
+    weekly_target: number | null;
+    monthly_target: number | null;
+  }>(
+    c.env,
+    `
+    SELECT daily_target, weekly_target, monthly_target
+    FROM user_targets
+    WHERE user_id = $1
+    LIMIT 1
+    `,
+    [userId],
+  );
+  return c.json({
+    daily_target: row?.daily_target ?? null,
+    weekly_target: row?.weekly_target ?? null,
+    monthly_target: row?.monthly_target ?? null,
+  });
+});
+
+app.put("/api/targets", async (c) => {
+  const userId = c.get("authUser").id;
+  const parsed = targetsUpsertInput.safeParse(await c.req.json());
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
+  const p = parsed.data;
+  if (
+    p.daily_target === undefined &&
+    p.weekly_target === undefined &&
+    p.monthly_target === undefined
+  ) {
+    return c.json({ error: "At least one target field is required." }, 400);
+  }
+
+  const [row] = await query<{
+    daily_target: number | null;
+    weekly_target: number | null;
+    monthly_target: number | null;
+  }>(
+    c.env,
+    `
+    INSERT INTO user_targets (user_id, daily_target, weekly_target, monthly_target)
+    VALUES ($1, $2, $3, $4)
+    ON CONFLICT (user_id)
+    DO UPDATE SET
+      daily_target = COALESCE(EXCLUDED.daily_target, user_targets.daily_target),
+      weekly_target = COALESCE(EXCLUDED.weekly_target, user_targets.weekly_target),
+      monthly_target = COALESCE(EXCLUDED.monthly_target, user_targets.monthly_target),
+      updated_at = NOW()
+    RETURNING daily_target, weekly_target, monthly_target
+    `,
+    [
+      userId,
+      p.daily_target === undefined ? null : p.daily_target,
+      p.weekly_target === undefined ? null : p.weekly_target,
+      p.monthly_target === undefined ? null : p.monthly_target,
+    ],
+  );
+
+  return c.json({
+    ok: true,
+    daily_target: row?.daily_target ?? null,
+    weekly_target: row?.weekly_target ?? null,
+    monthly_target: row?.monthly_target ?? null,
+  });
+});
+
+app.get("/api/targets/progress", async (c) => {
+  const userId = c.get("authUser").id;
+  const rawAnchor = c.req.query("anchorDay");
+  const anchorDayValid = rawAnchor && /^\d{4}-\d{2}-\d{2}$/.test(rawAnchor);
+  const anchorDay = anchorDayValid ? rawAnchor : null;
+
+  const [targets] = await query<{
+    daily_target: number | null;
+    weekly_target: number | null;
+    monthly_target: number | null;
+  }>(
+    c.env,
+    `
+    SELECT daily_target, weekly_target, monthly_target
+    FROM user_targets
+    WHERE user_id = $1
+    LIMIT 1
+    `,
+    [userId],
+  );
+
+  const [daily] = await query<{ count: string }>(
+    c.env,
+    `
+    SELECT COUNT(*)::text AS count
+    FROM jobs
+    WHERE user_id = $1
+      AND date_saved IS NOT NULL
+      AND LOWER(TRIM(COALESCE(application_status, 'Applied'))) != 'rejected'
+      AND date_saved::date = COALESCE($2::date, CURRENT_DATE)
+    `,
+    [userId, anchorDay],
+  );
+
+  const [weekly] = await query<{ count: string }>(
+    c.env,
+    `
+    SELECT COUNT(*)::text AS count
+    FROM jobs
+    WHERE user_id = $1
+      AND date_saved IS NOT NULL
+      AND LOWER(TRIM(COALESCE(application_status, 'Applied'))) != 'rejected'
+      AND date_saved >= DATE_TRUNC('week', COALESCE($2::date, CURRENT_DATE))
+      AND date_saved::date <= COALESCE($2::date, CURRENT_DATE)
+    `,
+    [userId, anchorDay],
+  );
+
+  const [monthly] = await query<{ count: string }>(
+    c.env,
+    `
+    SELECT COUNT(*)::text AS count
+    FROM jobs
+    WHERE user_id = $1
+      AND date_saved IS NOT NULL
+      AND LOWER(TRIM(COALESCE(application_status, 'Applied'))) != 'rejected'
+      AND date_saved >= DATE_TRUNC('month', COALESCE($2::date, CURRENT_DATE))
+      AND date_saved::date <= COALESCE($2::date, CURRENT_DATE)
+    `,
+    [userId, anchorDay],
+  );
+
+  return c.json({
+    anchorDay: anchorDay ?? null,
+    daily: {
+      current: Number(daily?.count ?? 0),
+      target: targets?.daily_target ?? null,
+    },
+    weekly: {
+      current: Number(weekly?.count ?? 0),
+      target: targets?.weekly_target ?? null,
+    },
+    monthly: {
+      current: Number(monthly?.count ?? 0),
+      target: targets?.monthly_target ?? null,
+    },
+  });
+});
+
+app.get("/api/friends", async (c) => {
+  const userId = c.get("authUser").id;
+  const rows = await query<{
+    friendship_id: number;
+    status: string;
+    created_at: string;
+    accepted_at: string | null;
+    friend_id: number;
+    friend_email: string;
+    friend_name: string;
+  }>(
+    c.env,
+    `
+    SELECT
+      f.id AS friendship_id,
+      f.status,
+      f.created_at::text AS created_at,
+      f.accepted_at::text AS accepted_at,
+      u.id AS friend_id,
+      u.email AS friend_email,
+      COALESCE(NULLIF(TRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email) AS friend_name
+    FROM friendships f
+    JOIN dashboard_users u
+      ON u.id = CASE WHEN f.requester_id = $1 THEN f.receiver_id ELSE f.requester_id END
+    WHERE (f.requester_id = $1 OR f.receiver_id = $1)
+      AND f.status = 'accepted'
+    ORDER BY LOWER(COALESCE(NULLIF(TRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email)) ASC, LOWER(u.email) ASC
+    `,
+    [userId],
+  );
+  return c.json({ data: rows, maxFriends: MAX_FRIENDS });
+});
+
+app.get("/api/friends/requests", async (c) => {
+  const userId = c.get("authUser").id;
+  const [incoming, outgoing] = await Promise.all([
+    query<{
+      friendship_id: number;
+      requester_id: number;
+      requester_email: string;
+      requester_name: string;
+      created_at: string;
+    }>(
+      c.env,
+      `
+      SELECT
+        f.id AS friendship_id,
+        f.requester_id,
+        u.email AS requester_email,
+        COALESCE(NULLIF(TRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email) AS requester_name,
+        f.created_at::text AS created_at
+      FROM friendships f
+      JOIN dashboard_users u ON u.id = f.requester_id
+      WHERE f.receiver_id = $1
+        AND f.status = 'pending'
+      ORDER BY f.created_at DESC, f.id DESC
+      `,
+      [userId],
+    ),
+    query<{
+      friendship_id: number;
+      receiver_id: number;
+      receiver_email: string;
+      receiver_name: string;
+      created_at: string;
+    }>(
+      c.env,
+      `
+      SELECT
+        f.id AS friendship_id,
+        f.receiver_id,
+        u.email AS receiver_email,
+        COALESCE(NULLIF(TRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email) AS receiver_name,
+        f.created_at::text AS created_at
+      FROM friendships f
+      JOIN dashboard_users u ON u.id = f.receiver_id
+      WHERE f.requester_id = $1
+        AND f.status = 'pending'
+      ORDER BY f.created_at DESC, f.id DESC
+      `,
+      [userId],
+    ),
+  ]);
+  return c.json({ incoming, outgoing });
+});
+
+app.post("/api/friends/request", async (c) => {
+  const userId = c.get("authUser").id;
+  const parsed = friendRequestInput.safeParse(await c.req.json());
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
+  const payload = parsed.data;
+  if (!payload.receiver_id && !payload.email) {
+    return c.json({ error: "receiver_id or email is required." }, 400);
+  }
+
+  let receiverId: number | null = null;
+  if (payload.receiver_id) {
+    const [receiver] = await query<{ id: number; email: string }>(
+      c.env,
+      "SELECT id, email FROM dashboard_users WHERE id = $1 LIMIT 1",
+      [payload.receiver_id],
+    );
+    if (!receiver) return c.json({ error: "User not found." }, 404);
+    receiverId = Number(receiver.id);
+  } else {
+    const normalizedEmail = normalizeEmail(String(payload.email ?? ""));
+    const [receiver] = await query<{ id: number; email: string }>(
+      c.env,
+      "SELECT id, email FROM dashboard_users WHERE LOWER(email) = $1 LIMIT 1",
+      [normalizedEmail],
+    );
+    if (!receiver) return c.json({ error: "User not found." }, 404);
+    receiverId = Number(receiver.id);
+  }
+
+  if (!receiverId) return c.json({ error: "User not found." }, 404);
+  if (receiverId === userId) return c.json({ error: "You cannot send a friend request to yourself." }, 400);
+
+  const [existing] = await query<{
+    id: number;
+    status: "pending" | "accepted" | "rejected" | "blocked";
+    requester_id: number;
+    receiver_id: number;
+  }>(
+    c.env,
+    `
+    SELECT id, status, requester_id, receiver_id
+    FROM friendships
+    WHERE LEAST(requester_id, receiver_id) = LEAST($1::bigint, $2::bigint)
+      AND GREATEST(requester_id, receiver_id) = GREATEST($1::bigint, $2::bigint)
+    LIMIT 1
+    `,
+    [userId, receiverId],
+  );
+
+  if (!existing) {
+    const [created] = await query<{ id: number; status: string }>(
+      c.env,
+      `
+      INSERT INTO friendships (requester_id, receiver_id, status)
+      VALUES ($1, $2, 'pending')
+      RETURNING id, status
+      `,
+      [userId, receiverId],
+    );
+    return c.json({ ok: true, friendship: created }, 201);
+  }
+
+  if (existing.status === "accepted") {
+    return c.json({ error: "You are already friends with this user." }, 409);
+  }
+  if (existing.status === "blocked") {
+    return c.json({ error: "Friendship is unavailable for this user." }, 403);
+  }
+  if (existing.status === "pending") {
+    if (Number(existing.requester_id) === userId) {
+      return c.json({ error: "Friend request already sent." }, 409);
+    }
+    return c.json({ error: "This user already sent you a request. Accept it from incoming requests." }, 409);
+  }
+
+  const [reopened] = await query<{ id: number; status: string }>(
+    c.env,
+    `
+    UPDATE friendships
+    SET requester_id = $1,
+        receiver_id = $2,
+        status = 'pending',
+        created_at = NOW(),
+        updated_at = NOW(),
+        accepted_at = NULL,
+        rejected_at = NULL,
+        blocked_at = NULL
+    WHERE id = $3
+    RETURNING id, status
+    `,
+    [userId, receiverId, existing.id],
+  );
+  return c.json({ ok: true, friendship: reopened }, 201);
+});
+
+app.post("/api/friends/:id/accept", async (c) => {
+  const userId = c.get("authUser").id;
+  const friendshipId = Number(c.req.param("id"));
+  if (!Number.isFinite(friendshipId) || friendshipId <= 0) {
+    return c.json({ error: "Invalid friendship id." }, 400);
+  }
+
+  const [target] = await query<{
+    id: number;
+    requester_id: number;
+    receiver_id: number;
+    status: "pending" | "accepted" | "rejected" | "blocked";
+  }>(
+    c.env,
+    `
+    SELECT id, requester_id, receiver_id, status
+    FROM friendships
+    WHERE id = $1
+      AND receiver_id = $2
+    LIMIT 1
+    `,
+    [friendshipId, userId],
+  );
+  if (!target) return c.json({ error: "Friend request not found." }, 404);
+  if (target.status !== "pending") return c.json({ error: "Only pending requests can be accepted." }, 409);
+
+  const [updated] = await query<{
+    id: number;
+    status: string;
+    accepted_at: string;
+    requester_count: number;
+    receiver_count: number;
+  }>(
+    c.env,
+    `
+    WITH target AS (
+      SELECT id, requester_id, receiver_id
+      FROM friendships
+      WHERE id = $1
+        AND receiver_id = $2
+        AND status = 'pending'
+      LIMIT 1
+    ),
+    lock_requester AS (
+      SELECT pg_advisory_xact_lock(requester_id::bigint) FROM target
+    ),
+    lock_receiver AS (
+      SELECT pg_advisory_xact_lock(receiver_id::bigint) FROM target
+    ),
+    requester_count AS (
+      SELECT COUNT(*)::int AS cnt
+      FROM friendships f
+      JOIN target t ON TRUE
+      WHERE f.status = 'accepted'
+        AND (f.requester_id = t.requester_id OR f.receiver_id = t.requester_id)
+    ),
+    receiver_count AS (
+      SELECT COUNT(*)::int AS cnt
+      FROM friendships f
+      JOIN target t ON TRUE
+      WHERE f.status = 'accepted'
+        AND (f.requester_id = t.receiver_id OR f.receiver_id = t.receiver_id)
+    )
+    UPDATE friendships f
+    SET status = 'accepted',
+        accepted_at = NOW(),
+        rejected_at = NULL,
+        blocked_at = NULL,
+        updated_at = NOW()
+    FROM target t, lock_requester, lock_receiver, requester_count rc, receiver_count sc
+    WHERE f.id = t.id
+      AND rc.cnt < $3
+      AND sc.cnt < $3
+    RETURNING
+      f.id,
+      f.status,
+      f.accepted_at::text AS accepted_at,
+      rc.cnt AS requester_count,
+      sc.cnt AS receiver_count
+    `,
+    [friendshipId, userId, MAX_FRIENDS],
+  );
+
+  if (!updated) {
+    return c.json({ error: "Friend limit reached (max 10) for one of the users." }, 409);
+  }
+
+  return c.json({ ok: true, friendship: updated, maxFriends: MAX_FRIENDS });
+});
+
+app.post("/api/friends/:id/reject", async (c) => {
+  const userId = c.get("authUser").id;
+  const friendshipId = Number(c.req.param("id"));
+  if (!Number.isFinite(friendshipId) || friendshipId <= 0) {
+    return c.json({ error: "Invalid friendship id." }, 400);
+  }
+
+  const [row] = await query<{ id: number; status: string; rejected_at: string }>(
+    c.env,
+    `
+    UPDATE friendships
+    SET status = 'rejected',
+        rejected_at = NOW(),
+        accepted_at = NULL,
+        blocked_at = NULL,
+        updated_at = NOW()
+    WHERE id = $1
+      AND receiver_id = $2
+      AND status = 'pending'
+    RETURNING id, status, rejected_at::text AS rejected_at
+    `,
+    [friendshipId, userId],
+  );
+  if (!row) return c.json({ error: "Pending friend request not found." }, 404);
+  return c.json({ ok: true, friendship: row });
+});
+
+app.post("/api/friends/:id/block", async (c) => {
+  const userId = c.get("authUser").id;
+  const friendshipId = Number(c.req.param("id"));
+  if (!Number.isFinite(friendshipId) || friendshipId <= 0) {
+    return c.json({ error: "Invalid friendship id." }, 400);
+  }
+
+  const [row] = await query<{ id: number; status: string; blocked_at: string }>(
+    c.env,
+    `
+    UPDATE friendships
+    SET status = 'blocked',
+        blocked_at = NOW(),
+        accepted_at = NULL,
+        rejected_at = NULL,
+        updated_at = NOW()
+    WHERE id = $1
+      AND (requester_id = $2 OR receiver_id = $2)
+    RETURNING id, status, blocked_at::text AS blocked_at
+    `,
+    [friendshipId, userId],
+  );
+  if (!row) return c.json({ error: "Friendship not found." }, 404);
+  return c.json({ ok: true, friendship: row });
+});
+
+app.get("/api/network/trend", async (c) => {
+  const userId = c.get("authUser").id;
+  const days = Math.max(3, Math.min(30, Number(c.req.query("days") ?? 10)));
+  const rawAnchor = c.req.query("anchorDay");
+  const anchorDayValid = rawAnchor && /^\d{4}-\d{2}-\d{2}$/.test(rawAnchor);
+  const anchorDay = anchorDayValid ? rawAnchor : null;
+
+  const rows = await query<{
+    friend_id: number;
+    friend_email: string;
+    friend_name: string;
+    is_self: boolean;
+    day: string;
+    total: number;
+  }>(
+    c.env,
+    `
+    WITH network_people AS (
+      SELECT
+        u.id AS friend_id,
+        u.email AS friend_email,
+        COALESCE(NULLIF(TRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email) AS friend_name,
+        TRUE AS is_self
+      FROM dashboard_users u
+      WHERE u.id = $1
+      UNION ALL
+      SELECT
+        CASE WHEN f.requester_id = $1 THEN f.receiver_id ELSE f.requester_id END AS friend_id,
+        u.email AS friend_email,
+        COALESCE(NULLIF(TRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email) AS friend_name,
+        FALSE AS is_self
+      FROM friendships f
+      JOIN dashboard_users u
+        ON u.id = CASE WHEN f.requester_id = $1 THEN f.receiver_id ELSE f.requester_id END
+      WHERE (f.requester_id = $1 OR f.receiver_id = $1)
+        AND f.status = 'accepted'
+    ),
+    days_series AS (
+      SELECT generate_series(
+        (COALESCE($2::date, CURRENT_DATE) - ($3::text || ' days')::interval)::date,
+        COALESCE($2::date, CURRENT_DATE)::date,
+        '1 day'::interval
+      )::date AS day
+    ),
+    jobs_daily AS (
+      SELECT
+        j.user_id,
+        DATE(j.date_saved) AS day,
+        COUNT(*)::int AS cnt
+      FROM jobs j
+      WHERE j.date_saved IS NOT NULL
+        AND LOWER(TRIM(COALESCE(j.application_status, 'Applied'))) != 'rejected'
+      GROUP BY j.user_id, DATE(j.date_saved)
+    )
+    SELECT
+      np.friend_id,
+      np.friend_email,
+      np.friend_name,
+      np.is_self,
+      ds.day::text AS day,
+      COALESCE(jd.cnt, 0)::int AS total
+    FROM network_people np
+    CROSS JOIN days_series ds
+    LEFT JOIN jobs_daily jd
+      ON jd.user_id = np.friend_id
+     AND jd.day = ds.day
+    ORDER BY np.is_self DESC, LOWER(np.friend_name) ASC, LOWER(np.friend_email) ASC, ds.day ASC
+    `,
+    [userId, anchorDay, days - 1],
+  );
+
+  const grouped = new Map<number, { friend_id: number; friend_email: string; friend_name: string; is_self: boolean; trend: Array<{ day: string; total: number }> }>();
+  for (const row of rows) {
+    const friendId = Number(row.friend_id);
+    if (!grouped.has(friendId)) {
+      grouped.set(friendId, {
+        friend_id: friendId,
+        friend_email: String(row.friend_email),
+        friend_name: String(row.friend_name),
+        is_self: Boolean(row.is_self),
+        trend: [],
+      });
+    }
+    grouped.get(friendId)!.trend.push({
+      day: String(row.day),
+      total: Number(row.total ?? 0),
+    });
+  }
+
+  return c.json({
+    days,
+    anchorDay: anchorDay ?? null,
+    data: Array.from(grouped.values()),
+  });
+});
+
+app.get("/api/network/today", async (c) => {
+  const userId = c.get("authUser").id;
+  const rawAnchor = c.req.query("anchorDay");
+  const anchorDayValid = rawAnchor && /^\d{4}-\d{2}-\d{2}$/.test(rawAnchor);
+  const anchorDay = anchorDayValid ? rawAnchor : null;
+
+  const rows = await query<{
+    friend_id: number;
+    friend_email: string;
+    friend_name: string;
+    job_id: number;
+    company: string | null;
+    role: string | null;
+    date_saved: string | null;
+    application_status: string | null;
+    referral_status: string | null;
+    job_link: string | null;
+  }>(
+    c.env,
+    `
+    WITH friends AS (
+      SELECT
+        CASE WHEN f.requester_id = $1 THEN f.receiver_id ELSE f.requester_id END AS friend_id,
+        u.email AS friend_email,
+        COALESCE(NULLIF(TRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email) AS friend_name
+      FROM friendships f
+      JOIN dashboard_users u
+        ON u.id = CASE WHEN f.requester_id = $1 THEN f.receiver_id ELSE f.requester_id END
+      WHERE (f.requester_id = $1 OR f.receiver_id = $1)
+        AND f.status = 'accepted'
+    )
+    SELECT
+      fr.friend_id,
+      fr.friend_email,
+      fr.friend_name,
+      j.id AS job_id,
+      j.company,
+      j.role,
+      j.date_saved::text AS date_saved,
+      j.application_status,
+      j.referral_status,
+      j.job_link
+    FROM friends fr
+    LEFT JOIN jobs j
+      ON j.user_id = fr.friend_id
+     AND j.date_saved IS NOT NULL
+     AND j.date_saved::date = COALESCE($2::date, CURRENT_DATE)
+     AND LOWER(TRIM(COALESCE(j.application_status, 'Applied'))) != 'rejected'
+    ORDER BY
+      COALESCE(j.applied_at, j.date_saved, j.created_at) DESC NULLS LAST,
+      j.created_at DESC NULLS LAST,
+      LOWER(fr.friend_name) ASC,
+      LOWER(fr.friend_email) ASC,
+      j.id DESC NULLS LAST
+    `,
+    [userId, anchorDay],
+  );
+
+  const grouped = new Map<number, {
+    friend_id: number;
+    friend_email: string;
+    friend_name: string;
+    jobs: Array<{
+      id: number;
+      company: string | null;
+      role: string | null;
+      date_saved: string | null;
+      application_status: string | null;
+      referral_status: string | null;
+      job_link: string | null;
+    }>;
+  }>();
+
+  for (const row of rows) {
+    const friendId = Number(row.friend_id);
+    if (!grouped.has(friendId)) {
+      grouped.set(friendId, {
+        friend_id: friendId,
+        friend_email: String(row.friend_email),
+        friend_name: String(row.friend_name),
+        jobs: [],
+      });
+    }
+    if (row.job_id != null) {
+      grouped.get(friendId)!.jobs.push({
+        id: Number(row.job_id),
+        company: row.company ?? null,
+        role: row.role ?? null,
+        date_saved: row.date_saved ?? null,
+        application_status: row.application_status ?? null,
+        referral_status: row.referral_status ?? null,
+        job_link: row.job_link ?? null,
+      });
+    }
+  }
+
+  return c.json({
+    anchorDay: anchorDay ?? null,
+    data: Array.from(grouped.values()),
+  });
 });
 
 app.get("/api/dashboard/summary", async (c) => {
@@ -436,7 +1126,7 @@ app.get("/api/jobs/trend", async (c) => {
   return c.json({ data: trendData });
 });
 
-const JOBS_SORT_COLUMNS = ["date_saved", "company", "role", "referral_status", "job_link"] as const;
+const JOBS_SORT_COLUMNS = ["date_saved", "applied_at", "company", "role", "referral_status", "job_link"] as const;
 type JobsSortColumn = (typeof JOBS_SORT_COLUMNS)[number];
 function isJobsSortColumn(s: string): s is JobsSortColumn {
   return (JOBS_SORT_COLUMNS as readonly string[]).includes(s);
@@ -590,13 +1280,13 @@ app.get("/api/jobs", async (c) => {
   const limit = Math.min(Number(c.req.query("limit") ?? 25), 100);
   const company = c.req.query("company");
   const statusFilter = String(c.req.query("status") ?? ""); // expected: "active" | "rejected" | "all"(empty means active)
-  const sortRaw = c.req.query("sort") ?? "date_saved";
+  const sortRaw = c.req.query("sort") ?? "applied_at";
   const orderRaw = String(c.req.query("order") ?? "desc").toLowerCase();
-  const sort = isJobsSortColumn(sortRaw) ? sortRaw : "date_saved";
+  const sort = isJobsSortColumn(sortRaw) ? sortRaw : "applied_at";
   const order: "ASC" | "DESC" = orderRaw === "asc" ? "ASC" : "DESC";
   const offset = (page - 1) * limit;
 
-  const orderBy = `${sort} ${order} NULLS LAST, date_saved DESC NULLS LAST, company ASC NULLS LAST, id DESC`;
+  const orderBy = `${sort} ${order} NULLS LAST, COALESCE(applied_at, date_saved, created_at) DESC NULLS LAST, created_at DESC NULLS LAST, id DESC`;
   const baseSql = `
     SELECT *
     FROM jobs

@@ -26,7 +26,10 @@ import NotesPreview from "../components/NotesPreview";
 import quotesData from "../lib/quotes.json";
 import {
   getDashboardSummary,
+  getTargetProgress,
+  updateTargets,
   type DashboardSummary,
+  type TargetProgress,
 } from "../lib/api";
 
 const defaultSummary: DashboardSummary = {
@@ -50,6 +53,12 @@ const defaultSummary: DashboardSummary = {
   oaStatusTrend: [],
   monthlyTrend: [],
 };
+
+const DEFAULT_TARGETS = {
+  daily: 1,
+  weekly: 7,
+  monthly: 30,
+} as const;
 
 // Executive-level chart design: muted bluish colors, clean typography, minimal noise
 const CHART_COLORS = {
@@ -106,6 +115,15 @@ function isoDayAddDays(day: string, deltaDays: number): string {
   const d = utcDateFromIsoDay(day);
   if (!d) return day;
   d.setUTCDate(d.getUTCDate() + deltaDays);
+  return d.toISOString().slice(0, 10);
+}
+
+function weekStartIsoUtc(day: string): string {
+  const d = utcDateFromIsoDay(day);
+  if (!d) return day;
+  const dayOfWeek = d.getUTCDay(); // 0..6, Sun..Sat
+  const daysFromMonday = (dayOfWeek + 6) % 7;
+  d.setUTCDate(d.getUTCDate() - daysFromMonday);
   return d.toISOString().slice(0, 10);
 }
 
@@ -206,6 +224,14 @@ function MtdTooltip({
 export default function DashboardPage() {
   const [summary, setSummary] = useState<DashboardSummary>(defaultSummary);
   const [mtdSummary, setMtdSummary] = useState<DashboardSummary>(defaultSummary);
+  const [targetProgress, setTargetProgress] = useState<TargetProgress | null>(null);
+  const [showTargetModal, setShowTargetModal] = useState(false);
+  const [isSavingTarget, setIsSavingTarget] = useState(false);
+  const [targetForm, setTargetForm] = useState({
+    daily: "",
+    weekly: "",
+    monthly: "",
+  });
   const [error, setError] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [days, setDays] = useState(30); // default 30 days
@@ -231,6 +257,20 @@ export default function DashboardPage() {
     }
   }
 
+  async function loadTargetSummary() {
+    try {
+      const res = await getTargetProgress();
+      setTargetProgress(res);
+      setTargetForm({
+        daily: String(res.daily.target ?? DEFAULT_TARGETS.daily),
+        weekly: String(res.weekly.target ?? DEFAULT_TARGETS.weekly),
+        monthly: String(res.monthly.target ?? DEFAULT_TARGETS.monthly),
+      });
+    } catch {
+      setTargetProgress(null);
+    }
+  }
+
   useEffect(() => {
     loadSummary();
   }, [days]);
@@ -240,9 +280,14 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
+    loadTargetSummary();
+  }, []);
+
+  useEffect(() => {
     const onRefresh = () => {
       loadSummary();
       loadMtdSummary();
+      loadTargetSummary();
     };
     window.addEventListener("dashboard-refresh", onRefresh);
     return () => window.removeEventListener("dashboard-refresh", onRefresh);
@@ -363,6 +408,14 @@ export default function DashboardPage() {
     const p = seriesTodayIso ? parseIsoDay(seriesTodayIso) : null;
     if (!p) return "";
     return `${MONTH_NAMES[p.m - 1]} ${p.d}`;
+  }, [summary.dailyTrend]);
+
+  const currentMonthPrefix = useMemo(() => {
+    const daily = summary.dailyTrend ?? [];
+    const seriesTodayIso = daily.length ? String(daily[daily.length - 1].day) : "";
+    const p = seriesTodayIso ? parseIsoDay(seriesTodayIso) : null;
+    if (!p) return "";
+    return `${p.y}-${String(p.m).padStart(2, "0")}`;
   }, [summary.dailyTrend]);
 
   const dailyTrendTicks = useMemo(() => {
@@ -681,6 +734,124 @@ export default function DashboardPage() {
       suggestion,
     };
   }, [summary.dailyTrend, mtdSummary.dailyTrend, summary.weeklyTrend]);
+
+  const monthlyTargetKpiValue = useMemo(() => {
+    if (!targetProgress) return `${0}/${DEFAULT_TARGETS.monthly}`;
+    const cur = targetProgress.monthly.current ?? 0;
+    const target =
+      targetProgress.monthly.target == null || targetProgress.monthly.target <= 0
+        ? DEFAULT_TARGETS.monthly
+        : targetProgress.monthly.target;
+    return `${cur}/${target}`;
+  }, [targetProgress]);
+
+  const effectiveTargets = useMemo(() => {
+    const dailyRaw = targetProgress?.daily.target;
+    const weeklyRaw = targetProgress?.weekly.target;
+    const monthlyRaw = targetProgress?.monthly.target;
+    return {
+      daily: dailyRaw == null || dailyRaw <= 0 ? DEFAULT_TARGETS.daily : dailyRaw,
+      weekly: weeklyRaw == null || weeklyRaw <= 0 ? DEFAULT_TARGETS.weekly : weeklyRaw,
+      monthly: monthlyRaw == null || monthlyRaw <= 0 ? DEFAULT_TARGETS.monthly : monthlyRaw,
+    };
+  }, [targetProgress]);
+
+  const todayTargetLabel = useMemo(() => {
+    const raw = targetProgress?.anchorDay || new Date().toISOString().slice(0, 10);
+    try {
+      const d = /^\d{4}-\d{2}-\d{2}$/.test(raw) ? new Date(`${raw}T00:00:00Z`) : new Date(raw);
+      if (isNaN(d.getTime())) return "Today target";
+      return `${new Intl.DateTimeFormat(undefined, {
+        month: "short",
+        day: "numeric",
+        timeZone: "UTC",
+      }).format(d)} target`;
+    } catch {
+      return "Today target";
+    }
+  }, [targetProgress?.anchorDay]);
+
+  const targetHeaderMetrics = useMemo(() => {
+    const daily = mtdSummary.dailyTrend ?? [];
+    if (!daily.length) {
+      return {
+        dailyHits: 0,
+        weeklyHits: 0,
+        daysInMonth: 30,
+        monthlyCurrent: 0,
+        monthlyTarget: effectiveTargets.monthly,
+        monthlyBehind: Math.max(effectiveTargets.monthly, 0),
+        monthlyPct: 0,
+      };
+    }
+
+    const anchorIso = String(daily[daily.length - 1].day);
+    const anchorParts = parseIsoDay(anchorIso);
+    if (!anchorParts) {
+      return {
+        dailyHits: 0,
+        weeklyHits: 0,
+        daysInMonth: 30,
+        monthlyCurrent: 0,
+        monthlyTarget: effectiveTargets.monthly,
+        monthlyBehind: Math.max(effectiveTargets.monthly, 0),
+        monthlyPct: 0,
+      };
+    }
+
+    const monthPrefix = `${anchorParts.y}-${String(anchorParts.m).padStart(2, "0")}`;
+    const monthRows = daily.filter((r) => String(r.day).startsWith(monthPrefix));
+
+    const dailyHits = monthRows.filter((r) => (r.total ?? 0) >= effectiveTargets.daily).length;
+
+    const weekTotals = new Map<string, number>();
+    for (const row of monthRows) {
+      const key = weekStartIsoUtc(String(row.day));
+      weekTotals.set(key, (weekTotals.get(key) ?? 0) + (row.total ?? 0));
+    }
+    const weeklyHits = Array.from(weekTotals.values()).filter((v) => v >= effectiveTargets.weekly).length;
+
+    const monthlyCurrent = monthRows.reduce((sum, r) => sum + (r.total ?? 0), 0);
+    const monthlyTarget = effectiveTargets.monthly;
+    const daysInMonth = new Date(Date.UTC(anchorParts.y, anchorParts.m, 0)).getUTCDate();
+    const monthlyBehind = Math.max(monthlyTarget - monthlyCurrent, 0);
+    const monthlyPct = monthlyTarget > 0 ? Math.round((monthlyCurrent / monthlyTarget) * 100) : 0;
+
+    return {
+      dailyHits,
+      weeklyHits,
+      daysInMonth,
+      monthlyCurrent,
+      monthlyTarget,
+      monthlyBehind,
+      monthlyPct,
+    };
+  }, [mtdSummary.dailyTrend, effectiveTargets.daily, effectiveTargets.weekly, effectiveTargets.monthly]);
+
+  async function onSaveTargets(e: React.FormEvent) {
+    e.preventDefault();
+    function parse(v: string): number | null {
+      const t = v.trim();
+      if (!t) return null;
+      const n = Number(t);
+      if (!Number.isFinite(n) || n < 0) return 0;
+      return Math.floor(n);
+    }
+    try {
+      setIsSavingTarget(true);
+      await updateTargets({
+        daily_target: parse(targetForm.daily),
+        weekly_target: parse(targetForm.weekly),
+        monthly_target: parse(targetForm.monthly),
+      });
+      await loadTargetSummary();
+      setShowTargetModal(false);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setIsSavingTarget(false);
+    }
+  }
   
 
   if (isLoading) {
@@ -717,13 +888,73 @@ export default function DashboardPage() {
           sparklineColor="rgba(110, 231, 183, 0.9)"
         />
         <KpiCard
-          label="Total pending tasks"
-          value={derivedKpis.pending}
-          sparkline={kpiSparklineByMetric.pending}
+          label="Monthly target progress"
+          value={monthlyTargetKpiValue}
+          sparkline={kpiSparklineByMetric.thisMonth}
           sparklineColor="rgba(110, 231, 183, 0.9)"
         />
         <KpiCard label="Total rejects" value={derivedKpis.rejected} accent="red" sparkline={kpiSparklineByMetric.rejects} />
       </section>
+      <section className="dashboard-actions">
+        <button type="button" className="quick-add-btn" onClick={() => setShowTargetModal(true)}>
+          Set Targets
+        </button>
+        <span className="pending-meta">
+          {todayTargetLabel} {targetProgress?.daily.current ?? 0}/{effectiveTargets.daily} · Weekly target {targetProgress?.weekly.current ?? 0}/{effectiveTargets.weekly} · Monthly target {targetProgress?.monthly.current ?? 0}/{effectiveTargets.monthly}
+        </span>
+      </section>
+
+      {showTargetModal ? (
+        <div className="modal-overlay" onClick={() => !isSavingTarget && setShowTargetModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Set Application Targets</h3>
+            <p className="modal-subtitle">Set your personal goals for daily, weekly, and monthly applications. Defaults are Daily 1, Weekly 7, Monthly 30.</p>
+            <form className="form" onSubmit={onSaveTargets}>
+              <div className="form-row">
+                <label className="form-label">Daily target</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={targetForm.daily}
+                  onChange={(e) => setTargetForm((p) => ({ ...p, daily: e.target.value }))}
+                  placeholder="Default: 1"
+                />
+              </div>
+              <div className="form-row">
+                <label className="form-label">Weekly target</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={targetForm.weekly}
+                  onChange={(e) => setTargetForm((p) => ({ ...p, weekly: e.target.value }))}
+                  placeholder="Default: 7"
+                />
+              </div>
+              <div className="form-row">
+                <label className="form-label">Monthly target</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={targetForm.monthly}
+                  onChange={(e) => setTargetForm((p) => ({ ...p, monthly: e.target.value }))}
+                  placeholder="Default: 30"
+                />
+              </div>
+              <div className="modal-actions">
+                <button type="button" className="action-btn" onClick={() => !isSavingTarget && setShowTargetModal(false)} disabled={isSavingTarget}>
+                  Cancel
+                </button>
+                <button type="submit" disabled={isSavingTarget}>
+                  {isSavingTarget ? "Saving..." : "Save Targets"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
       <section className="chart-grid chart-grid-trend">
         <div className="card card-chart-trend" style={{ paddingBottom: 24 }}>
           <div className="chart-header">
@@ -739,6 +970,9 @@ export default function DashboardPage() {
                     : `${weeklyInsights.diff > 0 ? "+" : "−"}${Math.abs(weeklyInsights.diff)} vs last week`}
                 </span>
               ) : null}
+              <span className="delta-pill">
+                Daily Target Achieved: {targetHeaderMetrics.dailyHits}/{targetHeaderMetrics.daysInMonth} · Monthly Target Behind: {targetHeaderMetrics.monthlyBehind}
+              </span>
               <label className="chart-filter-label" htmlFor="trend-days">
                 Show last
               </label>
@@ -911,7 +1145,11 @@ export default function DashboardPage() {
 
       <section className="chart-grid chart-grid-two chart-grid-70-30" style={{ gridTemplateColumns: "minmax(0, 7fr) minmax(0, 3fr)" }}>
         <div className="card card-mtd">
-          <div className="chart-header" />
+          <div className="chart-header">
+            <div className="chart-title-group">
+              <h2>Month Target View</h2>
+            </div>
+          </div>
           {mtdStats ? (
             <div className="mtd-stats">
               <div>
@@ -955,9 +1193,22 @@ export default function DashboardPage() {
                     allowDecimals={false}
                     width={32}
                   />
+                  <ReferenceLine
+                    y={effectiveTargets.daily}
+                    stroke="rgba(52, 211, 153, 0.85)"
+                    strokeDasharray="4 4"
+                    label={{ value: `Target ${effectiveTargets.daily}`, fill: CHART_COLORS.textSecondary, fontSize: 10 }}
+                  />
                   <Tooltip content={<MtdTooltip />} cursor={{ fill: "rgba(96, 165, 250, 0.08)" }} />
                   <Bar dataKey="lastMonth" name="Last month" fill="rgba(96, 165, 250, 0.6)" barSize={6} radius={[3, 3, 0, 0]} />
-                  <Bar dataKey="thisMonth" name="This month" fill={CHART_COLORS.trendLine} barSize={6} radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="thisMonth" name="This month" barSize={6} radius={[3, 3, 0, 0]}>
+                    {mtdDailyCompare.map((row, idx) => (
+                      <Cell
+                        key={`mtd-this-${idx}`}
+                        fill={(row.thisMonth ?? 0) >= effectiveTargets.daily ? "#34d399" : CHART_COLORS.trendLine}
+                      />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>

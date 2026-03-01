@@ -7,6 +7,8 @@ import { getLocalISODate } from "./formatDate";
 export type AuthUser = {
   id: number;
   email: string;
+  first_name?: string | null;
+  last_name?: string | null;
 };
 
 export type AuthSession = {
@@ -138,13 +140,13 @@ export type GetJobsParams = {
   page?: number;
   limit?: number;
   company?: string;
-  sort?: "date_saved" | "company" | "role" | "referral_status" | "job_link";
+  sort?: "date_saved" | "applied_at" | "company" | "role" | "referral_status" | "job_link";
   order?: "asc" | "desc";
   status?: string; // 'active' | 'rejected' | 'all'
 };
 
 export function getJobs(params: GetJobsParams = {}) {
-  const { page = 1, limit = 25, company, sort = "date_saved", order = "desc" } = params;
+  const { page = 1, limit = 25, company, sort = "applied_at", order = "desc" } = params;
   const search = new URLSearchParams();
   search.set("page", String(page));
   search.set("limit", String(Math.min(limit, 100)));
@@ -320,6 +322,138 @@ export function markPendingDone(id: number | string) {
     method: "PATCH",
     body: JSON.stringify({ is_done: true }),
   });
+}
+
+export type FriendRecord = {
+  friendship_id: number | string;
+  status: string;
+  created_at: string;
+  accepted_at?: string | null;
+  friend_id: number | string;
+  friend_email: string;
+  friend_name?: string;
+};
+
+export type IncomingFriendRequest = {
+  friendship_id: number | string;
+  requester_id: number | string;
+  requester_email: string;
+  requester_name?: string;
+  created_at: string;
+};
+
+export type OutgoingFriendRequest = {
+  friendship_id: number | string;
+  receiver_id: number | string;
+  receiver_email: string;
+  receiver_name?: string;
+  created_at: string;
+};
+
+export function getFriends() {
+  return request<{ data: FriendRecord[]; maxFriends: number }>("/api/friends");
+}
+
+export function getFriendRequests() {
+  return request<{ incoming: IncomingFriendRequest[]; outgoing: OutgoingFriendRequest[] }>("/api/friends/requests");
+}
+
+export function sendFriendRequest(payload: { email?: string; receiver_id?: number | string }) {
+  return request<{ ok: boolean; friendship: { id: number | string; status: string } }>("/api/friends/request", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function acceptFriendRequest(friendshipId: number | string) {
+  return request<{ ok: boolean; friendship: Record<string, unknown>; maxFriends: number }>(
+    `/api/friends/${friendshipId}/accept`,
+    { method: "POST" },
+  );
+}
+
+export function rejectFriendRequest(friendshipId: number | string) {
+  return request<{ ok: boolean; friendship: Record<string, unknown> }>(
+    `/api/friends/${friendshipId}/reject`,
+    { method: "POST" },
+  );
+}
+
+export function blockFriendship(friendshipId: number | string) {
+  return request<{ ok: boolean; friendship: Record<string, unknown> }>(
+    `/api/friends/${friendshipId}/block`,
+    { method: "POST" },
+  );
+}
+
+export type NetworkTrendPoint = { day: string; total: number };
+export type NetworkTrendFriend = {
+  friend_id: number;
+  friend_email: string;
+  friend_name?: string;
+  is_self?: boolean;
+  trend: NetworkTrendPoint[];
+};
+
+export function getNetworkTrend(days = 10) {
+  const search = new URLSearchParams();
+  search.set("days", String(days));
+  search.set("anchorDay", getLocalISODate());
+  return request<{ days: number; anchorDay: string | null; data: NetworkTrendFriend[] }>(
+    `/api/network/trend?${search.toString()}`
+  );
+}
+
+export type NetworkTodayJob = {
+  id: number;
+  company: string | null;
+  role: string | null;
+  date_saved: string | null;
+  application_status: string | null;
+  referral_status: string | null;
+  job_link: string | null;
+};
+
+export type NetworkTodayFriend = {
+  friend_id: number;
+  friend_email: string;
+  friend_name?: string;
+  jobs: NetworkTodayJob[];
+};
+
+export function getNetworkToday() {
+  const search = new URLSearchParams();
+  search.set("anchorDay", getLocalISODate());
+  return request<{ anchorDay: string | null; data: NetworkTodayFriend[] }>(
+    `/api/network/today?${search.toString()}`
+  );
+}
+
+export type TargetProgress = {
+  anchorDay: string | null;
+  daily: { current: number; target: number | null };
+  weekly: { current: number; target: number | null };
+  monthly: { current: number; target: number | null };
+};
+
+export function getTargetProgress() {
+  const search = new URLSearchParams();
+  search.set("anchorDay", getLocalISODate());
+  return request<TargetProgress>(`/api/targets/progress?${search.toString()}`);
+}
+
+export function updateTargets(payload: {
+  daily_target?: number | null;
+  weekly_target?: number | null;
+  monthly_target?: number | null;
+}) {
+  return request<{ ok: boolean; daily_target: number | null; weekly_target: number | null; monthly_target: number | null }>(
+    "/api/targets",
+    {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    },
+  );
 }
 
 export type JobsTrendData = Array<{ day: string; applied: number; rejected: number }>;

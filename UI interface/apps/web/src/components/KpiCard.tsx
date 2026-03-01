@@ -44,13 +44,12 @@ function Sparkline({
 export default function KpiCard({ label, value, accent, sparkline, sparklineColor }: Props) {
   const displayValue = value !== undefined && value !== null ? value : 0;
   const className = accent === "red" ? "kpi-card kpi-card--red" : "kpi-card";
+  const sparklineData = sparkline && sparkline.length > 1 ? sparkline : [0, 0];
   return (
     <div className={className}>
       <div className="kpi-label">{label}</div>
       <div className="kpi-value">{displayValue}</div>
-      {sparkline && sparkline.length > 1 ? (
-        <Sparkline data={sparkline} accent={accent} color={sparklineColor} />
-      ) : null}
+      <Sparkline data={sparklineData} accent={accent} color={sparklineColor} />
     </div>
   );
 }

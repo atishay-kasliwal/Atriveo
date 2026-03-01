@@ -13,7 +13,7 @@ import {
   YAxis,
 } from "recharts";
 import Spinner from "../components/Spinner";
-import { formatTableDate } from "../lib/formatDate";
+import { formatTableDateTime, formatTableTime } from "../lib/formatDate";
 import { deleteJob, getJobs, getJobsTrend, updateJob, type JobsTrendData } from "../lib/api";
 
 const LIMIT = 25;
@@ -27,11 +27,12 @@ function normalizeReferralStatus(value: unknown): "Requested" | "Yes" | "No" | "
   return "No";
 }
 
-type SortField = "date_saved" | "company" | "role" | "referral_status" | "job_link";
+type SortField = "date_saved" | "applied_at" | "company" | "role" | "referral_status" | "job_link";
 type SortOrder = "asc" | "desc";
 
 const BASE_SORT_CONFIG: { key: SortField; label: string }[] = [
   { key: "date_saved", label: "Date" },
+  { key: "applied_at", label: "Applied At" },
   { key: "company", label: "Company" },
   { key: "role", label: "Position" },
   { key: "referral_status", label: "Referral" },
@@ -60,7 +61,7 @@ function compareJobs(
   if (empty(av) && empty(bv)) return 0;
   if (empty(av)) return order === "asc" ? 1 : -1;
   if (empty(bv)) return order === "asc" ? -1 : 1;
-  if (field === "date_saved") {
+  if (field === "date_saved" || field === "applied_at") {
     const da = new Date(String(av)).getTime();
     const db = new Date(String(bv)).getTime();
     return order === "asc" ? da - db : db - da;
@@ -108,7 +109,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
   const [page, setPage] = useState(1);
   const [company, setCompany] = useState("");
   const [searchInput, setSearchInput] = useState("");
-  const [sortBy, setSortBy] = useState<SortField>("date_saved");
+  const [sortBy, setSortBy] = useState<SortField>("applied_at");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -193,7 +194,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
       setSortOrder((o) => (o === "asc" ? "desc" : "asc"));
     } else {
       setSortBy(field);
-      setSortOrder(field === "date_saved" ? "desc" : "asc"); // date: newest first; others: A→Z
+      setSortOrder(field === "date_saved" || field === "applied_at" ? "desc" : "asc"); // datetime: newest first; others: A→Z
     }
     setPage(1);
   }
@@ -620,9 +621,10 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
         ) : (
           <>
             <div className="table-wrap">
-              <table>
+              <table className="jobs-table">
                 <thead>
                   <tr>
+                    <th>No.</th>
                     <th>
                       <button
                         type="button"
@@ -710,11 +712,28 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                       </button>
                     </th>
                     <th>Application Status</th>
+                    <th>
+                      <button
+                        type="button"
+                        className="th-sort"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleSort("applied_at");
+                        }}
+                        title="Sort by Applied At"
+                      >
+                        Applied At
+                        {sortBy === "applied_at" ? (
+                          <span className="th-sort-icon" aria-hidden>{sortOrder === "asc" ? " ↑" : " ↓"}</span>
+                        ) : null}
+                      </button>
+                    </th>
                     <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedData.map((j) => (
+                  {sortedData.map((j, idx) => (
                     <tr
                       key={String(j.id)}
                       className={`tr-hover ${normalizeReferralStatus(j.referral_status) === "Yes" ? "data-referral" : ""} ${
@@ -722,8 +741,9 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                       } ${normalizeReferralStatus(j.referral_status) === "No" ? "data-no" : ""
                       }`}
                     >
+                      <td className="jobs-col-no">{(page - 1) * LIMIT + idx + 1}</td>
                       <td>
-                        {formatTableDate(
+                        {formatTableDateTime(
                           statusFilter === "rejected"
                             ? ((j as any).archive_date ?? j.date_saved)
                             : j.date_saved,
@@ -762,6 +782,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                           {getStatusMeta(String(j.application_status ?? "Applied")).label}
                         </span>
                       </td>
+                      <td>{formatTableTime((j as any).applied_at)}</td>
                       <td>
                         <div className="row-actions">
                           <button type="button" className="action-btn" onClick={() => openEdit(j)}>

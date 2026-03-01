@@ -102,9 +102,9 @@ export async function ensureOwnerUser(env: Bindings): Promise<AuthUser> {
     "INSERT INTO dashboard_users (email) VALUES ($1) ON CONFLICT (email) DO NOTHING",
     [email],
   );
-  const [owner] = await query<{ id: number; email: string }>(
+  const [owner] = await query<{ id: number; email: string; first_name: string | null; last_name: string | null }>(
     env,
-    "SELECT id, email FROM dashboard_users WHERE email = $1 LIMIT 1",
+    "SELECT id, email, first_name, last_name FROM dashboard_users WHERE email = $1 LIMIT 1",
     [email],
   );
   if (!owner) throw new Error("Owner user is not initialized");
@@ -152,10 +152,10 @@ export async function authMiddleware(
   }
 
   const tokenHash = await sha256Hex(bearer);
-  const [sessionUser] = await query<{ id: number; email: string }>(
+  const [sessionUser] = await query<{ id: number; email: string; first_name: string | null; last_name: string | null }>(
     c.env,
     `
-    SELECT u.id, u.email
+    SELECT u.id, u.email, u.first_name, u.last_name
     FROM dashboard_sessions s
     JOIN dashboard_users u ON u.id = s.user_id
     WHERE s.token_hash = $1
@@ -171,6 +171,8 @@ export async function authMiddleware(
   c.set("authUser", {
     id: Number(sessionUser.id),
     email: String(sessionUser.email),
+    first_name: sessionUser.first_name ?? null,
+    last_name: sessionUser.last_name ?? null,
   });
   await next();
 }

@@ -290,6 +290,9 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
           <NavLink to="/notes" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
             Notes
           </NavLink>
+          <NavLink to="/network" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
+            Network
+          </NavLink>
         </div>
         <div className="app-nav-actions app-nav-actions--segmented">
           <button type="button" className="quick-add-btn app-btn" onClick={() => setShowQuickAdd(true)}>

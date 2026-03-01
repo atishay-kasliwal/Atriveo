@@ -13,4 +13,6 @@ export type DbRow = Record<string, unknown>;
 export type AuthUser = {
   id: number;
   email: string;
+  first_name?: string | null;
+  last_name?: string | null;
 };

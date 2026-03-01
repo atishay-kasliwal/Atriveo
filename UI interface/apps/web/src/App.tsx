@@ -7,6 +7,7 @@ import JobsPage from "./pages/JobsPage";
 import ReferralsPage from "./pages/ReferralsPage";
 import PendingPage from "./pages/PendingPage";
 import NotesPage from "./pages/NotesPage";
+import NetworkPage from "./pages/NetworkPage";
 import AuthPage from "./pages/AuthPage";
 import {
   clearStoredSession,
@@ -101,6 +102,8 @@ export default function App() {
             <Route path="referrals" element={<ReferralsPage />} />
             <Route path="pending" element={<PendingPage />} />
             <Route path="notes" element={<NotesPage />} />
+            <Route path="network" element={<NetworkPage />} />
+            <Route path="friends" element={<Navigate to="/network" replace />} />
           </Route>
           <Route path="*" element={<Navigate to={session ? "/" : "/login"} replace />} />
         </Routes>
