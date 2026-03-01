@@ -699,6 +699,8 @@ app.get("/api/network/today", async (c) => {
     date_saved: string | null;
     application_status: string | null;
     referral_status: string | null;
+    oa_status: string | null;
+    job_application_id: string | null;
     job_link: string | null;
   }>(
     c.env,
@@ -724,6 +726,8 @@ app.get("/api/network/today", async (c) => {
       j.date_saved::text AS date_saved,
       j.application_status,
       j.referral_status,
+      j.oa_status,
+      j.job_application_id,
       j.job_link
     FROM friends fr
     LEFT JOIN jobs j
@@ -752,6 +756,8 @@ app.get("/api/network/today", async (c) => {
       date_saved: string | null;
       application_status: string | null;
       referral_status: string | null;
+      oa_status: string | null;
+      job_application_id: string | null;
       job_link: string | null;
     }>;
   }>();
@@ -774,6 +780,8 @@ app.get("/api/network/today", async (c) => {
         date_saved: row.date_saved ?? null,
         application_status: row.application_status ?? null,
         referral_status: row.referral_status ?? null,
+        oa_status: row.oa_status ?? null,
+        job_application_id: row.job_application_id ?? null,
         job_link: row.job_link ?? null,
       });
     }
@@ -1137,6 +1145,7 @@ const IMPORT_REQUIRED_HEADERS = ["role", "company", "date_saved"] as const;
 const IMPORT_OPTIONAL_HEADERS = [
   "location_raw",
   "job_link",
+  "job_application_id",
   "keyword_matching",
   "oa_status",
   "referral_status",
@@ -1150,6 +1159,7 @@ type CsvImportRow = {
   date_saved: string;
   location_raw: string;
   job_link: string | null;
+  job_application_id: string;
   keyword_matching: "Strong" | "Medium" | "Weak";
   oa_status: string;
   referral_status: string;
@@ -1222,8 +1232,8 @@ const KEYWORD_MATCHING_ALLOWED: Record<string, "Strong" | "Medium" | "Weak"> = {
 const OA_STATUS_ALLOWED: Record<string, string> = {
   yes: "Yes",
   no: "No",
-  pending: "Pending",
-  done: "Done",
+  pending: "No",
+  done: "No",
 };
 
 const REFERRAL_STATUS_ALLOWED: Record<string, string> = {
@@ -1274,6 +1284,12 @@ function normalizeReferralStatus(value: unknown): "Requested" | "Yes" | "No" | n
   return "No";
 }
 
+function normalizeOaStatus(value: unknown): "Yes" | "No" | null {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (!raw) return null;
+  return raw === "yes" ? "Yes" : "No";
+}
+
 app.get("/api/jobs", async (c) => {
   const userId = c.get("authUser").id;
   const page = Number(c.req.query("page") ?? 1);
@@ -1322,6 +1338,7 @@ const jobInput = z.object({
   company: z.string().min(1),
   location_raw: z.string().optional(),
   job_link: z.string().url().optional(),
+  job_application_id: z.string().optional(),
   keyword_matching: z.enum(["Strong", "Medium", "Weak", "Week"]).optional(),
   oa_status: z.string().optional(),
   referral_status: z.string().optional(),
@@ -1339,8 +1356,8 @@ app.post("/api/jobs", async (c) => {
   const [row] = await query(
     c.env,
     `
-    INSERT INTO jobs (user_id, source, role, company, location_raw, job_link, keyword_matching, oa_status, referral_status, response_status, application_status, notes, date_saved)
-    VALUES ($1, 'manual', $2, $3, $4, $5, COALESCE($6, 'Medium'), $7, $8, $9, COALESCE($10, 'Applied'), $11, (COALESCE($12::date, CURRENT_DATE))::timestamp)
+    INSERT INTO jobs (user_id, source, role, company, location_raw, job_link, job_application_id, keyword_matching, oa_status, referral_status, response_status, application_status, notes, date_saved)
+    VALUES ($1, 'manual', $2, $3, $4, $5, COALESCE($6, '-'), COALESCE($7, 'Medium'), COALESCE($8, 'No'), $9, $10, COALESCE($11, 'Applied'), $12, (COALESCE($13::date, CURRENT_DATE))::timestamp)
     RETURNING *
     `,
     [
@@ -1349,8 +1366,9 @@ app.post("/api/jobs", async (c) => {
       p.company,
       p.location_raw ?? null,
       p.job_link ?? null,
+      p.job_application_id?.trim() ? p.job_application_id.trim() : null,
       normalizeKeywordMatching(p.keyword_matching),
-      p.oa_status ?? null,
+      normalizeOaStatus(p.oa_status),
       normalizeReferralStatus(p.referral_status),
       p.response_status ?? null,
       p.application_status ?? null,
@@ -1440,6 +1458,9 @@ app.post("/api/jobs/import/csv", async (c) => {
         if (warnings.length < 12) warnings.push(`Row ${rowNumber}: invalid job_link replaced with default (empty).`);
       }
     }
+    const jobApplicationIdRaw = getCell("job_application_id");
+    const jobApplicationId = jobApplicationIdRaw || "-";
+    if (!jobApplicationIdRaw) defaultsApplied += 1;
 
     const keywordMatchingRaw = getCell("keyword_matching");
     const keywordMatching = normalizeAllowed(
@@ -1487,6 +1508,7 @@ app.post("/api/jobs/import/csv", async (c) => {
       date_saved: dateSaved,
       location_raw: locationRaw,
       job_link: normalizedJobLink,
+      job_application_id: jobApplicationId,
       keyword_matching: keywordMatching,
       oa_status: oaStatus,
       referral_status: referralStatus,
@@ -1504,8 +1526,8 @@ app.post("/api/jobs/import/csv", async (c) => {
     await query(
       c.env,
       `
-      INSERT INTO jobs (user_id, source, role, company, location_raw, job_link, keyword_matching, oa_status, referral_status, response_status, application_status, notes, date_saved)
-      VALUES ($1, 'import-csv', $2, $3, $4, $5, COALESCE($6, 'Medium'), $7, $8, $9, COALESCE($10, 'Applied'), $11, ($12::date)::timestamp)
+      INSERT INTO jobs (user_id, source, role, company, location_raw, job_link, job_application_id, keyword_matching, oa_status, referral_status, response_status, application_status, notes, date_saved)
+      VALUES ($1, 'import-csv', $2, $3, $4, $5, COALESCE($6, '-'), COALESCE($7, 'Medium'), COALESCE($8, 'No'), $9, $10, COALESCE($11, 'Applied'), $12, ($13::date)::timestamp)
       `,
       [
         userId,
@@ -1513,6 +1535,7 @@ app.post("/api/jobs/import/csv", async (c) => {
         row.company,
         row.location_raw,
         row.job_link,
+        row.job_application_id,
         row.keyword_matching,
         row.oa_status,
         row.referral_status,
@@ -1557,6 +1580,7 @@ app.get("/api/jobs/export/csv", async (c) => {
       company,
       location_raw,
       job_link,
+      job_application_id,
       keyword_matching,
       oa_status,
       referral_status,
@@ -1576,6 +1600,7 @@ app.get("/api/jobs/export/csv", async (c) => {
     "company",
     "location_raw",
     "job_link",
+    "job_application_id",
     "keyword_matching",
     "oa_status",
     "referral_status",
@@ -1613,6 +1638,7 @@ const jobUpdateInput = z.object({
   company: z.string().min(1).optional(),
   location_raw: z.string().optional(),
   job_link: z.string().url().optional().nullable(),
+  job_application_id: z.string().optional().nullable(),
   keyword_matching: z.enum(["Strong", "Medium", "Weak", "Week"]).optional().nullable(),
   oa_status: z.string().optional().nullable(),
   referral_status: z.string().optional().nullable(),
@@ -1636,19 +1662,20 @@ app.patch("/api/jobs/:id", async (c) => {
       company = COALESCE($2, company),
       location_raw = COALESCE($3, location_raw),
       job_link = COALESCE($4, job_link),
-      keyword_matching = COALESCE($5, keyword_matching),
-      oa_status = COALESCE($6, oa_status),
-      referral_status = COALESCE($7, referral_status),
-      response_status = COALESCE($8, response_status),
-      application_status = COALESCE($9, application_status),
-      notes = COALESCE($10, notes),
-      date_saved = COALESCE($11::date, date_saved),
+      job_application_id = COALESCE($5, job_application_id),
+      keyword_matching = COALESCE($6, keyword_matching),
+      oa_status = COALESCE($7, oa_status),
+      referral_status = COALESCE($8, referral_status),
+      response_status = COALESCE($9, response_status),
+      application_status = COALESCE($10, application_status),
+      notes = COALESCE($11, notes),
+      date_saved = COALESCE($12::date, date_saved),
       archive_date = CASE
-        WHEN LOWER(TRIM(COALESCE($9, ''))) = 'rejected' THEN COALESCE(archive_date, CURRENT_DATE)
+        WHEN LOWER(TRIM(COALESCE($10, ''))) = 'rejected' THEN COALESCE(archive_date, CURRENT_DATE)
         ELSE archive_date
       END,
       updated_at = NOW()
-    WHERE id = $12 AND user_id = $13
+    WHERE id = $13 AND user_id = $14
     RETURNING *
     `,
     [
@@ -1656,8 +1683,9 @@ app.patch("/api/jobs/:id", async (c) => {
       p.company ?? null,
       p.location_raw ?? null,
       p.job_link ?? null,
+      p.job_application_id?.trim() ? p.job_application_id.trim() : null,
       normalizeKeywordMatching(p.keyword_matching),
-      p.oa_status ?? null,
+      normalizeOaStatus(p.oa_status),
       normalizeReferralStatus(p.referral_status),
       p.response_status ?? null,
       p.application_status ?? null,

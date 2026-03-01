@@ -411,6 +411,8 @@ export type NetworkTodayJob = {
   date_saved: string | null;
   application_status: string | null;
   referral_status: string | null;
+  oa_status: string | null;
+  job_application_id: string | null;
   job_link: string | null;
 };
 

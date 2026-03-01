@@ -27,6 +27,11 @@ function normalizeReferralStatus(value: unknown): "Requested" | "Yes" | "No" | "
   return "No";
 }
 
+function normalizeOaStatus(value: unknown): "Yes" | "No" {
+  const raw = String(value ?? "").trim().toLowerCase();
+  return raw === "yes" ? "Yes" : "No";
+}
+
 type SortField = "date_saved" | "applied_at" | "company" | "role" | "referral_status" | "job_link";
 type SortOrder = "asc" | "desc";
 
@@ -122,7 +127,9 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     company: "",
     location_raw: "",
     job_link: "",
+    job_application_id: "",
     keyword_matching: "Medium",
+    oa_status: "No",
     referral_status: "",
     response_status: "",
     application_status: "",
@@ -213,10 +220,12 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
       company: String(job.company ?? ""),
       location_raw: String(job.location_raw ?? ""),
       job_link: String(job.job_link ?? ""),
+      job_application_id: String((job as any).job_application_id ?? "-"),
       keyword_matching:
         String((job as any).keyword_matching ?? "Medium").trim().toLowerCase() === "week"
           ? "Weak"
           : String((job as any).keyword_matching ?? "Medium"),
+      oa_status: normalizeOaStatus((job as any).oa_status),
       referral_status: normalizeReferralStatus(job.referral_status),
       response_status: String(job.response_status ?? ""),
       application_status: String(job.application_status ?? "Applied"),
@@ -235,7 +244,9 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
         company: editForm.company.trim() || undefined,
         location_raw: editForm.location_raw.trim() || undefined,
         job_link: editForm.job_link.trim() || undefined,
+        job_application_id: editForm.job_application_id.trim() || undefined,
         keyword_matching: editForm.keyword_matching || undefined,
+        oa_status: editForm.oa_status || undefined,
         referral_status: editForm.referral_status.trim() || undefined,
         response_status: editForm.response_status.trim() || undefined,
         application_status: editForm.application_status.trim() || undefined,
@@ -694,6 +705,8 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                       </button>
                     </th>
                     <th>Keyword Match</th>
+                    <th>OA</th>
+                    <th>Job/App ID</th>
                     <th>
                       <button
                         type="button"
@@ -763,6 +776,8 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                           {getKeywordMeta(String((j as any).keyword_matching ?? "Medium")).label}
                         </span>
                       </td>
+                      <td>{normalizeOaStatus((j as any).oa_status)}</td>
+                      <td>{String((j as any).job_application_id ?? "-")}</td>
                       <td>
                         {j.job_link ? (
                           <a
@@ -862,6 +877,11 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                 value={editForm.job_link}
                 onChange={(e) => setEditForm((p) => ({ ...p, job_link: e.target.value }))}
               />
+              <input
+                placeholder="Job/Application ID (optional)"
+                value={editForm.job_application_id}
+                onChange={(e) => setEditForm((p) => ({ ...p, job_application_id: e.target.value }))}
+              />
               <div className="form-row">
                 <label className="form-label">Keyword Matching</label>
                 <select
@@ -880,6 +900,17 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                       ? "Few Keywords are not Present"
                       : "Few Keywords Matched"}
                 </p>
+              </div>
+              <div className="form-row">
+                <label className="form-label">Online Assessment (OA)</label>
+                <select
+                  value={editForm.oa_status}
+                  onChange={(e) => setEditForm((p) => ({ ...p, oa_status: e.target.value }))}
+                  className="form-select"
+                >
+                  <option value="No">No</option>
+                  <option value="Yes">Yes</option>
+                </select>
               </div>
               <div className="form-row">
                 <label className="form-label">Referral</label>

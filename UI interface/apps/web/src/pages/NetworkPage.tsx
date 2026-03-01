@@ -234,6 +234,8 @@ function augmentDemoNetworkData(
         date_saved: ts,
         application_status: "Applied",
         referral_status: j % 2 === 0 ? "Requested" : "No",
+        oa_status: "No",
+        job_application_id: "-",
         job_link: `https://careers.example.com/${encodeURIComponent(company.toLowerCase())}/${(idx + j + 100).toString(36)}`,
       };
     });
@@ -266,7 +268,9 @@ export default function NetworkPage() {
     role: "",
     date_saved: getLocalISODate(),
     job_link: "",
+    job_application_id: "",
     location_raw: "",
+    oa_status: "No",
     referral_status: "",
     keyword_matching: "Medium",
     notes: "",
@@ -305,6 +309,8 @@ export default function NetworkPage() {
       role: string | null;
       date_saved: string | null;
       job_link: string | null;
+      job_application_id: string | null;
+      oa_status: string | null;
       referral_status: string | null;
       application_status: string | null;
     },
@@ -316,7 +322,9 @@ export default function NetworkPage() {
       role: String(job.role ?? ""),
       date_saved: toDateInput(job.date_saved),
       job_link: String(job.job_link ?? ""),
+      job_application_id: String(job.job_application_id ?? "-"),
       location_raw: "",
+      oa_status: String(job.oa_status ?? "No") === "Yes" ? "Yes" : "No",
       referral_status: String(job.referral_status ?? ""),
       keyword_matching: "Medium",
       notes: `Copied from ${friendName}${job.application_status ? ` (${job.application_status})` : ""}`.trim(),
@@ -331,6 +339,8 @@ export default function NetworkPage() {
       role: string | null;
       date_saved: string | null;
       job_link: string | null;
+      job_application_id: string | null;
+      oa_status: string | null;
       referral_status: string | null;
       application_status: string | null;
     },
@@ -349,7 +359,9 @@ export default function NetworkPage() {
         role: prefillForm.role.trim(),
         date_saved: prefillForm.date_saved || getLocalISODate(),
         job_link: prefillForm.job_link.trim() || undefined,
+        job_application_id: prefillForm.job_application_id.trim() || undefined,
         location_raw: prefillForm.location_raw.trim() || undefined,
+        oa_status: prefillForm.oa_status || "No",
         referral_status: prefillForm.referral_status.trim() || undefined,
         keyword_matching: prefillForm.keyword_matching || "Medium",
         notes: prefillForm.notes.trim() || undefined,
@@ -1059,6 +1071,8 @@ export default function NetworkPage() {
                               <th>Company</th>
                               <th>Role</th>
                               <th>Date</th>
+                              <th>OA</th>
+                              <th>Job/App ID</th>
                               <th>Link</th>
                               <th>Action</th>
                             </tr>
@@ -1074,6 +1088,8 @@ export default function NetworkPage() {
                                     role: job.role ?? null,
                                     date_saved: job.date_saved ?? null,
                                     job_link: job.job_link ?? null,
+                                    job_application_id: job.job_application_id ?? null,
+                                    oa_status: job.oa_status ?? null,
                                     referral_status: job.referral_status ?? null,
                                     application_status: job.application_status ?? null,
                                   })
@@ -1087,6 +1103,8 @@ export default function NetworkPage() {
                                   {String(job.role ?? "—")}
                                 </td>
                                 <td className="network-cell-date">{formatTableDateTime(job.date_saved)}</td>
+                                <td>{String(job.oa_status ?? "No") === "Yes" ? "Yes" : "No"}</td>
+                                <td>{String(job.job_application_id ?? "-") || "-"}</td>
                                 <td>
                                   {job.job_link ? (
                                     <a
@@ -1113,6 +1131,8 @@ export default function NetworkPage() {
                                         role: job.role ?? null,
                                         date_saved: job.date_saved ?? null,
                                         job_link: job.job_link ?? null,
+                                        job_application_id: job.job_application_id ?? null,
+                                        oa_status: job.oa_status ?? null,
                                         referral_status: job.referral_status ?? null,
                                         application_status: job.application_status ?? null,
                                       });
@@ -1196,6 +1216,22 @@ export default function NetworkPage() {
                   value={prefillForm.job_link}
                   onChange={(e) => setPrefillForm((p) => ({ ...p, job_link: e.target.value }))}
                 />
+                <input
+                  placeholder="Job/Application ID (optional)"
+                  value={prefillForm.job_application_id}
+                  onChange={(e) => setPrefillForm((p) => ({ ...p, job_application_id: e.target.value }))}
+                />
+                <div className="form-row">
+                  <label className="form-label">Online Assessment (OA)</label>
+                  <select
+                    value={prefillForm.oa_status}
+                    onChange={(e) => setPrefillForm((p) => ({ ...p, oa_status: e.target.value }))}
+                    className="form-select"
+                  >
+                    <option value="No">No</option>
+                    <option value="Yes">Yes</option>
+                  </select>
+                </div>
                 <div className="form-row">
                   <label className="form-label">Keyword Matching</label>
                   <select

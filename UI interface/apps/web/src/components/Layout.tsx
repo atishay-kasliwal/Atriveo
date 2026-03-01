@@ -30,7 +30,9 @@ const emptyJobForm = {
   company: "",
   location_raw: "United States of America",
   job_link: "",
+  job_application_id: "",
   keyword_matching: "Medium",
+  oa_status: "No",
   referral_status: "No",
   notes: "",
   date_saved: getLocalISODate(),
@@ -344,6 +346,8 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
         ...form,
         date_saved: form.date_saved || getLocalISODate(),
         job_link: form.job_link.trim() || undefined,
+        job_application_id: form.job_application_id.trim() || undefined,
+        oa_status: form.oa_status || "No",
         referral_status: form.referral_status.trim() || undefined,
         notes: form.notes.trim() || undefined,
       });
@@ -503,7 +507,8 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
                   Optional fields auto-default when blank or invalid.
                   Allowed values:
                   <code>keyword_matching</code> = Strong/Medium/Weak,
-                  <code>oa_status</code> = Yes/No/Pending/Done,
+                  <code>oa_status</code> = Yes/No,
+                  <code>job_application_id</code> = optional text (defaults to -),
                   <code>referral_status</code> = Requested/Yes/No,
                   <code>response_status</code> = Review/Screening/Interview/Rejected/Offer/No Response,
                   <code>application_status</code> = Applied/Review/Interview/Rejected/Offer.
@@ -785,6 +790,22 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
                   value={form.job_link}
                   onChange={(e) => setForm((p) => ({ ...p, job_link: e.target.value }))}
                 />
+                <input
+                  placeholder="Job/Application ID (optional)"
+                  value={form.job_application_id}
+                  onChange={(e) => setForm((p) => ({ ...p, job_application_id: e.target.value }))}
+                />
+                <div className="form-row">
+                  <label className="form-label">Online Assessment (OA)</label>
+                  <select
+                    value={form.oa_status}
+                    onChange={(e) => setForm((p) => ({ ...p, oa_status: e.target.value }))}
+                    className="form-select"
+                  >
+                    <option value="No">No</option>
+                    <option value="Yes">Yes</option>
+                  </select>
+                </div>
                 <div className="form-row">
                   <label className="form-label">Keyword Matching</label>
                   <select

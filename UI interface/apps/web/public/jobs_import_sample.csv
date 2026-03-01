@@ -1,4 +1,4 @@
-date_saved,role,company,location_raw,job_link,keyword_matching,oa_status,referral_status,response_status,application_status,notes
+date_saved,role,company,location_raw,job_link,job_application_id,keyword_matching,oa_status,referral_status,response_status,application_status,notes
 2026-02-20,Software Engineer,Example Corp,New York,https://example.com/jobs/123,Medium,No,No,Review,Applied,Valid values example
 2026-02-21,Backend Engineer,Acme Labs,San Francisco,https://example.com/jobs/456,Strong,Pending,Yes,Interview,Interview,Valid values example
 2026-02-22,Frontend Engineer,Beta Systems,Austin,https://example.com/jobs/789,Weak,Done,Applied without referral,No Response,Offer,Valid values example
