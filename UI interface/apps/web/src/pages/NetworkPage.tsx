@@ -182,11 +182,9 @@ function toDateInput(value: string | null | undefined): string {
   return d.toISOString().slice(0, 10);
 }
 
-function normalizeOaStatus(value: unknown): "Pending" | "Completed" | "Missed" | "No" {
+function normalizeOaStatus(value: unknown): "Yes" | "No" {
   const raw = String(value ?? "").trim().toLowerCase();
-  if (raw === "yes" || raw === "pending") return "Pending";
-  if (raw === "completed" || raw === "complete" || raw === "done") return "Completed";
-  if (raw === "missed" || raw === "missing" || raw === "overdue") return "Missed";
+  if (raw === "yes" || raw === "pending" || raw === "completed" || raw === "complete" || raw === "done" || raw === "missed" || raw === "missing" || raw === "overdue") return "Yes";
   return "No";
 }
 
@@ -242,7 +240,7 @@ function augmentDemoNetworkData(
         date_saved: ts,
         application_status: "Applied",
         referral_status: j % 2 === 0 ? "Requested" : "No",
-        oa_status: "Pending",
+        oa_status: "No",
         oa_deadline_date: null,
         job_application_id: "-",
         job_link: `https://careers.example.com/${encodeURIComponent(company.toLowerCase())}/${(idx + j + 100).toString(36)}`,
@@ -280,7 +278,7 @@ export default function NetworkPage() {
     job_application_id: "",
     oa_deadline_date: "",
     location_raw: "",
-    oa_status: "Pending",
+    oa_status: "No",
     referral_status: "",
     keyword_matching: "Medium",
     notes: "",
@@ -375,7 +373,7 @@ export default function NetworkPage() {
         job_application_id: prefillForm.job_application_id.trim() || undefined,
         oa_deadline_date: prefillForm.oa_deadline_date || undefined,
         location_raw: prefillForm.location_raw.trim() || undefined,
-        oa_status: prefillForm.oa_status || "Pending",
+        oa_status: prefillForm.oa_status || "No",
         referral_status: prefillForm.referral_status.trim() || undefined,
         keyword_matching: prefillForm.keyword_matching || "Medium",
         notes: prefillForm.notes.trim() || undefined,
@@ -1254,7 +1252,7 @@ export default function NetworkPage() {
                     onChange={(e) => setPrefillForm((p) => ({ ...p, oa_status: e.target.value }))}
                     className="form-select"
                   >
-                    <option value="Pending">Pending</option>
+                    <option value="Yes">Yes</option>
                     <option value="No">No</option>
                   </select>
                 </div>

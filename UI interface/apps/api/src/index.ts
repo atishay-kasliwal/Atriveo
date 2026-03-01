@@ -1236,15 +1236,15 @@ const KEYWORD_MATCHING_ALLOWED: Record<string, "Strong" | "Medium" | "Weak"> = {
 };
 
 const OA_STATUS_ALLOWED: Record<string, string> = {
-  yes: "Pending",
+  yes: "Yes",
   no: "No",
-  pending: "Pending",
-  complete: "Completed",
-  completed: "Completed",
-  done: "Completed",
-  missed: "Missed",
-  missing: "Missed",
-  overdue: "Missed",
+  pending: "Yes",
+  complete: "Yes",
+  completed: "Yes",
+  done: "Yes",
+  missed: "Yes",
+  missing: "Yes",
+  overdue: "Yes",
 };
 
 const REFERRAL_STATUS_ALLOWED: Record<string, string> = {
@@ -1295,12 +1295,10 @@ function normalizeReferralStatus(value: unknown): "Requested" | "Yes" | "No" | n
   return "No";
 }
 
-function normalizeOaStatus(value: unknown): "Pending" | "Completed" | "Missed" | "No" | null {
+function normalizeOaStatus(value: unknown): "Yes" | "No" | null {
   const raw = String(value ?? "").trim().toLowerCase();
   if (!raw) return null;
-  if (raw === "yes" || raw === "pending") return "Pending";
-  if (raw === "completed" || raw === "complete" || raw === "done") return "Completed";
-  if (raw === "missed" || raw === "missing" || raw === "overdue") return "Missed";
+  if (raw === "yes" || raw === "pending" || raw === "completed" || raw === "complete" || raw === "done" || raw === "missed" || raw === "missing" || raw === "overdue") return "Yes";
   return "No";
 }
 
@@ -1372,7 +1370,7 @@ app.post("/api/jobs", async (c) => {
     c.env,
     `
     INSERT INTO jobs (user_id, source, role, company, location_raw, job_link, job_application_id, oa_deadline_date, keyword_matching, oa_status, referral_status, response_status, application_status, notes, date_saved)
-    VALUES ($1, 'manual', $2, $3, $4, $5, COALESCE($6, '-'), $7::date, COALESCE($8, 'Medium'), COALESCE($9, 'Pending'), $10, $11, COALESCE($12, 'Applied'), $13, (COALESCE($14::date, CURRENT_DATE))::timestamp)
+    VALUES ($1, 'manual', $2, $3, $4, $5, COALESCE($6, '-'), $7::date, COALESCE($8, 'Medium'), COALESCE($9, 'No'), $10, $11, COALESCE($12, 'Applied'), $13, (COALESCE($14::date, CURRENT_DATE))::timestamp)
     RETURNING *
     `,
     [
@@ -1499,7 +1497,7 @@ app.post("/api/jobs/import/csv", async (c) => {
       if (warnings.length < 12) warnings.push(`Row ${rowNumber}: keyword_matching normalized to ${keywordMatching}.`);
     }
     const oaStatusRaw = getCell("oa_status");
-    const oaStatus = normalizeAllowed(oaStatusRaw, OA_STATUS_ALLOWED, "Pending");
+    const oaStatus = normalizeAllowed(oaStatusRaw, OA_STATUS_ALLOWED, "No");
     if (oaStatusRaw && oaStatusRaw.trim().toLowerCase() !== oaStatus.toLowerCase()) {
       defaultsApplied += 1;
       if (warnings.length < 12) warnings.push(`Row ${rowNumber}: oa_status normalized to ${oaStatus}.`);
@@ -1805,7 +1803,7 @@ app.get("/api/oa/active", async (c) => {
     LEFT JOIN online_assessment_records oar
       ON oar.job_id = j.id AND oar.user_id = j.user_id
     WHERE j.user_id = $1
-      AND LOWER(TRIM(COALESCE(j.oa_status, ''))) IN ('pending', 'yes')
+      AND LOWER(TRIM(COALESCE(j.oa_status, ''))) = 'yes'
       AND LOWER(TRIM(COALESCE(j.application_status, 'Applied'))) != 'rejected'
       AND j.oa_deadline_date IS NOT NULL
       AND j.oa_deadline_date < COALESCE($2::date, CURRENT_DATE)
@@ -1836,96 +1834,6 @@ app.get("/api/oa/active", async (c) => {
     [userId, anchorDay],
   );
 
-  // Auto-archive rows explicitly marked as Completed/Missed in jobs.
-  await query(
-    c.env,
-    `
-    INSERT INTO online_assessment_records (
-      user_id,
-      job_id,
-      source,
-      role,
-      company,
-      location_raw,
-      job_link,
-      job_application_id,
-      oa_deadline_date,
-      keyword_matching,
-      oa_status,
-      referral_status,
-      response_status,
-      application_status,
-      notes,
-      date_saved,
-      applied_at,
-      archive_date,
-      oa_completed_date,
-      oa_completed_at,
-      oa_result,
-      oa_result_date
-    )
-    SELECT
-      j.user_id,
-      j.id,
-      CASE
-        WHEN LOWER(TRIM(COALESCE(j.oa_status, ''))) = 'completed' THEN 'oa-auto-completed'
-        ELSE 'oa-auto-missed'
-      END,
-      j.role,
-      j.company,
-      j.location_raw,
-      j.job_link,
-      j.job_application_id,
-      j.oa_deadline_date,
-      j.keyword_matching,
-      j.oa_status,
-      j.referral_status,
-      j.response_status,
-      j.application_status,
-      j.notes,
-      j.date_saved,
-      j.applied_at,
-      j.archive_date,
-      COALESCE($2::date, CURRENT_DATE),
-      NOW(),
-      CASE
-        WHEN LOWER(TRIM(COALESCE(j.oa_status, ''))) = 'completed' THEN 'Completed'
-        ELSE 'Missed'
-      END,
-      COALESCE($2::date, CURRENT_DATE)
-    FROM jobs j
-    LEFT JOIN online_assessment_records oar
-      ON oar.job_id = j.id AND oar.user_id = j.user_id
-    WHERE j.user_id = $1
-      AND LOWER(TRIM(COALESCE(j.oa_status, ''))) IN ('completed', 'missed')
-      AND LOWER(TRIM(COALESCE(j.application_status, 'Applied'))) != 'rejected'
-      AND oar.id IS NULL
-    ON CONFLICT (job_id) DO UPDATE SET
-      source = EXCLUDED.source,
-      role = EXCLUDED.role,
-      company = EXCLUDED.company,
-      location_raw = EXCLUDED.location_raw,
-      job_link = EXCLUDED.job_link,
-      job_application_id = EXCLUDED.job_application_id,
-      oa_deadline_date = EXCLUDED.oa_deadline_date,
-      keyword_matching = EXCLUDED.keyword_matching,
-      oa_status = EXCLUDED.oa_status,
-      referral_status = EXCLUDED.referral_status,
-      response_status = EXCLUDED.response_status,
-      application_status = EXCLUDED.application_status,
-      notes = EXCLUDED.notes,
-      date_saved = EXCLUDED.date_saved,
-      applied_at = EXCLUDED.applied_at,
-      archive_date = EXCLUDED.archive_date,
-      oa_completed_date = EXCLUDED.oa_completed_date,
-      oa_completed_at = NOW(),
-      oa_result = EXCLUDED.oa_result,
-      oa_result_date = EXCLUDED.oa_result_date,
-      updated_at = NOW()
-    `,
-    [userId, anchorDay],
-  );
-
   const rows = await query<Record<string, unknown>>(
     c.env,
     `
@@ -1948,7 +1856,7 @@ app.get("/api/oa/active", async (c) => {
     LEFT JOIN online_assessment_records oar
       ON oar.job_id = j.id AND oar.user_id = j.user_id
     WHERE j.user_id = $1
-      AND LOWER(TRIM(COALESCE(j.oa_status, ''))) IN ('pending', 'yes')
+      AND LOWER(TRIM(COALESCE(j.oa_status, ''))) = 'yes'
       AND LOWER(TRIM(COALESCE(j.application_status, 'Applied'))) != 'rejected'
       AND oar.id IS NULL
     ORDER BY
@@ -2037,7 +1945,7 @@ app.post("/api/oa/complete/:jobId", async (c) => {
     FROM jobs j
     WHERE j.id = $2
       AND j.user_id = $1
-      AND LOWER(TRIM(COALESCE(j.oa_status, ''))) IN ('pending', 'yes')
+      AND LOWER(TRIM(COALESCE(j.oa_status, ''))) = 'yes'
     ON CONFLICT (job_id) DO UPDATE SET
       source = EXCLUDED.source,
       role = EXCLUDED.role,

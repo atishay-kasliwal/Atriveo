@@ -36,12 +36,28 @@ function normalizeReferralStatus(value: unknown): "Requested" | "Yes" | "No" | "
   return "No";
 }
 
-function normalizeOaStatus(value: unknown): "Pending" | "Completed" | "Missed" | "No" {
+function normalizeOaStatus(value: unknown): "Yes" | "No" {
   const raw = String(value ?? "").trim().toLowerCase();
-  if (raw === "yes" || raw === "pending") return "Pending";
-  if (raw === "completed" || raw === "complete" || raw === "done") return "Completed";
-  if (raw === "missed" || raw === "missing" || raw === "overdue") return "Missed";
+  if (raw === "yes" || raw === "pending" || raw === "completed" || raw === "complete" || raw === "done" || raw === "missed" || raw === "missing" || raw === "overdue") return "Yes";
   return "No";
+}
+
+function getOaResultLabel(row: Record<string, unknown>): "Completed" | "Missed" {
+  const explicit = String((row as any).oa_result ?? "").trim();
+  if (explicit === "Missed") return "Missed";
+  if (explicit === "Completed") return "Completed";
+  const source = String(row.source ?? "").toLowerCase();
+  if (source.includes("missed")) return "Missed";
+  const deadline = String(row.oa_deadline_date ?? "").trim();
+  if (deadline) {
+    const d = new Date(`${deadline}T00:00:00`);
+    if (!Number.isNaN(d.getTime())) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (d < today) return "Missed";
+    }
+  }
+  return "Completed";
 }
 
 type SortField = "date_saved" | "applied_at" | "company" | "role" | "referral_status" | "job_link";
@@ -142,7 +158,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     job_application_id: "",
     oa_deadline_date: "",
     keyword_matching: "Medium",
-    oa_status: "Pending",
+    oa_status: "No",
     referral_status: "",
     response_status: "",
     application_status: "",
@@ -163,7 +179,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     job_application_id: "",
     oa_deadline_date: "",
     keyword_matching: "Medium",
-    oa_status: "Pending",
+    oa_status: "No",
     referral_status: "",
     response_status: "",
     application_status: "",
@@ -447,7 +463,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
       application_status: String(row.application_status ?? "Applied"),
       notes: String(row.notes ?? ""),
       date_saved: String(row.date_saved ?? "").slice(0, 10),
-      oa_result: String(row.oa_result ?? "Completed"),
+      oa_result: getOaResultLabel(row),
       oa_result_date: String((row as any).oa_result_date ?? row.oa_completed_date ?? "").slice(0, 10),
       oa_completed_date: String(row.oa_completed_date ?? "").slice(0, 10),
     });
@@ -1022,7 +1038,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                     <tr key={`oa-archive-${String(row.id)}`} className="tr-hover">
                       <td className="jobs-col-no">{idx + 1}</td>
                       <td>{formatTableDateTime((row as any).oa_result_date ?? row.oa_completed_date)}</td>
-                      <td>{String((row as any).oa_result ?? "Completed")}</td>
+                      <td>{getOaResultLabel(row)}</td>
                       <td>
                         <div className="job-main">
                           <div className="job-company">{capitalizeFirst(String(row.company ?? "-"))}</div>
@@ -1148,9 +1164,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                       onChange={(e) => setEditForm((p) => ({ ...p, oa_status: e.target.value }))}
                       className="form-select"
                     >
-                      <option value="Pending">Pending</option>
-                      <option value="Completed">Completed</option>
-                      <option value="Missed">Missed</option>
+                      <option value="Yes">Yes</option>
                       <option value="No">No</option>
                     </select>
                   </div>
@@ -1357,9 +1371,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                       onChange={(e) => setOaEditForm((p) => ({ ...p, oa_status: e.target.value }))}
                       className="form-select"
                     >
-                      <option value="Pending">Pending</option>
-                      <option value="Completed">Completed</option>
-                      <option value="Missed">Missed</option>
+                      <option value="Yes">Yes</option>
                       <option value="No">No</option>
                     </select>
                   </div>

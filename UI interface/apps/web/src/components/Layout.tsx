@@ -33,7 +33,7 @@ const emptyJobForm = {
   job_application_id: "",
   oa_deadline_date: "",
   keyword_matching: "Medium",
-  oa_status: "Pending",
+  oa_status: "No",
   referral_status: "No",
   notes: "",
   date_saved: getLocalISODate(),
@@ -349,7 +349,7 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
         job_link: form.job_link.trim() || undefined,
         job_application_id: form.job_application_id.trim() || undefined,
         oa_deadline_date: form.oa_deadline_date || undefined,
-        oa_status: form.oa_status || "Pending",
+        oa_status: form.oa_status || "No",
         referral_status: form.referral_status.trim() || undefined,
         notes: form.notes.trim() || undefined,
       });
@@ -509,7 +509,7 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
                   Optional fields auto-default when blank or invalid.
                   Allowed values:
                   <code>keyword_matching</code> = Strong/Medium/Weak,
-                  <code>oa_status</code> = Pending/Completed/Missed/No,
+                  <code>oa_status</code> = Yes/No,
                   <code>oa_deadline_date</code> = YYYY-MM-DD (optional),
                   <code>job_application_id</code> = optional text (defaults to -),
                   <code>referral_status</code> = Requested/Yes/No,
@@ -813,7 +813,7 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
                     onChange={(e) => setForm((p) => ({ ...p, oa_status: e.target.value }))}
                     className="form-select"
                   >
-                    <option value="Pending">Pending</option>
+                    <option value="Yes">Yes</option>
                     <option value="No">No</option>
                   </select>
                 </div>
