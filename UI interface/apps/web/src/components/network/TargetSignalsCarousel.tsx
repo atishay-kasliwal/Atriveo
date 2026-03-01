@@ -13,6 +13,7 @@ type TargetSignalsCarouselProps = {
       date_saved: string | null;
       job_link: string | null;
       job_application_id: string | null;
+      oa_deadline_date: string | null;
       oa_status: string | null;
       referral_status: string | null;
       application_status: string | null;
@@ -430,6 +431,7 @@ export default function TargetSignalsCarousel({ todayData, useDemoFallback = fal
                               date_saved: app.dateIso,
                               job_link: app.link || null,
                               job_application_id: null,
+                              oa_deadline_date: null,
                               oa_status: null,
                               referral_status: null,
                               application_status: null,

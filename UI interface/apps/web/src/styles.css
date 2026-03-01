@@ -986,11 +986,14 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .network-today-table th:nth-child(1) { width: 6%; }
-.network-today-table th:nth-child(2) { width: 22%; }
-.network-today-table th:nth-child(3) { width: 26%; }
-.network-today-table th:nth-child(4) { width: 18%; }
-.network-today-table th:nth-child(5) { width: 10%; }
-.network-today-table th:nth-child(6) { width: 18%; }
+.network-today-table th:nth-child(2) { width: 18%; }
+.network-today-table th:nth-child(3) { width: 20%; }
+.network-today-table th:nth-child(4) { width: 15%; }
+.network-today-table th:nth-child(5) { width: 7%; }
+.network-today-table th:nth-child(6) { width: 12%; }
+.network-today-table th:nth-child(7) { width: 10%; }
+.network-today-table th:nth-child(8) { width: 6%; }
+.network-today-table th:nth-child(9) { width: 6%; }
 
 .network-cell-primary,
 .network-cell-secondary {

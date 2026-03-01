@@ -31,6 +31,7 @@ const emptyJobForm = {
   location_raw: "United States of America",
   job_link: "",
   job_application_id: "",
+  oa_deadline_date: "",
   keyword_matching: "Medium",
   oa_status: "No",
   referral_status: "No",
@@ -347,6 +348,7 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
         date_saved: form.date_saved || getLocalISODate(),
         job_link: form.job_link.trim() || undefined,
         job_application_id: form.job_application_id.trim() || undefined,
+        oa_deadline_date: form.oa_deadline_date || undefined,
         oa_status: form.oa_status || "No",
         referral_status: form.referral_status.trim() || undefined,
         notes: form.notes.trim() || undefined,
@@ -508,6 +510,7 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
                   Allowed values:
                   <code>keyword_matching</code> = Strong/Medium/Weak,
                   <code>oa_status</code> = Yes/No,
+                  <code>oa_deadline_date</code> = YYYY-MM-DD (optional),
                   <code>job_application_id</code> = optional text (defaults to -),
                   <code>referral_status</code> = Requested/Yes/No,
                   <code>response_status</code> = Review/Screening/Interview/Rejected/Offer/No Response,
@@ -795,6 +798,14 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
                   value={form.job_application_id}
                   onChange={(e) => setForm((p) => ({ ...p, job_application_id: e.target.value }))}
                 />
+                <div className="form-row">
+                  <label className="form-label">OA Last Date (optional)</label>
+                  <input
+                    type="date"
+                    value={form.oa_deadline_date}
+                    onChange={(e) => setForm((p) => ({ ...p, oa_deadline_date: e.target.value }))}
+                  />
+                </div>
                 <div className="form-row">
                   <label className="form-label">Online Assessment (OA)</label>
                   <select

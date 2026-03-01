@@ -701,6 +701,7 @@ app.get("/api/network/today", async (c) => {
     referral_status: string | null;
     oa_status: string | null;
     job_application_id: string | null;
+    oa_deadline_date: string | null;
     job_link: string | null;
   }>(
     c.env,
@@ -728,6 +729,7 @@ app.get("/api/network/today", async (c) => {
       j.referral_status,
       j.oa_status,
       j.job_application_id,
+      j.oa_deadline_date::text AS oa_deadline_date,
       j.job_link
     FROM friends fr
     LEFT JOIN jobs j
@@ -758,6 +760,7 @@ app.get("/api/network/today", async (c) => {
       referral_status: string | null;
       oa_status: string | null;
       job_application_id: string | null;
+      oa_deadline_date: string | null;
       job_link: string | null;
     }>;
   }>();
@@ -782,6 +785,7 @@ app.get("/api/network/today", async (c) => {
         referral_status: row.referral_status ?? null,
         oa_status: row.oa_status ?? null,
         job_application_id: row.job_application_id ?? null,
+        oa_deadline_date: row.oa_deadline_date ?? null,
         job_link: row.job_link ?? null,
       });
     }
@@ -1146,6 +1150,7 @@ const IMPORT_OPTIONAL_HEADERS = [
   "location_raw",
   "job_link",
   "job_application_id",
+  "oa_deadline_date",
   "keyword_matching",
   "oa_status",
   "referral_status",
@@ -1160,6 +1165,7 @@ type CsvImportRow = {
   location_raw: string;
   job_link: string | null;
   job_application_id: string;
+  oa_deadline_date: string | null;
   keyword_matching: "Strong" | "Medium" | "Weak";
   oa_status: string;
   referral_status: string;
@@ -1339,6 +1345,7 @@ const jobInput = z.object({
   location_raw: z.string().optional(),
   job_link: z.string().url().optional(),
   job_application_id: z.string().optional(),
+  oa_deadline_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   keyword_matching: z.enum(["Strong", "Medium", "Weak", "Week"]).optional(),
   oa_status: z.string().optional(),
   referral_status: z.string().optional(),
@@ -1356,8 +1363,8 @@ app.post("/api/jobs", async (c) => {
   const [row] = await query(
     c.env,
     `
-    INSERT INTO jobs (user_id, source, role, company, location_raw, job_link, job_application_id, keyword_matching, oa_status, referral_status, response_status, application_status, notes, date_saved)
-    VALUES ($1, 'manual', $2, $3, $4, $5, COALESCE($6, '-'), COALESCE($7, 'Medium'), COALESCE($8, 'No'), $9, $10, COALESCE($11, 'Applied'), $12, (COALESCE($13::date, CURRENT_DATE))::timestamp)
+    INSERT INTO jobs (user_id, source, role, company, location_raw, job_link, job_application_id, oa_deadline_date, keyword_matching, oa_status, referral_status, response_status, application_status, notes, date_saved)
+    VALUES ($1, 'manual', $2, $3, $4, $5, COALESCE($6, '-'), $7::date, COALESCE($8, 'Medium'), COALESCE($9, 'No'), $10, $11, COALESCE($12, 'Applied'), $13, (COALESCE($14::date, CURRENT_DATE))::timestamp)
     RETURNING *
     `,
     [
@@ -1367,6 +1374,7 @@ app.post("/api/jobs", async (c) => {
       p.location_raw ?? null,
       p.job_link ?? null,
       p.job_application_id?.trim() ? p.job_application_id.trim() : null,
+      p.oa_deadline_date ?? null,
       normalizeKeywordMatching(p.keyword_matching),
       normalizeOaStatus(p.oa_status),
       normalizeReferralStatus(p.referral_status),
@@ -1461,6 +1469,16 @@ app.post("/api/jobs/import/csv", async (c) => {
     const jobApplicationIdRaw = getCell("job_application_id");
     const jobApplicationId = jobApplicationIdRaw || "-";
     if (!jobApplicationIdRaw) defaultsApplied += 1;
+    const oaDeadlineRaw = getCell("oa_deadline_date");
+    let oaDeadlineDate: string | null = null;
+    if (oaDeadlineRaw) {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(oaDeadlineRaw)) {
+        oaDeadlineDate = oaDeadlineRaw;
+      } else {
+        defaultsApplied += 1;
+        if (warnings.length < 12) warnings.push(`Row ${rowNumber}: oa_deadline_date ignored (expected YYYY-MM-DD).`);
+      }
+    }
 
     const keywordMatchingRaw = getCell("keyword_matching");
     const keywordMatching = normalizeAllowed(
@@ -1509,6 +1527,7 @@ app.post("/api/jobs/import/csv", async (c) => {
       location_raw: locationRaw,
       job_link: normalizedJobLink,
       job_application_id: jobApplicationId,
+      oa_deadline_date: oaDeadlineDate,
       keyword_matching: keywordMatching,
       oa_status: oaStatus,
       referral_status: referralStatus,
@@ -1526,8 +1545,8 @@ app.post("/api/jobs/import/csv", async (c) => {
     await query(
       c.env,
       `
-      INSERT INTO jobs (user_id, source, role, company, location_raw, job_link, job_application_id, keyword_matching, oa_status, referral_status, response_status, application_status, notes, date_saved)
-      VALUES ($1, 'import-csv', $2, $3, $4, $5, COALESCE($6, '-'), COALESCE($7, 'Medium'), COALESCE($8, 'No'), $9, $10, COALESCE($11, 'Applied'), $12, ($13::date)::timestamp)
+      INSERT INTO jobs (user_id, source, role, company, location_raw, job_link, job_application_id, oa_deadline_date, keyword_matching, oa_status, referral_status, response_status, application_status, notes, date_saved)
+      VALUES ($1, 'import-csv', $2, $3, $4, $5, COALESCE($6, '-'), $7::date, COALESCE($8, 'Medium'), COALESCE($9, 'No'), $10, $11, COALESCE($12, 'Applied'), $13, ($14::date)::timestamp)
       `,
       [
         userId,
@@ -1536,6 +1555,7 @@ app.post("/api/jobs/import/csv", async (c) => {
         row.location_raw,
         row.job_link,
         row.job_application_id,
+        row.oa_deadline_date,
         row.keyword_matching,
         row.oa_status,
         row.referral_status,
@@ -1581,6 +1601,7 @@ app.get("/api/jobs/export/csv", async (c) => {
       location_raw,
       job_link,
       job_application_id,
+      TO_CHAR(oa_deadline_date, 'YYYY-MM-DD') AS oa_deadline_date,
       keyword_matching,
       oa_status,
       referral_status,
@@ -1601,6 +1622,7 @@ app.get("/api/jobs/export/csv", async (c) => {
     "location_raw",
     "job_link",
     "job_application_id",
+    "oa_deadline_date",
     "keyword_matching",
     "oa_status",
     "referral_status",
@@ -1639,6 +1661,7 @@ const jobUpdateInput = z.object({
   location_raw: z.string().optional(),
   job_link: z.string().url().optional().nullable(),
   job_application_id: z.string().optional().nullable(),
+  oa_deadline_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
   keyword_matching: z.enum(["Strong", "Medium", "Weak", "Week"]).optional().nullable(),
   oa_status: z.string().optional().nullable(),
   referral_status: z.string().optional().nullable(),
@@ -1663,19 +1686,20 @@ app.patch("/api/jobs/:id", async (c) => {
       location_raw = COALESCE($3, location_raw),
       job_link = COALESCE($4, job_link),
       job_application_id = COALESCE($5, job_application_id),
-      keyword_matching = COALESCE($6, keyword_matching),
-      oa_status = COALESCE($7, oa_status),
-      referral_status = COALESCE($8, referral_status),
-      response_status = COALESCE($9, response_status),
-      application_status = COALESCE($10, application_status),
-      notes = COALESCE($11, notes),
-      date_saved = COALESCE($12::date, date_saved),
+      oa_deadline_date = COALESCE($6::date, oa_deadline_date),
+      keyword_matching = COALESCE($7, keyword_matching),
+      oa_status = COALESCE($8, oa_status),
+      referral_status = COALESCE($9, referral_status),
+      response_status = COALESCE($10, response_status),
+      application_status = COALESCE($11, application_status),
+      notes = COALESCE($12, notes),
+      date_saved = COALESCE($13::date, date_saved),
       archive_date = CASE
-        WHEN LOWER(TRIM(COALESCE($10, ''))) = 'rejected' THEN COALESCE(archive_date, CURRENT_DATE)
+        WHEN LOWER(TRIM(COALESCE($11, ''))) = 'rejected' THEN COALESCE(archive_date, CURRENT_DATE)
         ELSE archive_date
       END,
       updated_at = NOW()
-    WHERE id = $13 AND user_id = $14
+    WHERE id = $14 AND user_id = $15
     RETURNING *
     `,
     [
@@ -1684,6 +1708,7 @@ app.patch("/api/jobs/:id", async (c) => {
       p.location_raw ?? null,
       p.job_link ?? null,
       p.job_application_id?.trim() ? p.job_application_id.trim() : null,
+      p.oa_deadline_date ?? null,
       normalizeKeywordMatching(p.keyword_matching),
       normalizeOaStatus(p.oa_status),
       normalizeReferralStatus(p.referral_status),

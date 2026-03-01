@@ -128,6 +128,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     location_raw: "",
     job_link: "",
     job_application_id: "",
+    oa_deadline_date: "",
     keyword_matching: "Medium",
     oa_status: "No",
     referral_status: "",
@@ -221,6 +222,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
       location_raw: String(job.location_raw ?? ""),
       job_link: String(job.job_link ?? ""),
       job_application_id: String((job as any).job_application_id ?? "-"),
+      oa_deadline_date: String((job as any).oa_deadline_date ?? ""),
       keyword_matching:
         String((job as any).keyword_matching ?? "Medium").trim().toLowerCase() === "week"
           ? "Weak"
@@ -245,6 +247,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
         location_raw: editForm.location_raw.trim() || undefined,
         job_link: editForm.job_link.trim() || undefined,
         job_application_id: editForm.job_application_id.trim() || undefined,
+        oa_deadline_date: editForm.oa_deadline_date || undefined,
         keyword_matching: editForm.keyword_matching || undefined,
         oa_status: editForm.oa_status || undefined,
         referral_status: editForm.referral_status.trim() || undefined,
@@ -706,6 +709,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                     </th>
                     <th>Keyword Match</th>
                     <th>OA</th>
+                    <th>OA Last Date</th>
                     <th>Job/App ID</th>
                     <th>
                       <button
@@ -777,6 +781,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                         </span>
                       </td>
                       <td>{normalizeOaStatus((j as any).oa_status)}</td>
+                      <td>{String((j as any).oa_deadline_date ?? "-") || "-"}</td>
                       <td>{String((j as any).job_application_id ?? "-")}</td>
                       <td>
                         {j.job_link ? (
@@ -882,6 +887,14 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                 value={editForm.job_application_id}
                 onChange={(e) => setEditForm((p) => ({ ...p, job_application_id: e.target.value }))}
               />
+              <div className="form-row">
+                <label className="form-label">OA Last Date (optional)</label>
+                <input
+                  type="date"
+                  value={editForm.oa_deadline_date}
+                  onChange={(e) => setEditForm((p) => ({ ...p, oa_deadline_date: e.target.value }))}
+                />
+              </div>
               <div className="form-row">
                 <label className="form-label">Keyword Matching</label>
                 <select

@@ -413,6 +413,7 @@ export type NetworkTodayJob = {
   referral_status: string | null;
   oa_status: string | null;
   job_application_id: string | null;
+  oa_deadline_date: string | null;
   job_link: string | null;
 };
 
