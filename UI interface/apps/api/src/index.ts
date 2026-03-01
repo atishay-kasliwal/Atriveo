@@ -1886,14 +1886,32 @@ app.get("/api/oa/archive", async (c) => {
     c.env,
     `
     SELECT
-      *,
+      id,
+      user_id,
+      job_id,
+      source,
+      role,
+      company,
+      location_raw,
+      job_link,
+      job_application_id,
       oa_deadline_date::text AS oa_deadline_date,
-      oa_completed_date::text AS oa_completed_date,
+      keyword_matching,
+      oa_status,
+      referral_status,
+      response_status,
+      application_status,
+      notes,
       date_saved::text AS date_saved,
-      applied_at::text AS applied_at
-    FROM online_assessment_records
-    WHERE user_id = $1
-    ORDER BY oa_completed_date DESC NULLS LAST, oa_completed_at DESC NULLS LAST, id DESC
+      applied_at::text AS applied_at,
+      archive_date::text AS archive_date,
+      oa_completed_date::text AS oa_completed_date,
+      oa_completed_at::text AS oa_completed_at,
+      created_at::text AS created_at,
+      updated_at::text AS updated_at
+    FROM online_assessment_records oar
+    WHERE oar.user_id = $1
+    ORDER BY oar.oa_completed_date DESC NULLS LAST, oar.oa_completed_at DESC NULLS LAST, oar.id DESC
     LIMIT 200
     `,
     [userId],
