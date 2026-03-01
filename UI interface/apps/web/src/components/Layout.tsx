@@ -1,13 +1,22 @@
 import { useState, useEffect, useRef } from "react";
 import { NavLink, Outlet, Link } from "react-router-dom";
 import {
+  acceptFriendRequest,
+  blockFriendship,
   createJob,
   createReferral,
   createPending,
   createNote,
   exportJobsCsv,
+  getFriendRequests,
+  getFriends,
   importJobsCsv,
+  rejectFriendRequest,
+  sendFriendRequest,
+  type FriendRecord,
+  type IncomingFriendRequest,
   type JobsCsvExportRange,
+  type OutgoingFriendRequest,
 } from "../lib/api";
 import { getLocalISODate } from "../lib/formatDate";
 
@@ -57,12 +66,23 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [showCsvTools, setShowCsvTools] = useState(false);
   const [showCsvModal, setShowCsvModal] = useState(false);
+  const [showFriendModal, setShowFriendModal] = useState(false);
   const [csvMode, setCsvMode] = useState<"import" | "export">("import");
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csvRange, setCsvRange] = useState<JobsCsvExportRange>("30");
   const [csvBusy, setCsvBusy] = useState(false);
   const [csvError, setCsvError] = useState("");
   const [csvSuccess, setCsvSuccess] = useState("");
+  const [friendEmail, setFriendEmail] = useState("");
+  const [friendBusy, setFriendBusy] = useState(false);
+  const [friendBusyId, setFriendBusyId] = useState<number | string | null>(null);
+  const [friendLoading, setFriendLoading] = useState(false);
+  const [friendError, setFriendError] = useState("");
+  const [friendSuccess, setFriendSuccess] = useState("");
+  const [friends, setFriends] = useState<FriendRecord[]>([]);
+  const [incoming, setIncoming] = useState<IncomingFriendRequest[]>([]);
+  const [outgoing, setOutgoing] = useState<OutgoingFriendRequest[]>([]);
+  const [maxFriends, setMaxFriends] = useState(10);
   const [isSaving, setIsSaving] = useState(false);
   const [modalError, setModalError] = useState("");
   const [form, setForm] = useState(emptyJobForm);
@@ -86,6 +106,49 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
     return () => document.removeEventListener("mousedown", onDocumentClick);
   }, [showCsvTools]);
 
+  useEffect(() => {
+    function onOpenFriendManager() {
+      openFriendModal();
+    }
+    window.addEventListener("open-friend-manager", onOpenFriendManager);
+    return () => window.removeEventListener("open-friend-manager", onOpenFriendManager);
+  }, []);
+
+  useEffect(() => {
+    if (!showFriendModal) return;
+    void loadFriendManager();
+  }, [showFriendModal]);
+
+  async function loadFriendManager() {
+    try {
+      setFriendLoading(true);
+      setFriendError("");
+      const [friendsRes, reqRes] = await Promise.all([getFriends(), getFriendRequests()]);
+      setFriends(friendsRes.data ?? []);
+      setMaxFriends(Number(friendsRes.maxFriends ?? 10));
+      setIncoming(reqRes.incoming ?? []);
+      setOutgoing(reqRes.outgoing ?? []);
+    } catch (err) {
+      setFriendError((err as Error).message);
+    } finally {
+      setFriendLoading(false);
+    }
+  }
+
+  function formatDateTimeCell(value: unknown) {
+    if (value == null || value === "") return "—";
+    const raw = String(value);
+    const parsed = new Date(raw);
+    if (Number.isNaN(parsed.getTime())) return raw;
+    return parsed.toLocaleString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
   function openCsvModal(mode: "import" | "export") {
     setCsvMode(mode);
     setCsvError("");
@@ -100,6 +163,94 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
     setCsvError("");
     setCsvSuccess("");
     setCsvFile(null);
+  }
+
+  function openFriendModal() {
+    setShowCsvTools(false);
+    setFriendError("");
+    setFriendSuccess("");
+    setShowFriendModal(true);
+  }
+
+  function closeFriendModal() {
+    if (friendBusy || friendBusyId != null) return;
+    setShowFriendModal(false);
+    setFriendError("");
+    setFriendSuccess("");
+    setFriendEmail("");
+  }
+
+  async function onSendFriendRequest(e: React.FormEvent) {
+    e.preventDefault();
+    const email = friendEmail.trim().toLowerCase();
+    if (!email) {
+      setFriendError("Please enter an email.");
+      return;
+    }
+    try {
+      setFriendBusy(true);
+      setFriendError("");
+      setFriendSuccess("");
+      await sendFriendRequest({ email });
+      setFriendSuccess(`Friend request sent to ${email}.`);
+      setFriendEmail("");
+      await loadFriendManager();
+      window.dispatchEvent(new CustomEvent("dashboard-refresh"));
+    } catch (err) {
+      setFriendError((err as Error).message);
+    } finally {
+      setFriendBusy(false);
+    }
+  }
+
+  async function onAcceptFriend(id: number | string) {
+    try {
+      setFriendBusyId(id);
+      setFriendError("");
+      setFriendSuccess("");
+      await acceptFriendRequest(id);
+      setFriendSuccess("Friend request accepted.");
+      await loadFriendManager();
+      window.dispatchEvent(new CustomEvent("dashboard-refresh"));
+    } catch (err) {
+      setFriendError((err as Error).message);
+    } finally {
+      setFriendBusyId(null);
+    }
+  }
+
+  async function onRejectFriend(id: number | string) {
+    try {
+      setFriendBusyId(id);
+      setFriendError("");
+      setFriendSuccess("");
+      await rejectFriendRequest(id);
+      setFriendSuccess("Friend request rejected.");
+      await loadFriendManager();
+      window.dispatchEvent(new CustomEvent("dashboard-refresh"));
+    } catch (err) {
+      setFriendError((err as Error).message);
+    } finally {
+      setFriendBusyId(null);
+    }
+  }
+
+  async function onRemoveFriend(id: number | string) {
+    const confirmed = window.confirm("Remove this friend? You can send a new friend request later.");
+    if (!confirmed) return;
+    try {
+      setFriendBusyId(id);
+      setFriendError("");
+      setFriendSuccess("");
+      await blockFriendship(id);
+      setFriendSuccess("Friend removed.");
+      await loadFriendManager();
+      window.dispatchEvent(new CustomEvent("dashboard-refresh"));
+    } catch (err) {
+      setFriendError((err as Error).message);
+    } finally {
+      setFriendBusyId(null);
+    }
   }
 
   async function onImportCsv(e: React.FormEvent) {
@@ -272,6 +423,9 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
     <div className="page">
       <nav className="app-nav">
         <div className="app-nav-links">
+          <NavLink to="/network" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
+            Network
+          </NavLink>
           <NavLink to="/" end className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
             Dashboard
           </NavLink>
@@ -289,9 +443,6 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
           </NavLink>
           <NavLink to="/notes" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
             Notes
-          </NavLink>
-          <NavLink to="/network" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
-            Network
           </NavLink>
         </div>
         <div className="app-nav-actions app-nav-actions--segmented">
@@ -321,6 +472,9 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
                 </button>
                 <button type="button" className="csv-tools-item" onClick={() => openCsvModal("export")}>
                   Export CSV
+                </button>
+                <button type="button" className="csv-tools-item" onClick={openFriendModal}>
+                  Add Friend
                 </button>
                 <a className="csv-tools-item" href="/jobs_import_sample.csv" download onClick={() => setShowCsvTools(false)}>
                   Download Sample CSV
@@ -401,6 +555,164 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
                 </div>
               </form>
             )}
+          </div>
+        </div>
+      ) : null}
+
+      {showFriendModal ? (
+        <div className="modal-overlay" onClick={closeFriendModal}>
+          <div className="modal modal--friends" onClick={(e) => e.stopPropagation()}>
+            <div className="friends-modal-head">
+              <h3>Add Friend</h3>
+              <div className="friends-head-right">
+                <span className="friends-slot-pill">Friend slots: {friends.length}/{maxFriends}</span>
+                <button type="button" className="friends-modal-close-x" onClick={closeFriendModal} aria-label="Close Add Friend">
+                  ×
+                </button>
+              </div>
+            </div>
+            <form className="form friends-form" onSubmit={onSendFriendRequest}>
+              <p className="friends-form-subtitle">Send a friend request by email.</p>
+              <div className="friends-form-row">
+                <div className="form-row">
+                  <label className="form-label">Friend email</label>
+                  <input
+                    type="email"
+                    placeholder="friend@example.com"
+                    value={friendEmail}
+                    onChange={(e) => setFriendEmail(e.target.value)}
+                    autoFocus
+                  />
+                </div>
+                <div className="friends-form-actions">
+                  <button type="button" className="action-btn friends-close-btn" onClick={closeFriendModal} disabled={friendBusy}>
+                    Close
+                  </button>
+                  <button type="submit" disabled={friendBusy || !friendEmail.trim()}>
+                    {friendBusy ? "Sending..." : "Send Request"}
+                  </button>
+                </div>
+              </div>
+              {friendError ? <div className="auth-error">{friendError}</div> : null}
+              {friendSuccess ? <div className="csv-success">{friendSuccess}</div> : null}
+            </form>
+            <div className="friends-manager-grid">
+              <div className="friends-panel">
+                <h3>Friends ({friends.length})</h3>
+                {friendLoading ? (
+                  <div className="empty-state">Loading...</div>
+                ) : friends.length === 0 ? (
+                  <div className="empty-state">No accepted friends yet.</div>
+                ) : (
+                  <div className="table-wrap">
+                    <table className="network-friends-table">
+                      <thead>
+                        <tr>
+                          <th>Email</th>
+                          <th>Connected At</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {friends.map((f) => (
+                          <tr key={String(f.friendship_id)}>
+                            <td>{String(f.friend_name || f.friend_email)}</td>
+                            <td>{formatDateTimeCell(f.accepted_at ?? f.created_at ?? "-")}</td>
+                            <td>
+                              <button
+                                type="button"
+                                className="action-btn friend-row-btn"
+                                onClick={() => onRemoveFriend(f.friendship_id)}
+                                disabled={friendBusyId === f.friendship_id}
+                              >
+                                {friendBusyId === f.friendship_id ? "Please wait..." : "Remove"}
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              <div className="friends-side-stack">
+                <div className="friends-panel">
+                  <h3>Incoming Requests ({incoming.length})</h3>
+                  {friendLoading ? (
+                    <div className="empty-state">Loading...</div>
+                  ) : incoming.length === 0 ? (
+                    <div className="empty-state">No incoming requests.</div>
+                  ) : (
+                    <div className="table-wrap">
+                      <table className="network-incoming-table">
+                        <thead>
+                          <tr>
+                            <th>From</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {incoming.map((r) => (
+                            <tr key={String(r.friendship_id)}>
+                              <td className="network-email-cell" title={String(r.requester_name || r.requester_email)}>
+                                {String(r.requester_name || r.requester_email)}
+                              </td>
+                              <td className="friends-actions-cell">
+                                <button
+                                  type="button"
+                                  className="action-btn friend-row-btn"
+                                  onClick={() => onAcceptFriend(r.friendship_id)}
+                                  disabled={friendBusyId === r.friendship_id}
+                                >
+                                  {friendBusyId === r.friendship_id ? "Please wait..." : "Accept"}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="action-btn friend-row-btn"
+                                  onClick={() => onRejectFriend(r.friendship_id)}
+                                  disabled={friendBusyId === r.friendship_id}
+                                >
+                                  Reject
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                <div className="friends-panel">
+                  <h3>Sent Requests ({outgoing.length})</h3>
+                  {friendLoading ? (
+                    <div className="empty-state">Loading...</div>
+                  ) : outgoing.length === 0 ? (
+                    <div className="empty-state">No outgoing requests.</div>
+                  ) : (
+                    <div className="table-wrap">
+                      <table className="network-outgoing-table">
+                        <thead>
+                          <tr>
+                            <th>To</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {outgoing.map((r) => (
+                            <tr key={String(r.friendship_id)}>
+                              <td className="network-email-cell" title={String(r.receiver_name || r.receiver_email)}>
+                                {String(r.receiver_name || r.receiver_email)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       ) : null}
