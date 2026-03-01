@@ -33,7 +33,7 @@ export default function NotesPreview() {
   }
 
   return (
-    <div>
+    <div className="panel-shell">
       {error ? <div className="error">{error}</div> : null}
       {rows.length === 0 ? (
         <div className="chart-empty">No notes yet.</div>

@@ -43,7 +43,7 @@ export default function PendingPreview() {
   }
 
   return (
-    <div>
+    <div className="panel-shell">
       {error ? <div className="error">{error}</div> : null}
       {pendingItems.length === 0 ? (
         <div className="chart-empty" style={{ minHeight: 80 }}>

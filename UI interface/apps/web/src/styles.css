@@ -2607,6 +2607,20 @@ body::-webkit-scrollbar-thumb:hover,
   overflow-y: auto;
 }
 
+.panel-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  flex: 1 1 auto;
+}
+
+.panel-footer-right {
+  margin-top: auto;
+  display: flex;
+  justify-content: flex-end;
+  text-align: right;
+}
+
 .chart-subtitle {
   margin: -6px 0 12px;
   font-size: 0.875rem;
@@ -2642,6 +2656,8 @@ body::-webkit-scrollbar-thumb:hover,
   align-items: center;
   justify-content: center;
   min-height: 220px;
+  height: 100%;
+  flex: 1 1 auto;
   padding: 24px;
   font-size: 0.9rem;
   color: var(--text-muted);

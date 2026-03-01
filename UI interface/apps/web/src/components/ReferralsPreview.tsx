@@ -34,7 +34,7 @@ export default function ReferralsPreview() {
   }
 
   return (
-    <div>
+    <div className="panel-shell">
       {error ? <div className="error">{error}</div> : null}
       {rows.length === 0 ? (
         <div className="chart-empty">No open referrals.</div>
@@ -66,7 +66,7 @@ export default function ReferralsPreview() {
           </div>
         </>
       )}
-      <p style={{ marginTop: 12, fontSize: "0.85rem" }}>
+      <p className="panel-footer-right" style={{ marginTop: 12, fontSize: "0.85rem" }}>
         <Link to="/referrals" className="table-link">
           View all referrals
         </Link>

@@ -73,7 +73,7 @@ export default function OaPreview() {
   }
 
   return (
-    <div>
+    <div className="panel-shell">
       {error ? <div className="error">{error}</div> : null}
       {rows.length === 0 ? (
         <div className="chart-empty" style={{ minHeight: 80 }}>
