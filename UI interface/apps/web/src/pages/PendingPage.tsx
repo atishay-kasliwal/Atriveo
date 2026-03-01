@@ -221,10 +221,10 @@ export default function PendingPage() {
 
       {editId !== null ? (
         <div className="modal-overlay" onClick={() => !editLoading && cancelEdit()}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal modal--form-wide" onClick={(e) => e.stopPropagation()}>
             <h3>Edit Pending</h3>
             <form
-              className="form"
+              className="form form--two-col"
               onSubmit={(e) => {
                 e.preventDefault();
                 void saveEdit();
@@ -257,12 +257,14 @@ export default function PendingPage() {
                 />
               </div>
               <textarea
+                className="form-span-2"
                 rows={4}
                 placeholder="Comment"
                 value={editForm.comment}
                 onChange={(e) => setEditForm((f) => ({ ...f, comment: e.target.value }))}
               />
               <input
+                className="form-span-2"
                 placeholder="Link (URL)"
                 type="url"
                 value={editForm.link}

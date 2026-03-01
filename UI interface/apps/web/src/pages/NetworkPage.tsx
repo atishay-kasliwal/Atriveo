@@ -182,6 +182,14 @@ function toDateInput(value: string | null | undefined): string {
   return d.toISOString().slice(0, 10);
 }
 
+function normalizeOaStatus(value: unknown): "Pending" | "Completed" | "Missed" | "No" {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (raw === "yes" || raw === "pending") return "Pending";
+  if (raw === "completed" || raw === "complete" || raw === "done") return "Completed";
+  if (raw === "missed" || raw === "missing" || raw === "overdue") return "Missed";
+  return "No";
+}
+
 function emojiForTickerFact(text: string): string {
   if (text.startsWith("Weekly Leader:")) return "★";
   if (text.startsWith("Runner-Up:")) return "◆";
@@ -234,7 +242,7 @@ function augmentDemoNetworkData(
         date_saved: ts,
         application_status: "Applied",
         referral_status: j % 2 === 0 ? "Requested" : "No",
-        oa_status: "No",
+        oa_status: "Pending",
         oa_deadline_date: null,
         job_application_id: "-",
         job_link: `https://careers.example.com/${encodeURIComponent(company.toLowerCase())}/${(idx + j + 100).toString(36)}`,
@@ -272,7 +280,7 @@ export default function NetworkPage() {
     job_application_id: "",
     oa_deadline_date: "",
     location_raw: "",
-    oa_status: "No",
+    oa_status: "Pending",
     referral_status: "",
     keyword_matching: "Medium",
     notes: "",
@@ -328,7 +336,7 @@ export default function NetworkPage() {
       job_application_id: String(job.job_application_id ?? "-"),
       oa_deadline_date: toDateInput(job.oa_deadline_date),
       location_raw: "",
-      oa_status: String(job.oa_status ?? "No") === "Yes" ? "Yes" : "No",
+      oa_status: normalizeOaStatus(job.oa_status),
       referral_status: String(job.referral_status ?? ""),
       keyword_matching: "Medium",
       notes: `Copied from ${friendName}${job.application_status ? ` (${job.application_status})` : ""}`.trim(),
@@ -367,7 +375,7 @@ export default function NetworkPage() {
         job_application_id: prefillForm.job_application_id.trim() || undefined,
         oa_deadline_date: prefillForm.oa_deadline_date || undefined,
         location_raw: prefillForm.location_raw.trim() || undefined,
-        oa_status: prefillForm.oa_status || "No",
+        oa_status: prefillForm.oa_status || "Pending",
         referral_status: prefillForm.referral_status.trim() || undefined,
         keyword_matching: prefillForm.keyword_matching || "Medium",
         notes: prefillForm.notes.trim() || undefined,
@@ -1111,7 +1119,7 @@ export default function NetworkPage() {
                                   {String(job.role ?? "—")}
                                 </td>
                                 <td className="network-cell-date">{formatTableDateTime(job.date_saved)}</td>
-                                <td>{String(job.oa_status ?? "No") === "Yes" ? "Yes" : "No"}</td>
+                                <td>{normalizeOaStatus(job.oa_status)}</td>
                                 <td>{String(job.oa_deadline_date ?? "-") || "-"}</td>
                                 <td>{String(job.job_application_id ?? "-") || "-"}</td>
                                 <td>
@@ -1246,8 +1254,8 @@ export default function NetworkPage() {
                     onChange={(e) => setPrefillForm((p) => ({ ...p, oa_status: e.target.value }))}
                     className="form-select"
                   >
+                    <option value="Pending">Pending</option>
                     <option value="No">No</option>
-                    <option value="Yes">Yes</option>
                   </select>
                 </div>
                 <div className="form-row">

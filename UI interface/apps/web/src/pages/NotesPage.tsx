@@ -281,10 +281,10 @@ export default function NotesPage() {
 
       {editId !== null ? (
         <div className="modal-overlay" onClick={() => !isSaving && cancelEdit()}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal modal--form-wide" onClick={(e) => e.stopPropagation()}>
             <h3>Edit Note</h3>
             <form
-              className="form"
+              className="form form--two-col"
               onSubmit={(e) => {
                 e.preventDefault();
                 void saveEdit(editId);
@@ -336,6 +336,7 @@ export default function NotesPage() {
                 </select>
               </div>
               <textarea
+                className="form-span-2"
                 rows={6}
                 value={editForm.body}
                 onChange={(e) => setEditForm((p) => ({ ...p, body: e.target.value }))}

@@ -461,12 +461,12 @@ export default function ReferralsPage() {
 
       {editing && (
         <div className="modal-overlay" onClick={() => !isSaving && setEditing(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal modal--form-wide" onClick={(e) => e.stopPropagation()}>
             <h3>Edit Referral</h3>
             <p style={{ margin: "0 0 12px", fontSize: "0.9rem", color: "var(--text-muted)" }}>
               {String(editing.company)} — {String(editing.request_log || "—")}
             </p>
-            <form className="form" onSubmit={onSaveEdit}>
+            <form className="form form--two-col" onSubmit={onSaveEdit}>
               <div className="form-row">
                 <label className="form-label">Referred by name</label>
                 <input
@@ -485,7 +485,7 @@ export default function ReferralsPage() {
                 </select>
               </div>
               {movesToJobs && (
-                <p className="referral-hint">
+                <p className="referral-hint form-span-2">
                   Saving as &quot;{editStatus}&quot; will create a job and move this row to Referral Records.
                 </p>
               )}
