@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import Layout from "./components/Layout";
 import SiteShell from "./components/SiteShell";
@@ -18,6 +18,7 @@ import {
   setStoredSession,
   type AuthSession,
 } from "./lib/api";
+import { initAnalytics, trackPageView } from "./lib/analytics";
 
 const BASENAME = (() => {
   const baseUrl = import.meta.env.BASE_URL || "/";
@@ -80,6 +81,7 @@ export default function App() {
 
   return (
     <BrowserRouter basename={BASENAME}>
+      <AnalyticsTracker />
       <SiteShell>
         <Routes>
           <Route
@@ -110,4 +112,20 @@ export default function App() {
       </SiteShell>
     </BrowserRouter>
   );
+}
+
+function AnalyticsTracker() {
+  const location = useLocation();
+
+  useEffect(() => {
+    initAnalytics();
+  }, []);
+
+  useEffect(() => {
+    const search = location.search || "";
+    const hash = location.hash || "";
+    trackPageView(`${location.pathname}${search}${hash}`);
+  }, [location.pathname, location.search, location.hash]);
+
+  return null;
 }
