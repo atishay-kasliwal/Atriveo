@@ -8,3 +8,15 @@ APP_ENV = "development"
 # Local development config:
 # - Put secrets in `apps/api/.dev.vars` (Wrangler reads it automatically for `wrangler dev`)
 # - For production use `wrangler secret put ...`
+
+[env.staging]
+name = "job-tracker-api-staging"
+
+[env.staging.vars]
+APP_ENV = "staging"
+
+[env.production]
+name = "job-tracker-api"
+
+[env.production.vars]
+APP_ENV = "production"

@@ -21,12 +21,14 @@ python3 scripts/import_xlsx.py
 
 The script writes `import_report.json` with inserted row counts.
 
-## 3) Configure API secrets
+## 3) Configure API secrets (staging + production)
 
 ```bash
 cd "/Users/atishaykasliwal/UI interface/apps/api"
-wrangler secret put NEON_DATABASE_URL
-wrangler secret put API_SHARED_TOKEN
+wrangler secret put NEON_DATABASE_URL --env staging
+wrangler secret put API_SHARED_TOKEN --env staging
+wrangler secret put NEON_DATABASE_URL --env production
+wrangler secret put API_SHARED_TOKEN --env production
 ```
 
 ## 4) Deploy API Worker
@@ -34,8 +36,13 @@ wrangler secret put API_SHARED_TOKEN
 ```bash
 cd "/Users/atishaykasliwal/UI interface/apps/api"
 npm install
-npm run deploy
+npm run deploy:staging
+npm run deploy:prod
 ```
+
+Notes:
+- `deploy:staging` deploys Worker `job-tracker-api-staging` with `APP_ENV=staging`.
+- `deploy:prod` deploys Worker `job-tracker-api` with `APP_ENV=production`.
 
 ## 5) Deploy React app to Cloudflare Pages
 
@@ -45,7 +52,8 @@ The app is built to run at **`/dashboard`** (e.g. `atishaykasliwal.com/dashboard
 2. **Build command:** `npm run build -w @job-tracker/web`
 3. **Build output directory:** `apps/web/dist`
 4. **Environment variables** in Pages:
-   - `VITE_API_URL=https://<your-worker-subdomain>.workers.dev` (or your API domain)
+   - staging: `VITE_API_URL=https://job-tracker-api-staging.<your-subdomain>.workers.dev`
+   - production: `VITE_API_URL=https://job-tracker-api.<your-subdomain>.workers.dev`
    - `VITE_API_TOKEN=<same API_SHARED_TOKEN value>` (optional)
 
 After deploy, the app is available at:

@@ -16,6 +16,9 @@
     "dev:web": "npm run dev -w @job-tracker/web",
     "dev:api": "npm run dev -w @job-tracker/api",
     "build:web": "npm run build -w @job-tracker/web",
-    "build:api": "npm run build -w @job-tracker/api"
+    "build:api": "npm run build -w @job-tracker/api",
+    "build:api:staging": "npm run build:staging -w @job-tracker/api",
+    "deploy:api:staging": "npm run deploy:staging -w @job-tracker/api",
+    "deploy:api:prod": "npm run deploy:prod -w @job-tracker/api"
   }
 }
