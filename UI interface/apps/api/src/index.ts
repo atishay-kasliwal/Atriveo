@@ -1736,6 +1736,280 @@ app.delete("/api/jobs/:id", async (c) => {
   return c.json({ ok: true });
 });
 
+app.get("/api/oa/active", async (c) => {
+  const userId = c.get("authUser").id;
+  const rawAnchor = c.req.query("anchorDay");
+  const anchorDayValid = rawAnchor && /^\d{4}-\d{2}-\d{2}$/.test(rawAnchor);
+  const anchorDay = anchorDayValid ? rawAnchor : null;
+  const rows = await query<Record<string, unknown>>(
+    c.env,
+    `
+    SELECT
+      j.*,
+      j.date_saved::text AS date_saved_text,
+      j.applied_at::text AS applied_at_text,
+      j.oa_deadline_date::text AS oa_deadline_date_text,
+      CASE
+        WHEN j.oa_deadline_date IS NULL THEN 'no_deadline'
+        WHEN j.oa_deadline_date < COALESCE($2::date, CURRENT_DATE) THEN 'overdue'
+        WHEN j.oa_deadline_date = COALESCE($2::date, CURRENT_DATE) THEN 'today'
+        ELSE 'upcoming'
+      END AS oa_urgency,
+      CASE
+        WHEN j.oa_deadline_date IS NULL THEN NULL
+        ELSE (j.oa_deadline_date - COALESCE($2::date, CURRENT_DATE))
+      END::int AS days_to_deadline
+    FROM jobs j
+    LEFT JOIN online_assessment_records oar
+      ON oar.job_id = j.id AND oar.user_id = j.user_id
+    WHERE j.user_id = $1
+      AND TRIM(COALESCE(j.oa_status, '')) = 'Yes'
+      AND LOWER(TRIM(COALESCE(j.application_status, 'Applied'))) != 'rejected'
+      AND oar.id IS NULL
+    ORDER BY
+      CASE
+        WHEN j.oa_deadline_date IS NOT NULL AND j.oa_deadline_date < COALESCE($2::date, CURRENT_DATE) THEN 0
+        WHEN j.oa_deadline_date IS NOT NULL THEN 1
+        ELSE 2
+      END ASC,
+      j.oa_deadline_date ASC NULLS LAST,
+      COALESCE(j.applied_at, j.date_saved, j.created_at) DESC NULLS LAST,
+      j.id DESC
+    `,
+    [userId, anchorDay],
+  );
+  return c.json({ anchorDay: anchorDay ?? null, data: rows });
+});
+
+const oaCompleteInput = z.object({
+  oa_completed_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+});
+
+app.post("/api/oa/complete/:jobId", async (c) => {
+  const userId = c.get("authUser").id;
+  const jobId = c.req.param("jobId");
+  const parsed = oaCompleteInput.safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
+  const completedDate = parsed.data.oa_completed_date ?? null;
+
+  const [existing] = await query<{ id: number }>(
+    c.env,
+    "SELECT id FROM online_assessment_records WHERE user_id = $1 AND job_id = $2 LIMIT 1",
+    [userId, jobId],
+  );
+
+  const rows = await query<Record<string, unknown>>(
+    c.env,
+    `
+    INSERT INTO online_assessment_records (
+      user_id,
+      job_id,
+      source,
+      role,
+      company,
+      location_raw,
+      job_link,
+      job_application_id,
+      oa_deadline_date,
+      keyword_matching,
+      oa_status,
+      referral_status,
+      response_status,
+      application_status,
+      notes,
+      date_saved,
+      applied_at,
+      archive_date,
+      oa_completed_date,
+      oa_completed_at
+    )
+    SELECT
+      j.user_id,
+      j.id,
+      COALESCE(j.source, 'oa-completed'),
+      j.role,
+      j.company,
+      j.location_raw,
+      j.job_link,
+      j.job_application_id,
+      j.oa_deadline_date,
+      j.keyword_matching,
+      j.oa_status,
+      j.referral_status,
+      j.response_status,
+      j.application_status,
+      j.notes,
+      j.date_saved,
+      j.applied_at,
+      j.archive_date,
+      COALESCE($3::date, CURRENT_DATE),
+      NOW()
+    FROM jobs j
+    WHERE j.id = $2
+      AND j.user_id = $1
+      AND TRIM(COALESCE(j.oa_status, '')) = 'Yes'
+    ON CONFLICT (job_id) DO UPDATE SET
+      source = EXCLUDED.source,
+      role = EXCLUDED.role,
+      company = EXCLUDED.company,
+      location_raw = EXCLUDED.location_raw,
+      job_link = EXCLUDED.job_link,
+      job_application_id = EXCLUDED.job_application_id,
+      oa_deadline_date = EXCLUDED.oa_deadline_date,
+      keyword_matching = EXCLUDED.keyword_matching,
+      oa_status = EXCLUDED.oa_status,
+      referral_status = EXCLUDED.referral_status,
+      response_status = EXCLUDED.response_status,
+      application_status = EXCLUDED.application_status,
+      notes = EXCLUDED.notes,
+      date_saved = EXCLUDED.date_saved,
+      applied_at = EXCLUDED.applied_at,
+      archive_date = EXCLUDED.archive_date,
+      oa_completed_date = EXCLUDED.oa_completed_date,
+      oa_completed_at = NOW(),
+      updated_at = NOW()
+    RETURNING *
+    `,
+    [userId, jobId, completedDate],
+  );
+
+  if (!rows.length) {
+    return c.json({ error: "OA-enabled job not found." }, 404);
+  }
+
+  return c.json({ already_completed: Boolean(existing), record: rows[0] });
+});
+
+app.get("/api/oa/archive", async (c) => {
+  const userId = c.get("authUser").id;
+  const rows = await query<Record<string, unknown>>(
+    c.env,
+    `
+    SELECT
+      *,
+      oa_deadline_date::text AS oa_deadline_date,
+      oa_completed_date::text AS oa_completed_date,
+      date_saved::text AS date_saved,
+      applied_at::text AS applied_at
+    FROM online_assessment_records
+    WHERE user_id = $1
+    ORDER BY oa_completed_date DESC NULLS LAST, oa_completed_at DESC NULLS LAST, id DESC
+    LIMIT 200
+    `,
+    [userId],
+  );
+  return c.json({ data: rows });
+});
+
+const oaArchiveUpdateInput = z.object({
+  role: z.string().optional().nullable(),
+  company: z.string().optional().nullable(),
+  location_raw: z.string().optional().nullable(),
+  job_link: z.string().optional().nullable(),
+  job_application_id: z.string().optional().nullable(),
+  oa_deadline_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  keyword_matching: z.enum(["Strong", "Medium", "Weak", "Week"]).optional().nullable(),
+  oa_status: z.string().optional().nullable(),
+  referral_status: z.string().optional().nullable(),
+  response_status: z.string().optional().nullable(),
+  application_status: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+  date_saved: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  oa_completed_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+});
+
+app.patch("/api/oa/archive/:id", async (c) => {
+  const userId = c.get("authUser").id;
+  const id = c.req.param("id");
+  const parsed = oaArchiveUpdateInput.safeParse(await c.req.json());
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
+  const p = parsed.data;
+  const updates: string[] = [];
+  const values: unknown[] = [];
+  let i = 1;
+
+  if (p.role !== undefined) {
+    updates.push(`role = $${i++}`);
+    values.push(p.role == null ? null : p.role.trim());
+  }
+  if (p.company !== undefined) {
+    updates.push(`company = $${i++}`);
+    values.push(p.company == null ? null : p.company.trim());
+  }
+  if (p.location_raw !== undefined) {
+    updates.push(`location_raw = $${i++}`);
+    values.push(p.location_raw == null ? null : p.location_raw.trim());
+  }
+  if (p.job_link !== undefined) {
+    updates.push(`job_link = $${i++}`);
+    values.push(p.job_link == null ? null : p.job_link.trim());
+  }
+  if (p.job_application_id !== undefined) {
+    updates.push(`job_application_id = $${i++}`);
+    values.push(p.job_application_id == null ? null : p.job_application_id.trim());
+  }
+  if (p.oa_deadline_date !== undefined) {
+    updates.push(`oa_deadline_date = $${i++}::date`);
+    values.push(p.oa_deadline_date ?? null);
+  }
+  if (p.keyword_matching !== undefined) {
+    updates.push(`keyword_matching = $${i++}`);
+    values.push(normalizeKeywordMatching(p.keyword_matching));
+  }
+  if (p.oa_status !== undefined) {
+    updates.push(`oa_status = $${i++}`);
+    values.push(normalizeOaStatus(p.oa_status));
+  }
+  if (p.referral_status !== undefined) {
+    updates.push(`referral_status = $${i++}`);
+    values.push(normalizeReferralStatus(p.referral_status));
+  }
+  if (p.response_status !== undefined) {
+    updates.push(`response_status = $${i++}`);
+    values.push(p.response_status == null ? null : p.response_status.trim());
+  }
+  if (p.application_status !== undefined) {
+    updates.push(`application_status = $${i++}`);
+    values.push(p.application_status == null ? null : p.application_status.trim());
+  }
+  if (p.notes !== undefined) {
+    updates.push(`notes = $${i++}`);
+    values.push(p.notes == null ? null : p.notes.trim());
+  }
+  if (p.date_saved !== undefined) {
+    updates.push(`date_saved = $${i++}::date`);
+    values.push(p.date_saved ?? null);
+  }
+  if (p.oa_completed_date !== undefined) {
+    updates.push(`oa_completed_date = $${i++}::date`);
+    values.push(p.oa_completed_date ?? null);
+  }
+
+  if (!updates.length) return c.json({ error: "No fields to update" }, 400);
+
+  values.push(id);
+  values.push(userId);
+  const [row] = await query(
+    c.env,
+    `UPDATE online_assessment_records SET ${updates.join(", ")}, updated_at = NOW() WHERE id = $${i} AND user_id = $${i + 1} RETURNING *`,
+    values,
+  );
+  if (!row) return c.json({ error: "Record not found" }, 404);
+  return c.json(row);
+});
+
+app.delete("/api/oa/archive/:id", async (c) => {
+  const userId = c.get("authUser").id;
+  const id = c.req.param("id");
+  const rows = await query(
+    c.env,
+    "DELETE FROM online_assessment_records WHERE id = $1 AND user_id = $2 RETURNING id",
+    [id, userId],
+  );
+  if (!rows.length) return c.json({ error: "Record not found" }, 404);
+  return c.json({ ok: true });
+});
+
 const referralInput = z.object({
   company: z.string().min(1),
   request_log: z.string().optional(),

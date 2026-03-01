@@ -23,6 +23,7 @@ import PendingList from "../components/PendingList";
 import PendingPreview from "../components/PendingPreview";
 import ReferralsPreview from "../components/ReferralsPreview";
 import NotesPreview from "../components/NotesPreview";
+import OaPreview from "../components/OaPreview";
 import quotesData from "../lib/quotes.json";
 import {
   getDashboardSummary,
@@ -1260,8 +1261,8 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* Bottom row: Pending / Referrals / Notes */}
-      <section className="chart-grid chart-grid-three dashboard-bottom-panels">
+      {/* Bottom row: Pending / Referrals / OA / Notes */}
+      <section className="chart-grid chart-grid-four dashboard-bottom-panels">
         <div className="card pending-list-card">
           <h2>Pending</h2>
           <p className="chart-subtitle">Outstanding items</p>
@@ -1274,6 +1275,13 @@ export default function DashboardPage() {
           <p className="chart-subtitle">Open referral requests</p>
           <div className="dashboard-panel-body">
             <ReferralsPreview />
+          </div>
+        </div>
+        <div className="card">
+          <h2>OA</h2>
+          <p className="chart-subtitle">Active online assessments</p>
+          <div className="dashboard-panel-body">
+            <OaPreview />
           </div>
         </div>
         <div className="card">

@@ -266,6 +266,50 @@ export function createPending(payload: {
   });
 }
 
+export type ActiveOaRecord = {
+  id: number;
+  role: string | null;
+  company: string | null;
+  oa_deadline_date: string | null;
+  oa_urgency: "overdue" | "today" | "upcoming" | "no_deadline";
+  days_to_deadline: number | null;
+  notes: string | null;
+  date_saved: string | null;
+  job_application_id: string | null;
+};
+
+export function getActiveOa() {
+  const search = new URLSearchParams();
+  search.set("anchorDay", getLocalISODate());
+  return request<{ anchorDay: string | null; data: ActiveOaRecord[] }>(
+    `/api/oa/active?${search.toString()}`
+  );
+}
+
+export function completeOa(jobId: number | string, payload?: { oa_completed_date?: string }) {
+  return request<{ already_completed: boolean; record: Record<string, unknown> }>(
+    `/api/oa/complete/${jobId}`,
+    { method: "POST", body: JSON.stringify(payload ?? {}) },
+  );
+}
+
+export function getOaArchive() {
+  return request<{ data: Array<Record<string, unknown>> }>("/api/oa/archive");
+}
+
+export function updateOaArchive(id: number | string, payload: Record<string, unknown>) {
+  return request<Record<string, unknown>>(`/api/oa/archive/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteOaArchive(id: number | string) {
+  return request<{ ok: boolean }>(`/api/oa/archive/${id}`, {
+    method: "DELETE",
+  });
+}
+
 export function createJob(payload: Record<string, unknown>) {
   return request("/api/jobs", { method: "POST", body: JSON.stringify(payload) });
 }

@@ -14,7 +14,16 @@ import {
 } from "recharts";
 import Spinner from "../components/Spinner";
 import { formatTableDateTime, formatTableTime } from "../lib/formatDate";
-import { deleteJob, getJobs, getJobsTrend, updateJob, type JobsTrendData } from "../lib/api";
+import {
+  deleteJob,
+  deleteOaArchive,
+  getJobs,
+  getJobsTrend,
+  getOaArchive,
+  updateJob,
+  updateOaArchive,
+  type JobsTrendData,
+} from "../lib/api";
 
 const LIMIT = 25;
 const REFERRAL_OPTIONS = ["", "Requested", "Yes", "No"];
@@ -139,6 +148,28 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
   const [isSaving, setIsSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<number | string | null>(null);
   const [archivingId, setArchivingId] = useState<number | string | null>(null);
+  const [oaArchiveData, setOaArchiveData] = useState<Array<Record<string, unknown>>>([]);
+  const [oaArchiveLoading, setOaArchiveLoading] = useState(false);
+  const [oaArchiveError, setOaArchiveError] = useState("");
+  const [oaEditing, setOaEditing] = useState<Record<string, unknown> | null>(null);
+  const [oaEditForm, setOaEditForm] = useState({
+    role: "",
+    company: "",
+    location_raw: "",
+    job_link: "",
+    job_application_id: "",
+    oa_deadline_date: "",
+    keyword_matching: "Medium",
+    oa_status: "No",
+    referral_status: "",
+    response_status: "",
+    application_status: "",
+    notes: "",
+    date_saved: "",
+    oa_completed_date: "",
+  });
+  const [isOaSaving, setIsOaSaving] = useState(false);
+  const [oaDeletingId, setOaDeletingId] = useState<number | string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -174,6 +205,21 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     }
   }, []);
 
+  const loadOaArchive = useCallback(async () => {
+    if (statusFilter !== "rejected") return;
+    try {
+      setOaArchiveError("");
+      setOaArchiveLoading(true);
+      const res = await getOaArchive();
+      setOaArchiveData(res.data ?? []);
+    } catch (e) {
+      setOaArchiveError((e as Error).message);
+      setOaArchiveData([]);
+    } finally {
+      setOaArchiveLoading(false);
+    }
+  }, [statusFilter]);
+
   useEffect(() => {
     load();
   }, [load]);
@@ -183,13 +229,23 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
   }, [loadTrend]);
 
   useEffect(() => {
+    if (statusFilter === "rejected") {
+      loadOaArchive();
+    } else {
+      setOaArchiveData([]);
+      setOaArchiveError("");
+    }
+  }, [statusFilter, loadOaArchive]);
+
+  useEffect(() => {
     const onRefresh = () => {
       load();
       loadTrend();
+      if (statusFilter === "rejected") loadOaArchive();
     };
     window.addEventListener("dashboard-refresh", onRefresh);
     return () => window.removeEventListener("dashboard-refresh", onRefresh);
-  }, [load, loadTrend]);
+  }, [load, loadTrend, loadOaArchive, statusFilter]);
 
   function onSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -365,6 +421,82 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     if (!value) return value;
     const normalized = value.toLowerCase();
     return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+  }
+
+  function openOaEdit(row: Record<string, unknown>) {
+    setOaEditing(row);
+    setOaEditForm({
+      role: String(row.role ?? ""),
+      company: String(row.company ?? ""),
+      location_raw: String(row.location_raw ?? ""),
+      job_link: String(row.job_link ?? ""),
+      job_application_id: String(row.job_application_id ?? ""),
+      oa_deadline_date: String(row.oa_deadline_date ?? ""),
+      keyword_matching:
+        String(row.keyword_matching ?? "Medium").trim().toLowerCase() === "week"
+          ? "Weak"
+          : String(row.keyword_matching ?? "Medium"),
+      oa_status: normalizeOaStatus(row.oa_status),
+      referral_status: normalizeReferralStatus(row.referral_status),
+      response_status: String(row.response_status ?? ""),
+      application_status: String(row.application_status ?? "Applied"),
+      notes: String(row.notes ?? ""),
+      date_saved: String(row.date_saved ?? "").slice(0, 10),
+      oa_completed_date: String(row.oa_completed_date ?? "").slice(0, 10),
+    });
+  }
+
+  async function onSaveOaEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!oaEditing?.id) return;
+    try {
+      setIsOaSaving(true);
+      setOaArchiveError("");
+      await updateOaArchive(oaEditing.id, {
+        role: oaEditForm.role.trim() || null,
+        company: oaEditForm.company.trim() || null,
+        location_raw: oaEditForm.location_raw.trim() || null,
+        job_link: oaEditForm.job_link.trim() || null,
+        job_application_id: oaEditForm.job_application_id.trim() || null,
+        oa_deadline_date: oaEditForm.oa_deadline_date || null,
+        keyword_matching: oaEditForm.keyword_matching || null,
+        oa_status: oaEditForm.oa_status || null,
+        referral_status: oaEditForm.referral_status.trim() || null,
+        response_status: oaEditForm.response_status.trim() || null,
+        application_status: oaEditForm.application_status.trim() || null,
+        notes: oaEditForm.notes.trim() || null,
+        date_saved: oaEditForm.date_saved || null,
+        oa_completed_date: oaEditForm.oa_completed_date || null,
+      });
+      setOaEditing(null);
+      await loadOaArchive();
+    } catch (e) {
+      setOaArchiveError((e as Error).message);
+    } finally {
+      setIsOaSaving(false);
+    }
+  }
+
+  async function onDeleteOaRecord(row: Record<string, unknown>) {
+    const id = row.id as number | string | undefined;
+    if (id == null) return;
+    const company = String(row.company ?? "").trim();
+    const role = String(row.role ?? "").trim();
+    const label = [company, role].filter(Boolean).join(" — ");
+    const confirmed = window.confirm(
+      `Delete OA archive record${label ? ` (${label})` : ""}? This action cannot be undone.`,
+    );
+    if (!confirmed) return;
+    try {
+      setOaDeletingId(id);
+      setOaArchiveError("");
+      await deleteOaArchive(id);
+      await loadOaArchive();
+    } catch (e) {
+      setOaArchiveError((e as Error).message);
+    } finally {
+      setOaDeletingId(null);
+    }
   }
 
   return (
@@ -849,6 +981,86 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
         )}
       </div>
 
+      {statusFilter === "rejected" ? (
+        <div className="card" style={{ padding: "24px", marginTop: "20px" }}>
+          <div className="jobs-header">
+            <h2>Online Assessment Records</h2>
+            <p className="chart-subtitle">Completed OA archive</p>
+          </div>
+          {oaArchiveError ? <div className="error">{oaArchiveError}</div> : null}
+          {oaArchiveLoading ? (
+            <Spinner />
+          ) : oaArchiveData.length === 0 ? (
+            <div className="empty-state">No OA records yet. Mark "OA Done" from Dashboard to add records.</div>
+          ) : (
+            <div className="table-wrap">
+              <table className="jobs-table">
+                <thead>
+                  <tr>
+                    <th>No.</th>
+                    <th>OA Completed</th>
+                    <th>Company / Position</th>
+                    <th>OA Deadline</th>
+                    <th>Job/App ID</th>
+                    <th>OA</th>
+                    <th>Link</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {oaArchiveData.map((row, idx) => (
+                    <tr key={`oa-archive-${String(row.id)}`} className="tr-hover">
+                      <td className="jobs-col-no">{idx + 1}</td>
+                      <td>{formatTableDateTime(row.oa_completed_date)}</td>
+                      <td>
+                        <div className="job-main">
+                          <div className="job-company">{capitalizeFirst(String(row.company ?? "-"))}</div>
+                          <div className="job-role" title={String(row.role ?? "-")}>
+                            {String(row.role ?? "-")}
+                          </div>
+                        </div>
+                      </td>
+                      <td>{String(row.oa_deadline_date ?? "-") || "-"}</td>
+                      <td>{String(row.job_application_id ?? "-") || "-"}</td>
+                      <td>{normalizeOaStatus(row.oa_status)}</td>
+                      <td>
+                        {row.job_link ? (
+                          <a
+                            href={String(row.job_link)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="table-link"
+                          >
+                            Open
+                          </a>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
+                      <td>
+                        <div className="row-actions">
+                          <button type="button" className="action-btn" onClick={() => openOaEdit(row)}>
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="action-btn"
+                            onClick={() => onDeleteOaRecord(row)}
+                            disabled={oaDeletingId === row.id}
+                          >
+                            {oaDeletingId === row.id ? "…" : "🗑️"}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      ) : null}
+
       {editing && (
         <div className="modal-overlay" onClick={() => !isSaving && setEditing(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -971,6 +1183,131 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                 </button>
                 <button type="submit" disabled={isSaving || !editForm.role.trim() || !editForm.company.trim()}>
                   {isSaving ? "Saving..." : "Save"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {oaEditing && (
+        <div className="modal-overlay" onClick={() => !isOaSaving && setOaEditing(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Edit OA Record</h3>
+            <form className="form" onSubmit={onSaveOaEdit}>
+              <div className="form-row">
+                <label className="form-label">OA Completed Date</label>
+                <input
+                  type="date"
+                  value={oaEditForm.oa_completed_date}
+                  onChange={(e) => setOaEditForm((p) => ({ ...p, oa_completed_date: e.target.value }))}
+                />
+              </div>
+              <input
+                placeholder="Position"
+                value={oaEditForm.role}
+                onChange={(e) => setOaEditForm((p) => ({ ...p, role: e.target.value }))}
+              />
+              <input
+                placeholder="Company"
+                value={oaEditForm.company}
+                onChange={(e) => setOaEditForm((p) => ({ ...p, company: e.target.value }))}
+              />
+              <input
+                placeholder="Location"
+                value={oaEditForm.location_raw}
+                onChange={(e) => setOaEditForm((p) => ({ ...p, location_raw: e.target.value }))}
+              />
+              <input
+                placeholder="Job link (URL)"
+                value={oaEditForm.job_link}
+                onChange={(e) => setOaEditForm((p) => ({ ...p, job_link: e.target.value }))}
+              />
+              <input
+                placeholder="Job/Application ID"
+                value={oaEditForm.job_application_id}
+                onChange={(e) => setOaEditForm((p) => ({ ...p, job_application_id: e.target.value }))}
+              />
+              <div className="form-row">
+                <label className="form-label">Date Saved</label>
+                <input
+                  type="date"
+                  value={oaEditForm.date_saved}
+                  onChange={(e) => setOaEditForm((p) => ({ ...p, date_saved: e.target.value }))}
+                />
+              </div>
+              <div className="form-row">
+                <label className="form-label">OA Last Date</label>
+                <input
+                  type="date"
+                  value={oaEditForm.oa_deadline_date}
+                  onChange={(e) => setOaEditForm((p) => ({ ...p, oa_deadline_date: e.target.value }))}
+                />
+              </div>
+              <div className="form-row">
+                <label className="form-label">Keyword Matching</label>
+                <select
+                  value={oaEditForm.keyword_matching}
+                  onChange={(e) => setOaEditForm((p) => ({ ...p, keyword_matching: e.target.value }))}
+                  className="form-select"
+                >
+                  <option value="Strong">Strong</option>
+                  <option value="Medium">Medium</option>
+                  <option value="Weak">Weak</option>
+                </select>
+              </div>
+              <div className="form-row">
+                <label className="form-label">Online Assessment (OA)</label>
+                <select
+                  value={oaEditForm.oa_status}
+                  onChange={(e) => setOaEditForm((p) => ({ ...p, oa_status: e.target.value }))}
+                  className="form-select"
+                >
+                  <option value="No">No</option>
+                  <option value="Yes">Yes</option>
+                </select>
+              </div>
+              <div className="form-row">
+                <label className="form-label">Referral</label>
+                <select
+                  value={oaEditForm.referral_status}
+                  onChange={(e) => setOaEditForm((p) => ({ ...p, referral_status: e.target.value }))}
+                  className="form-select"
+                >
+                  {REFERRAL_OPTIONS.map((opt) => (
+                    <option key={`oa-ref-${opt || "empty"}`} value={opt}>{opt || "—"}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-row">
+                <label className="form-label">Application Status</label>
+                <select
+                  value={oaEditForm.application_status}
+                  onChange={(e) => setOaEditForm((p) => ({ ...p, application_status: e.target.value }))}
+                  className="form-select"
+                >
+                  <option value="Applied">Applied</option>
+                  <option value="Under consideration">Under consideration</option>
+                  <option value="Rejected">Rejected</option>
+                </select>
+              </div>
+              <input
+                placeholder="Response status"
+                value={oaEditForm.response_status}
+                onChange={(e) => setOaEditForm((p) => ({ ...p, response_status: e.target.value }))}
+              />
+              <textarea
+                placeholder="Notes"
+                rows={3}
+                value={oaEditForm.notes}
+                onChange={(e) => setOaEditForm((p) => ({ ...p, notes: e.target.value }))}
+              />
+              <div className="modal-actions">
+                <button type="button" className="action-btn" onClick={() => setOaEditing(null)} disabled={isOaSaving}>
+                  Cancel
+                </button>
+                <button type="submit" disabled={isOaSaving}>
+                  {isOaSaving ? "Saving..." : "Save"}
                 </button>
               </div>
             </form>
