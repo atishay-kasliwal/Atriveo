@@ -1278,7 +1278,7 @@ export default function DashboardPage() {
           </div>
         </div>
         <div className="card">
-          <h2>OA</h2>
+          <h2>OA Received</h2>
           <p className="chart-subtitle">Active online assessments</p>
           <div className="dashboard-panel-body">
             <OaPreview />
