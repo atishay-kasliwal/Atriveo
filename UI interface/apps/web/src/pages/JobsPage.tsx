@@ -496,6 +496,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
       });
       setOaEditing(null);
       await loadOaArchive();
+      window.dispatchEvent(new CustomEvent("dashboard-refresh"));
     } catch (e) {
       setOaArchiveError((e as Error).message);
     } finally {

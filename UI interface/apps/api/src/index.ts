@@ -2046,6 +2046,96 @@ app.patch("/api/oa/archive/:id", async (c) => {
   const parsed = oaArchiveUpdateInput.safeParse(await c.req.json());
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
   const p = parsed.data;
+
+  // Reopen flow: Status = Pending means move this row back to active OA.
+  // Active OA is sourced from jobs table and excludes rows that exist in archive.
+  if (p.oa_result === "Pending") {
+    const [existing] = await query<Record<string, unknown>>(
+      c.env,
+      "SELECT * FROM online_assessment_records WHERE id = $1 AND user_id = $2 LIMIT 1",
+      [id, userId],
+    );
+    if (!existing) return c.json({ error: "Record not found" }, 404);
+
+    const jobId = Number(existing.job_id);
+    if (!Number.isFinite(jobId)) {
+      return c.json({ error: "Cannot reopen record without a valid job reference." }, 400);
+    }
+
+    const updates: string[] = [];
+    const values: unknown[] = [];
+    let i = 1;
+
+    if (p.role !== undefined) {
+      updates.push(`role = $${i++}`);
+      values.push(p.role == null ? null : p.role.trim());
+    }
+    if (p.company !== undefined) {
+      updates.push(`company = $${i++}`);
+      values.push(p.company == null ? null : p.company.trim());
+    }
+    if (p.location_raw !== undefined) {
+      updates.push(`location_raw = $${i++}`);
+      values.push(p.location_raw == null ? null : p.location_raw.trim());
+    }
+    if (p.job_link !== undefined) {
+      updates.push(`job_link = $${i++}`);
+      values.push(p.job_link == null ? null : p.job_link.trim());
+    }
+    if (p.job_application_id !== undefined) {
+      updates.push(`job_application_id = $${i++}`);
+      values.push(p.job_application_id == null ? null : p.job_application_id.trim());
+    }
+    if (p.oa_deadline_date !== undefined) {
+      updates.push(`oa_deadline_date = $${i++}::date`);
+      values.push(p.oa_deadline_date ?? null);
+    }
+    if (p.keyword_matching !== undefined) {
+      updates.push(`keyword_matching = $${i++}`);
+      values.push(normalizeKeywordMatching(p.keyword_matching));
+    }
+    if (p.referral_status !== undefined) {
+      updates.push(`referral_status = $${i++}`);
+      values.push(normalizeReferralStatus(p.referral_status));
+    }
+    if (p.response_status !== undefined) {
+      updates.push(`response_status = $${i++}`);
+      values.push(p.response_status == null ? null : p.response_status.trim());
+    }
+    if (p.application_status !== undefined) {
+      updates.push(`application_status = $${i++}`);
+      values.push(p.application_status == null ? null : p.application_status.trim());
+    }
+    if (p.notes !== undefined) {
+      updates.push(`notes = $${i++}`);
+      values.push(p.notes == null ? null : p.notes.trim());
+    }
+    if (p.date_saved !== undefined) {
+      updates.push(`date_saved = $${i++}::date`);
+      values.push(p.date_saved ?? null);
+    }
+
+    // Explicitly reopen as active OA.
+    updates.push(`oa_status = 'Yes'`);
+
+    values.push(jobId);
+    values.push(userId);
+    const [job] = await query<Record<string, unknown>>(
+      c.env,
+      `UPDATE jobs SET ${updates.join(", ")}, updated_at = NOW() WHERE id = $${i++} AND user_id = $${i} RETURNING id`,
+      values,
+    );
+    if (!job) return c.json({ error: "Linked job not found for reopen." }, 404);
+
+    await query(
+      c.env,
+      "DELETE FROM online_assessment_records WHERE id = $1 AND user_id = $2",
+      [id, userId],
+    );
+
+    return c.json({ reopened: true, job_id: jobId });
+  }
+
   const updates: string[] = [];
   const values: unknown[] = [];
   let i = 1;
