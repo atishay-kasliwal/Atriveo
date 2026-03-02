@@ -1748,6 +1748,54 @@ app.get("/api/oa/active", async (c) => {
   const anchorDayValid = rawAnchor && /^\d{4}-\d{2}-\d{2}$/.test(rawAnchor);
   const anchorDay = anchorDayValid ? rawAnchor : null;
 
+  // Reopen archive rows explicitly marked Pending:
+  // move fields back to jobs as active OA and remove from archive table.
+  await query(
+    c.env,
+    `
+    WITH pending_archive AS (
+      SELECT *
+      FROM online_assessment_records
+      WHERE user_id = $1
+        AND oa_result = 'Pending'
+    )
+    UPDATE jobs j
+    SET
+      role = COALESCE(p.role, j.role),
+      company = COALESCE(p.company, j.company),
+      location_raw = COALESCE(p.location_raw, j.location_raw),
+      job_link = COALESCE(p.job_link, j.job_link),
+      job_application_id = COALESCE(p.job_application_id, j.job_application_id),
+      oa_deadline_date = COALESCE(p.oa_deadline_date, j.oa_deadline_date),
+      keyword_matching = COALESCE(p.keyword_matching, j.keyword_matching),
+      oa_status = 'Yes',
+      referral_status = COALESCE(p.referral_status, j.referral_status),
+      response_status = COALESCE(p.response_status, j.response_status),
+      application_status = CASE
+        WHEN LOWER(TRIM(COALESCE(j.application_status, ''))) = 'rejected' THEN 'Applied'
+        ELSE COALESCE(NULLIF(TRIM(p.application_status), ''), j.application_status)
+      END,
+      notes = COALESCE(p.notes, j.notes),
+      date_saved = COALESCE(p.date_saved, j.date_saved),
+      applied_at = COALESCE(p.applied_at, j.applied_at),
+      updated_at = NOW()
+    FROM pending_archive p
+    WHERE j.id = p.job_id
+      AND j.user_id = $1
+    `,
+    [userId],
+  );
+
+  await query(
+    c.env,
+    `
+    DELETE FROM online_assessment_records
+    WHERE user_id = $1
+      AND oa_result = 'Pending'
+    `,
+    [userId],
+  );
+
   // Auto-archive overdue OA items as missed so Active OA only shows actionable items.
   await query(
     c.env,
