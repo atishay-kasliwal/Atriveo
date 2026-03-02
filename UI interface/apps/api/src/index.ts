@@ -797,6 +797,77 @@ app.get("/api/network/today", async (c) => {
   });
 });
 
+app.get("/api/network/deadlines", async (c) => {
+  const userId = c.get("authUser").id;
+  const rawAnchor = c.req.query("anchorDay");
+  const anchorDayValid = rawAnchor && /^\d{4}-\d{2}-\d{2}$/.test(rawAnchor);
+  const anchorDay = anchorDayValid ? rawAnchor : null;
+
+  const rows = await query<{
+    friend_id: number;
+    friend_email: string;
+    friend_name: string;
+    job_id: number;
+    company: string | null;
+    role: string | null;
+    oa_deadline_date: string | null;
+    deadline_state: "overdue" | "today";
+    days_to_deadline: number | null;
+    job_link: string | null;
+    job_application_id: string | null;
+  }>(
+    c.env,
+    `
+    WITH friends AS (
+      SELECT
+        CASE WHEN f.requester_id = $1 THEN f.receiver_id ELSE f.requester_id END AS friend_id,
+        u.email AS friend_email,
+        COALESCE(NULLIF(TRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email) AS friend_name
+      FROM friendships f
+      JOIN dashboard_users u
+        ON u.id = CASE WHEN f.requester_id = $1 THEN f.receiver_id ELSE f.requester_id END
+      WHERE (f.requester_id = $1 OR f.receiver_id = $1)
+        AND f.status = 'accepted'
+    )
+    SELECT
+      fr.friend_id,
+      fr.friend_email,
+      fr.friend_name,
+      j.id AS job_id,
+      j.company,
+      j.role,
+      j.oa_deadline_date::text AS oa_deadline_date,
+      CASE
+        WHEN j.oa_deadline_date < COALESCE($2::date, CURRENT_DATE) THEN 'overdue'
+        ELSE 'today'
+      END AS deadline_state,
+      (j.oa_deadline_date - COALESCE($2::date, CURRENT_DATE))::int AS days_to_deadline,
+      j.job_link,
+      j.job_application_id
+    FROM friends fr
+    JOIN jobs j
+      ON j.user_id = fr.friend_id
+    WHERE LOWER(TRIM(COALESCE(j.oa_status, ''))) = 'yes'
+      AND LOWER(TRIM(COALESCE(j.application_status, 'Applied'))) != 'rejected'
+      AND j.oa_deadline_date IS NOT NULL
+      AND j.oa_deadline_date <= COALESCE($2::date, CURRENT_DATE)
+    ORDER BY
+      j.oa_deadline_date ASC,
+      LOWER(fr.friend_name) ASC,
+      LOWER(fr.friend_email) ASC,
+      COALESCE(j.applied_at, j.date_saved, j.created_at) DESC NULLS LAST,
+      j.id DESC
+    LIMIT 100
+    `,
+    [userId, anchorDay],
+  );
+
+  return c.json({
+    anchorDay: anchorDay ?? null,
+    data: rows,
+  });
+});
+
 app.get("/api/dashboard/summary", async (c) => {
   const env = c.env;
   const userId = c.get("authUser").id;

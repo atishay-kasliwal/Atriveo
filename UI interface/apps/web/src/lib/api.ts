@@ -476,6 +476,28 @@ export function getNetworkToday() {
   );
 }
 
+export type NetworkDeadlineRecord = {
+  friend_id: number;
+  friend_email: string;
+  friend_name?: string;
+  job_id: number;
+  company: string | null;
+  role: string | null;
+  oa_deadline_date: string | null;
+  deadline_state: "overdue" | "today";
+  days_to_deadline: number | null;
+  job_link: string | null;
+  job_application_id: string | null;
+};
+
+export function getNetworkDeadlines() {
+  const search = new URLSearchParams();
+  search.set("anchorDay", getLocalISODate());
+  return request<{ anchorDay: string | null; data: NetworkDeadlineRecord[] }>(
+    `/api/network/deadlines?${search.toString()}`
+  );
+}
+
 export type TargetProgress = {
   anchorDay: string | null;
   daily: { current: number; target: number | null };

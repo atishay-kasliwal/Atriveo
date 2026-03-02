@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { NavLink, Outlet, Link } from "react-router-dom";
 import {
   acceptFriendRequest,
+  getActiveOa,
   blockFriendship,
   createJob,
   createReferral,
@@ -10,11 +11,15 @@ import {
   exportJobsCsv,
   getFriendRequests,
   getFriends,
+  getNetworkDeadlines,
+  getPending,
   importJobsCsv,
   rejectFriendRequest,
   sendFriendRequest,
+  type ActiveOaRecord,
   type FriendRecord,
   type IncomingFriendRequest,
+  type NetworkDeadlineRecord,
   type JobsCsvExportRange,
   type OutgoingFriendRequest,
 } from "../lib/api";
@@ -23,6 +28,15 @@ import { getLocalISODate } from "../lib/formatDate";
 type LayoutProps = {
   userEmail: string;
   onLogout: () => void;
+};
+
+type PendingDeadlineAlert = {
+  id: number | string;
+  company: string;
+  position: string;
+  end_date: string;
+  days_to_deadline: number;
+  deadline_state: "overdue" | "today" | "upcoming";
 };
 
 const emptyJobForm = {
@@ -91,7 +105,17 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
   const [form, setForm] = useState(emptyJobForm);
   const [pendingForm, setPendingForm] = useState(emptyPendingForm);
   const [noteForm, setNoteForm] = useState(emptyNoteForm);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notificationLoading, setNotificationLoading] = useState(false);
+  const [notificationError, setNotificationError] = useState("");
+  const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
+  const [latestNotificationSignature, setLatestNotificationSignature] = useState("");
+  const [incomingAlerts, setIncomingAlerts] = useState<IncomingFriendRequest[]>([]);
+  const [oaAlerts, setOaAlerts] = useState<ActiveOaRecord[]>([]);
+  const [pendingDeadlineAlerts, setPendingDeadlineAlerts] = useState<PendingDeadlineAlert[]>([]);
+  const [friendDeadlineAlerts, setFriendDeadlineAlerts] = useState<NetworkDeadlineRecord[]>([]);
   const csvToolsRef = useRef<HTMLDivElement | null>(null);
+  const notificationRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!showQuickAdd && !showPendingTask && !showNoteModal) setModalError("");
@@ -110,11 +134,39 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
   }, [showCsvTools]);
 
   useEffect(() => {
+    if (!showNotifications) return;
+    function onDocumentClick(e: MouseEvent) {
+      const target = e.target as Node | null;
+      if (notificationRef.current && target && !notificationRef.current.contains(target)) {
+        setShowNotifications(false);
+      }
+    }
+    function onEscapeKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setShowNotifications(false);
+    }
+    document.addEventListener("mousedown", onDocumentClick);
+    document.addEventListener("keydown", onEscapeKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocumentClick);
+      document.removeEventListener("keydown", onEscapeKey);
+    };
+  }, [showNotifications]);
+
+  useEffect(() => {
     function onOpenFriendManager() {
       openFriendModal();
     }
     window.addEventListener("open-friend-manager", onOpenFriendManager);
     return () => window.removeEventListener("open-friend-manager", onOpenFriendManager);
+  }, []);
+
+  useEffect(() => {
+    void loadNotificationFeed();
+    function onRefresh() {
+      void loadNotificationFeed();
+    }
+    window.addEventListener("dashboard-refresh", onRefresh);
+    return () => window.removeEventListener("dashboard-refresh", onRefresh);
   }, []);
 
   useEffect(() => {
@@ -138,6 +190,103 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
     }
   }
 
+  function getSeenNotificationKey() {
+    return `noobly_notify_seen_signature_${String(userEmail || "").toLowerCase()}`;
+  }
+
+  function buildNotificationSignature(
+    incomingRows: IncomingFriendRequest[],
+    oaRows: ActiveOaRecord[],
+    pendingRows: PendingDeadlineAlert[],
+    friendDeadlineRows: NetworkDeadlineRecord[],
+  ) {
+    const payload = {
+      incoming: incomingRows.map((r) => String(r.friendship_id)).sort(),
+      ownDeadlines: oaRows
+        .map((r) => `${r.id}:${r.oa_urgency}:${r.oa_deadline_date ?? ""}`)
+        .sort(),
+      taskDeadlines: pendingRows
+        .map((r) => `${String(r.id)}:${r.deadline_state}:${r.end_date}`)
+        .sort(),
+      friendDeadlines: friendDeadlineRows
+        .map((r) => `${r.friend_id}:${r.job_id}:${r.deadline_state}:${r.oa_deadline_date ?? ""}`)
+        .sort(),
+    };
+    return JSON.stringify(payload);
+  }
+
+  function markNotificationsAsSeen(signature?: string) {
+    const toStore = signature ?? latestNotificationSignature;
+    try {
+      window.localStorage.setItem(getSeenNotificationKey(), toStore);
+    } catch {
+      // Ignore localStorage failures and continue with in-memory behavior.
+    }
+    setHasUnreadNotifications(false);
+  }
+
+  async function loadNotificationFeed(options?: { markAsSeen?: boolean }) {
+    try {
+      setNotificationLoading(true);
+      setNotificationError("");
+      const [requestsRes, activeOaRes, pendingRes, friendDeadlinesRes] = await Promise.all([
+        getFriendRequests(),
+        getActiveOa(),
+        getPending(false),
+        getNetworkDeadlines(),
+      ]);
+      const today = new Date(`${getLocalISODate()}T00:00:00`);
+      const pendingAlerts: PendingDeadlineAlert[] = (pendingRes.data ?? [])
+        .map((row) => {
+          const endDateRaw = String(row.end_date ?? "").trim();
+          if (!endDateRaw) return null;
+          const target = new Date(`${endDateRaw}T00:00:00`);
+          if (Number.isNaN(target.getTime())) return null;
+          const daysToDeadline = Math.floor((target.getTime() - today.getTime()) / 86400000);
+          const deadlineState: PendingDeadlineAlert["deadline_state"] =
+            daysToDeadline < 0 ? "overdue" : daysToDeadline === 0 ? "today" : "upcoming";
+          return {
+            id: String(row.id ?? `${endDateRaw}-${String(row.company ?? "")}-${String(row.position_name ?? "")}`),
+            company: String(row.company ?? "Task").trim() || "Task",
+            position: String(row.position_name ?? "").trim(),
+            end_date: endDateRaw,
+            days_to_deadline: daysToDeadline,
+            deadline_state: deadlineState,
+          };
+        })
+        .filter((item): item is PendingDeadlineAlert => item !== null)
+        .filter((item) => item.days_to_deadline <= 7)
+        .sort((a, b) => a.days_to_deadline - b.days_to_deadline);
+      const incomingRows = requestsRes.incoming ?? [];
+      const ownOaRows = (activeOaRes.data ?? []).filter((row) => row.oa_urgency !== "no_deadline");
+      const friendDeadlineRows = friendDeadlinesRes.data ?? [];
+      const signature = buildNotificationSignature(incomingRows, ownOaRows, pendingAlerts, friendDeadlineRows);
+      setLatestNotificationSignature(signature);
+      setIncomingAlerts(incomingRows);
+      setOaAlerts(ownOaRows);
+      setPendingDeadlineAlerts(pendingAlerts);
+      setFriendDeadlineAlerts(friendDeadlineRows);
+
+      if (options?.markAsSeen) {
+        markNotificationsAsSeen(signature);
+      } else {
+        const hasAnyAlerts =
+          incomingRows.length > 0 || ownOaRows.length > 0 || pendingAlerts.length > 0 || friendDeadlineRows.length > 0;
+        let seenSignature = "";
+        try {
+          seenSignature = window.localStorage.getItem(getSeenNotificationKey()) ?? "";
+        } catch {
+          seenSignature = "";
+        }
+        setHasUnreadNotifications(hasAnyAlerts && signature !== seenSignature);
+      }
+    } catch (err) {
+      setNotificationError((err as Error).message);
+    } finally {
+      setNotificationLoading(false);
+    }
+  }
+
   function formatDateTimeCell(value: unknown) {
     if (value == null || value === "") return "—";
     const raw = String(value);
@@ -152,11 +301,49 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
     });
   }
 
+  function formatDateShort(value: string | null | undefined) {
+    if (!value) return "No date";
+    const parsed = new Date(`${value}T00:00:00`);
+    if (Number.isNaN(parsed.getTime())) return value;
+    return parsed.toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+    });
+  }
+
+  function getPersonLabel(name: string | null | undefined, email: string | null | undefined) {
+    const rawName = String(name ?? "").trim();
+    if (rawName) return rawName;
+    const rawEmail = String(email ?? "").trim();
+    if (!rawEmail) return "Friend";
+    return rawEmail.includes("@") ? rawEmail.split("@")[0] : rawEmail;
+  }
+
+  function getOwnDeadlineLabel(item: ActiveOaRecord) {
+    if (item.oa_urgency === "today") return "Due today";
+    if (item.oa_urgency === "overdue") {
+      const days = Math.abs(Number(item.days_to_deadline ?? 0));
+      return days === 1 ? "Overdue by 1 day" : `Overdue by ${days} days`;
+    }
+    const days = Number(item.days_to_deadline ?? 0);
+    return days <= 1 ? "Due tomorrow" : `Due in ${days} days`;
+  }
+
+  function getPendingDeadlineLabel(item: PendingDeadlineAlert) {
+    if (item.deadline_state === "today") return "Due today";
+    if (item.deadline_state === "overdue") {
+      const days = Math.abs(item.days_to_deadline);
+      return days === 1 ? "Overdue by 1 day" : `Overdue by ${days} days`;
+    }
+    return item.days_to_deadline === 1 ? "Due tomorrow" : `Due in ${item.days_to_deadline} days`;
+  }
+
   function openCsvModal(mode: "import" | "export") {
     setCsvMode(mode);
     setCsvError("");
     setCsvSuccess("");
     setShowCsvTools(false);
+    setShowNotifications(false);
     setShowCsvModal(true);
   }
 
@@ -170,6 +357,7 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
 
   function openFriendModal() {
     setShowCsvTools(false);
+    setShowNotifications(false);
     setFriendError("");
     setFriendSuccess("");
     setShowFriendModal(true);
@@ -425,6 +613,12 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
     }
   }
 
+  const urgentOwnDeadlines = oaAlerts.filter((row) => row.oa_urgency === "overdue" || row.oa_urgency === "today");
+  const urgentPendingDeadlines = pendingDeadlineAlerts.filter((row) => row.deadline_state === "overdue" || row.deadline_state === "today");
+  const notificationCount = incomingAlerts.length + urgentOwnDeadlines.length + urgentPendingDeadlines.length + friendDeadlineAlerts.length;
+  const hasNotificationItems =
+    incomingAlerts.length > 0 || oaAlerts.length > 0 || pendingDeadlineAlerts.length > 0 || friendDeadlineAlerts.length > 0;
+
   return (
     <div className="page">
       <nav className="app-nav">
@@ -452,6 +646,87 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
           </NavLink>
         </div>
         <div className="app-nav-actions app-nav-actions--segmented">
+          <div className="nav-notify" ref={notificationRef}>
+            <button
+              type="button"
+              className={`quick-add-btn notify-btn${showNotifications ? " active" : ""}${hasUnreadNotifications ? " unread" : ""}`}
+              onClick={() => {
+                setShowCsvTools(false);
+                const opening = !showNotifications;
+                setShowNotifications(opening);
+                if (opening) {
+                  void loadNotificationFeed({ markAsSeen: true });
+                }
+              }}
+              aria-label="Open notifications"
+              title="Notifications"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  fill="currentColor"
+                  d="M12 3a5 5 0 0 0-5 5v2.3c0 .8-.3 1.6-.9 2.2l-1.1 1.1a1 1 0 0 0 .7 1.7h12.6a1 1 0 0 0 .7-1.7l-1.1-1.1a3.1 3.1 0 0 1-.9-2.2V8a5 5 0 0 0-5-5Zm0 18a3 3 0 0 0 2.8-2h-5.6A3 3 0 0 0 12 21Z"
+                />
+              </svg>
+            </button>
+            {showNotifications ? (
+              <div className="notify-menu" role="dialog" aria-label="Notifications">
+                <div className="notify-head">
+                  <strong>Notifications</strong>
+                  <span>{notificationLoading ? "Updating..." : `${notificationCount} urgent`}</span>
+                </div>
+                {notificationError ? <div className="notify-error">{notificationError}</div> : null}
+                <div className="notify-list">
+                  {incomingAlerts.length > 0 ? (
+                    <button type="button" className="notify-item notify-item--action" onClick={openFriendModal}>
+                      <span className="notify-pill">Friend Requests</span>
+                      <span className="notify-title">
+                        {incomingAlerts.length} new friend request{incomingAlerts.length > 1 ? "s" : ""}
+                      </span>
+                      <span className="notify-meta">Open Add Friend to accept or reject.</span>
+                    </button>
+                  ) : null}
+
+                  {oaAlerts.slice(0, 4).map((item) => (
+                    <div key={item.id} className={`notify-item notify-item--deadline ${item.oa_urgency === "overdue" ? "is-overdue" : ""}`}>
+                      <span className="notify-pill">Your Deadline</span>
+                      <span className="notify-title">{(item.company ?? "Company").trim() || "Company"} · {(item.role ?? "Role").trim() || "Role"}</span>
+                      <span className="notify-meta">
+                        {getOwnDeadlineLabel(item)} · {formatDateShort(item.oa_deadline_date)}
+                      </span>
+                    </div>
+                  ))}
+
+                  {pendingDeadlineAlerts.slice(0, 3).map((item) => (
+                    <div key={String(item.id)} className={`notify-item notify-item--task ${item.deadline_state === "overdue" ? "is-overdue" : ""}`}>
+                      <span className="notify-pill">Task Deadline</span>
+                      <span className="notify-title">{item.company} · {item.position || "Pending Task"}</span>
+                      <span className="notify-meta">
+                        {getPendingDeadlineLabel(item)} · {formatDateShort(item.end_date)}
+                      </span>
+                    </div>
+                  ))}
+
+                  {friendDeadlineAlerts.slice(0, 4).map((item) => (
+                    <div key={`${item.friend_id}-${item.job_id}`} className={`notify-item notify-item--friend ${item.deadline_state === "overdue" ? "is-overdue" : ""}`}>
+                      <span className="notify-pill">Friend Deadline</span>
+                      <span className="notify-title">
+                        {getPersonLabel(item.friend_name, item.friend_email)} · {(item.company ?? "Company").trim() || "Company"}
+                      </span>
+                      <span className="notify-meta">
+                        {item.deadline_state === "today"
+                          ? `Reached deadline today · ${formatDateShort(item.oa_deadline_date)}`
+                          : `Overdue by ${Math.abs(Number(item.days_to_deadline ?? 0))} day${Math.abs(Number(item.days_to_deadline ?? 0)) === 1 ? "" : "s"} · ${formatDateShort(item.oa_deadline_date)}`}
+                      </span>
+                    </div>
+                  ))}
+
+                  {!notificationLoading && !notificationError && !hasNotificationItems ? (
+                    <div className="notify-empty">No alerts right now.</div>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+          </div>
           <button type="button" className="quick-add-btn app-btn" onClick={() => setShowQuickAdd(true)}>
             New Application
           </button>
@@ -496,6 +771,9 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
       <main className="page-main">
         <Outlet />
       </main>
+      <footer className="app-footer" aria-label="Application version">
+        <span className="app-footer-version">version 1.18.06.1999</span>
+      </footer>
 
       {showCsvModal ? (
         <div className="modal-overlay" onClick={closeCsvModal}>
