@@ -36,6 +36,11 @@ const loginInput = z.object({
 });
 
 const MAX_FRIENDS = 10;
+const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
+function parseAnchorDay(rawAnchor: string | undefined): string | null {
+  return rawAnchor && ISO_DATE_REGEX.test(rawAnchor) ? rawAnchor : null;
+}
 
 const friendRequestInput = z.object({
   receiver_id: z.coerce.number().int().positive().optional(),
@@ -186,9 +191,7 @@ app.put("/api/targets", async (c) => {
 
 app.get("/api/targets/progress", async (c) => {
   const userId = c.get("authUser").id;
-  const rawAnchor = c.req.query("anchorDay");
-  const anchorDayValid = rawAnchor && /^\d{4}-\d{2}-\d{2}$/.test(rawAnchor);
-  const anchorDay = anchorDayValid ? rawAnchor : null;
+  const anchorDay = parseAnchorDay(c.req.query("anchorDay"));
 
   const [targets] = await query<{
     daily_target: number | null;
@@ -587,9 +590,7 @@ app.post("/api/friends/:id/block", async (c) => {
 app.get("/api/network/trend", async (c) => {
   const userId = c.get("authUser").id;
   const days = Math.max(3, Math.min(30, Number(c.req.query("days") ?? 10)));
-  const rawAnchor = c.req.query("anchorDay");
-  const anchorDayValid = rawAnchor && /^\d{4}-\d{2}-\d{2}$/.test(rawAnchor);
-  const anchorDay = anchorDayValid ? rawAnchor : null;
+  const anchorDay = parseAnchorDay(c.req.query("anchorDay"));
 
   const rows = await query<{
     friend_id: number;
@@ -681,9 +682,7 @@ app.get("/api/network/trend", async (c) => {
 
 app.get("/api/network/today", async (c) => {
   const userId = c.get("authUser").id;
-  const rawAnchor = c.req.query("anchorDay");
-  const anchorDayValid = rawAnchor && /^\d{4}-\d{2}-\d{2}$/.test(rawAnchor);
-  const anchorDay = anchorDayValid ? rawAnchor : null;
+  const anchorDay = parseAnchorDay(c.req.query("anchorDay"));
 
   const rows = await query<{
     friend_id: number;
@@ -794,9 +793,7 @@ app.get("/api/network/today", async (c) => {
 
 app.get("/api/network/deadlines", async (c) => {
   const userId = c.get("authUser").id;
-  const rawAnchor = c.req.query("anchorDay");
-  const anchorDayValid = rawAnchor && /^\d{4}-\d{2}-\d{2}$/.test(rawAnchor);
-  const anchorDay = anchorDayValid ? rawAnchor : null;
+  const anchorDay = parseAnchorDay(c.req.query("anchorDay"));
 
   const rows = await query<{
     friend_id: number;
@@ -867,9 +864,7 @@ app.get("/api/dashboard/summary", async (c) => {
   const env = c.env;
   const userId = c.get("authUser").id;
   const days = Math.max(7, Math.min(60, Number(c.req.query("days") ?? 30)));
-  const rawAnchor = c.req.query("anchorDay");
-  const anchorDayValid = rawAnchor && /^\d{4}-\d{2}-\d{2}$/.test(rawAnchor);
-  const anchorDay = anchorDayValid ? rawAnchor : null;
+  const anchorDay = parseAnchorDay(c.req.query("anchorDay"));
   const [referralCount] = await query<{ count: string }>(env, "SELECT COUNT(*)::text AS count FROM referrals WHERE user_id = $1", [userId]);
   const [pendingCount] = await query<{ count: string }>(
     env,
@@ -1150,9 +1145,7 @@ app.get("/api/jobs/trend", async (c) => {
   const env = c.env;
   const userId = c.get("authUser").id;
   const days = Math.max(7, Math.min(60, Number(c.req.query("days") ?? 30)));
-  const rawAnchor = c.req.query("anchorDay");
-  const anchorDayValid = rawAnchor && /^\d{4}-\d{2}-\d{2}$/.test(rawAnchor);
-  const anchorDay = anchorDayValid ? rawAnchor : null;
+  const anchorDay = parseAnchorDay(c.req.query("anchorDay"));
   const anchorDateSql = anchorDay ? `$2::date` : `CURRENT_DATE`;
   const params = anchorDay ? [userId, anchorDay] : [userId];
 
@@ -1800,9 +1793,7 @@ app.delete("/api/jobs/:id", async (c) => {
 
 app.get("/api/oa/active", async (c) => {
   const userId = c.get("authUser").id;
-  const rawAnchor = c.req.query("anchorDay");
-  const anchorDayValid = rawAnchor && /^\d{4}-\d{2}-\d{2}$/.test(rawAnchor);
-  const anchorDay = anchorDayValid ? rawAnchor : null;
+  const anchorDay = parseAnchorDay(c.req.query("anchorDay"));
 
   // Reopen archive rows explicitly marked Pending:
   // move fields back to jobs as active OA and remove from archive table.
@@ -2391,9 +2382,7 @@ app.get("/api/referrals/trend", async (c) => {
   const env = c.env;
   const userId = c.get("authUser").id;
   const days = Math.max(7, Math.min(60, Number(c.req.query("days") ?? 30)));
-  const rawAnchor = c.req.query("anchorDay");
-  const anchorDayValid = rawAnchor && /^\d{4}-\d{2}-\d{2}$/.test(rawAnchor);
-  const anchorDay = anchorDayValid ? rawAnchor : null;
+  const anchorDay = parseAnchorDay(c.req.query("anchorDay"));
   const anchorDateSql = anchorDay ? `$2::date` : `CURRENT_DATE`;
   const params = anchorDay ? [userId, anchorDay] : [userId];
 
