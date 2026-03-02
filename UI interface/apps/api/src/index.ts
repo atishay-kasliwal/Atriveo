@@ -212,7 +212,6 @@ app.get("/api/targets/progress", async (c) => {
     FROM jobs
     WHERE user_id = $1
       AND date_saved IS NOT NULL
-      AND LOWER(TRIM(COALESCE(application_status, 'Applied'))) != 'rejected'
       AND date_saved::date = COALESCE($2::date, CURRENT_DATE)
     `,
     [userId, anchorDay],
@@ -225,7 +224,6 @@ app.get("/api/targets/progress", async (c) => {
     FROM jobs
     WHERE user_id = $1
       AND date_saved IS NOT NULL
-      AND LOWER(TRIM(COALESCE(application_status, 'Applied'))) != 'rejected'
       AND date_saved >= DATE_TRUNC('week', COALESCE($2::date, CURRENT_DATE))
       AND date_saved::date <= COALESCE($2::date, CURRENT_DATE)
     `,
@@ -239,7 +237,6 @@ app.get("/api/targets/progress", async (c) => {
     FROM jobs
     WHERE user_id = $1
       AND date_saved IS NOT NULL
-      AND LOWER(TRIM(COALESCE(application_status, 'Applied'))) != 'rejected'
       AND date_saved >= DATE_TRUNC('month', COALESCE($2::date, CURRENT_DATE))
       AND date_saved::date <= COALESCE($2::date, CURRENT_DATE)
     `,
@@ -638,7 +635,6 @@ app.get("/api/network/trend", async (c) => {
         COUNT(*)::int AS cnt
       FROM jobs j
       WHERE j.date_saved IS NOT NULL
-        AND LOWER(TRIM(COALESCE(j.application_status, 'Applied'))) != 'rejected'
       GROUP BY j.user_id, DATE(j.date_saved)
     )
     SELECT
@@ -736,7 +732,6 @@ app.get("/api/network/today", async (c) => {
       ON j.user_id = fr.friend_id
      AND j.date_saved IS NOT NULL
      AND j.date_saved::date = COALESCE($2::date, CURRENT_DATE)
-     AND LOWER(TRIM(COALESCE(j.application_status, 'Applied'))) != 'rejected'
     ORDER BY
       COALESCE(j.applied_at, j.date_saved, j.created_at) DESC NULLS LAST,
       j.created_at DESC NULLS LAST,
@@ -888,7 +883,6 @@ app.get("/api/dashboard/summary", async (c) => {
     FROM jobs
     WHERE user_id = $1
       AND date_saved IS NOT NULL
-      AND LOWER(TRIM(COALESCE(application_status, 'Applied'))) != 'rejected'
       AND date_saved >= DATE_TRUNC('month', COALESCE($2::date, CURRENT_DATE))
       AND date_saved::date <= COALESCE($2::date, CURRENT_DATE)
     `,
@@ -901,7 +895,6 @@ app.get("/api/dashboard/summary", async (c) => {
     FROM jobs
     WHERE user_id = $1
       AND date_saved IS NOT NULL
-      AND LOWER(TRIM(COALESCE(application_status, 'Applied'))) != 'rejected'
       AND date_saved >= DATE_TRUNC('week', COALESCE($2::date, CURRENT_DATE))
       AND date_saved::date <= COALESCE($2::date, CURRENT_DATE)
     `,
@@ -914,7 +907,6 @@ app.get("/api/dashboard/summary", async (c) => {
     FROM jobs
     WHERE user_id = $1
       AND date_saved IS NOT NULL
-      AND LOWER(TRIM(COALESCE(application_status, 'Applied'))) != 'rejected'
       AND date_saved::date = COALESCE($2::date, CURRENT_DATE)
     `,
     [userId, anchorDay],
@@ -925,14 +917,13 @@ app.get("/api/dashboard/summary", async (c) => {
     SELECT COUNT(*)::text AS count
     FROM jobs
     WHERE user_id = $1
-      AND LOWER(TRIM(COALESCE(application_status, 'Applied'))) != 'rejected'
       AND TRIM(COALESCE(referral_status, '')) = 'Yes'
     `,
     [userId],
   );
-  const [activeJobCount] = await query<{ count: string }>(
+  const [applicationCount] = await query<{ count: string }>(
     env,
-    "SELECT COUNT(*)::text AS count FROM jobs WHERE user_id = $1 AND LOWER(TRIM(COALESCE(application_status, 'Applied'))) != 'rejected'",
+    "SELECT COUNT(*)::text AS count FROM jobs WHERE user_id = $1",
     [userId],
   );
 
@@ -958,7 +949,6 @@ app.get("/api/dashboard/summary", async (c) => {
       FROM jobs
       WHERE user_id = $1
         AND date_saved IS NOT NULL
-        AND LOWER(TRIM(COALESCE(application_status, 'Applied'))) != 'rejected'
       GROUP BY DATE(date_saved)
     ) j ON j.day = d.day
     ORDER BY d.day ASC
@@ -982,7 +972,6 @@ app.get("/api/dashboard/summary", async (c) => {
       FROM jobs
       WHERE user_id = $1
         AND date_saved IS NOT NULL
-        AND LOWER(TRIM(COALESCE(application_status, 'Applied'))) != 'rejected'
         AND TRIM(COALESCE(referral_status, '')) = 'Yes'
       GROUP BY DATE(date_saved)
     ) r ON r.day = d.day
@@ -1050,7 +1039,6 @@ app.get("/api/dashboard/summary", async (c) => {
       COUNT(*)::int AS total
     FROM jobs
     WHERE user_id = $1
-      AND LOWER(TRIM(COALESCE(application_status, 'Applied'))) != 'rejected'
     GROUP BY 1
     `,
     [userId],
@@ -1082,7 +1070,6 @@ app.get("/api/dashboard/summary", async (c) => {
       FROM jobs
       WHERE user_id = $1
         AND date_saved IS NOT NULL
-        AND LOWER(TRIM(COALESCE(application_status, 'Applied'))) != 'rejected'
         AND date_saved::date <= COALESCE($2::date, CURRENT_DATE)
       GROUP BY DATE_TRUNC('week', date_saved)
     )
@@ -1127,7 +1114,6 @@ app.get("/api/dashboard/summary", async (c) => {
     FROM jobs
     WHERE user_id = $1
       AND date_saved IS NOT NULL
-      AND LOWER(TRIM(COALESCE(application_status, 'Applied'))) != 'rejected'
       AND date_saved >= (COALESCE($2::date, CURRENT_DATE) - INTERVAL '12 months')
       AND date_saved::date <= COALESCE($2::date, CURRENT_DATE)
     GROUP BY DATE_TRUNC('month', date_saved)
@@ -1139,7 +1125,7 @@ app.get("/api/dashboard/summary", async (c) => {
 
   return c.json({
     kpis: {
-      jobs: Number(activeJobCount?.count ?? 0),
+      jobs: Number(applicationCount?.count ?? 0),
       referrals: Number(referralCount?.count ?? 0),
       pending: Number(pendingCount?.count ?? 0),
       rejected: Number(rejectedCount?.count ?? 0),
@@ -1190,7 +1176,6 @@ app.get("/api/jobs/trend", async (c) => {
       FROM jobs
       WHERE user_id = $1 
         AND date_saved IS NOT NULL
-        AND LOWER(TRIM(COALESCE(application_status, 'Applied'))) != 'rejected'
       GROUP BY DATE(date_saved)
     ) applied ON applied.day = d.day
     LEFT JOIN (
@@ -2440,7 +2425,6 @@ app.get("/api/referrals/trend", async (c) => {
       FROM jobs
       WHERE user_id = $1
         AND date_saved IS NOT NULL
-        AND LOWER(TRIM(COALESCE(application_status, 'Applied'))) != 'rejected'
         AND TRIM(COALESCE(referral_status, '')) = 'Yes'
       GROUP BY DATE(date_saved)
     ) rec ON rec.day = d.day
