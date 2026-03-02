@@ -2035,7 +2035,7 @@ const oaArchiveUpdateInput = z.object({
   application_status: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
   date_saved: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
-  oa_result: z.enum(["Completed", "Missed"]).optional().nullable(),
+  oa_result: z.enum(["Pending", "Completed", "Missed"]).optional().nullable(),
   oa_result_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
   oa_completed_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
 });

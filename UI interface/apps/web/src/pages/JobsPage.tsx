@@ -42,8 +42,9 @@ function normalizeOaStatus(value: unknown): "Yes" | "No" {
   return "No";
 }
 
-function getOaResultLabel(row: Record<string, unknown>): "Completed" | "Missed" {
+function getOaResultLabel(row: Record<string, unknown>): "Pending" | "Completed" | "Missed" {
   const explicit = String((row as any).oa_result ?? "").trim();
+  if (explicit === "Pending") return "Pending";
   if (explicit === "Missed") return "Missed";
   if (explicit === "Completed") return "Completed";
   const source = String(row.source ?? "").toLowerCase();
@@ -1024,7 +1025,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                   <tr>
                     <th>No.</th>
                     <th>Record Date</th>
-                    <th>Result</th>
+                    <th>Status</th>
                     <th>Company / Position</th>
                     <th>OA Deadline</th>
                     <th>Job/App ID</th>
@@ -1342,7 +1343,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
               <details className="form-accordion form-span-2">
                 <summary>
                   <span>Online Assessment (OA) Details</span>
-                  <span className="form-accordion-summary-meta">Result: {oaEditForm.oa_result || "—"}</span>
+                  <span className="form-accordion-summary-meta">Status: {oaEditForm.oa_result || "—"}</span>
                 </summary>
                 <div className="form-accordion-grid">
                   <div className="form-row">
@@ -1354,12 +1355,13 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                     />
                   </div>
                   <div className="form-row">
-                    <label className="form-label">Result</label>
+                    <label className="form-label">Status</label>
                     <select
                       value={oaEditForm.oa_result}
                       onChange={(e) => setOaEditForm((p) => ({ ...p, oa_result: e.target.value }))}
                       className="form-select"
                     >
+                      <option value="Pending">Pending</option>
                       <option value="Completed">Completed</option>
                       <option value="Missed">Missed</option>
                     </select>
