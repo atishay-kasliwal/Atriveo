@@ -4,6 +4,7 @@ compatibility_date = "2025-02-22"
 
 [vars]
 APP_ENV = "development"
+SIGNUPS_ENABLED = "true"
 
 # Local development config:
 # - Put secrets in `apps/api/.dev.vars` (Wrangler reads it automatically for `wrangler dev`)
@@ -14,9 +15,11 @@ name = "job-tracker-api-staging"
 
 [env.staging.vars]
 APP_ENV = "staging"
+SIGNUPS_ENABLED = "true"
 
 [env.production]
 name = "job-tracker-api"
 
 [env.production.vars]
 APP_ENV = "production"
+SIGNUPS_ENABLED = "true"

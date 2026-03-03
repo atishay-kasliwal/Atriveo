@@ -8,3 +8,6 @@ API_SHARED_TOKEN=
 
 # Optional owner email used only when API_SHARED_TOKEN is used.
 OWNER_EMAIL=you@example.com
+
+# Optional: disable public signups (default is enabled when unset).
+SIGNUPS_ENABLED=true

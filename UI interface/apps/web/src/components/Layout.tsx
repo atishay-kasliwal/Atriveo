@@ -430,25 +430,25 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
     <div className="page">
       <nav className="app-nav">
         <div className="app-nav-links">
-          <NavLink to="/network" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
+          <NavLink to="network" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
             Network
           </NavLink>
-          <NavLink to="/" end className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
+          <NavLink to="." end className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
             Dashboard
           </NavLink>
-          <NavLink to="/jobs" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
+          <NavLink to="jobs" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
             Active Jobs
           </NavLink>
-          <NavLink to="/referrals" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
+          <NavLink to="referrals" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
             Referrals
           </NavLink>
-          <NavLink to="/archive" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
+          <NavLink to="archive" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
             Archive
           </NavLink>
-          <NavLink to="/pending" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
+          <NavLink to="pending" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
             Pending Tasks
           </NavLink>
-          <NavLink to="/notes" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
+          <NavLink to="notes" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
             Notes
           </NavLink>
         </div>

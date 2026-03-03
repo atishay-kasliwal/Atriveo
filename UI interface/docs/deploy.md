@@ -46,7 +46,8 @@ Notes:
 
 ## 5) Deploy React app to Cloudflare Pages
 
-The app is built to run at **`/dashboard`** (e.g. `atishaykasliwal.com/dashboard`).
+The marketing landing now lives at `/` and the authenticated dashboard continues at **`/dashboard`** (e.g. `atishaykasliwal.com/dashboard`).
+Keep `VITE_APP_BASE=/` so assets resolve from the root while routes handle the `/dashboard` prefix.
 
 1. Connect the repo to Cloudflare Pages.
 2. **Build command:** `npm run build -w @job-tracker/web`
@@ -55,6 +56,7 @@ The app is built to run at **`/dashboard`** (e.g. `atishaykasliwal.com/dashboard
    - staging: `VITE_API_URL=https://job-tracker-api-staging.<your-subdomain>.workers.dev`
    - production: `VITE_API_URL=https://job-tracker-api.<your-subdomain>.workers.dev`
    - `VITE_API_TOKEN=<same API_SHARED_TOKEN value>` (optional)
+   - `VITE_APP_BASE=/` (keep at root so landing page renders on `/`)
 
 After deploy, the app is available at:
 - **`<pages-project>.pages.dev/dashboard`** (e.g. `job-tracker.pages.dev/dashboard`)
@@ -67,22 +69,27 @@ Use Cloudflare Access in front of the Pages project:
 
 ## 7) Map domain to atishaykasliwal.com/dashboard
 
-**Option A – Dashboard is the only site on the domain**
+**Landing at `/`, dashboard at `/dashboard` on the same Pages project**
 
-1. In Pages, add custom domain **`atishaykasliwal.com`**.
-2. Open **`atishaykasliwal.com/dashboard`** (or **`atishaykasliwal.com/dashboard/`**) to use the app.
-3. Optional: add a redirect from `/` to `/dashboard` in your host (e.g. Cloudflare Redirect Rule: `atishaykasliwal.com/` → `https://atishaykasliwal.com/dashboard/`).
+- Add custom domains to the Pages project (examples):
+  - **`atriveo.com`** (new primary)
+  - **`production.atishaykasliwal.com`** (keep live during transition)
+- Pages handles `/` (landing) and `/dashboard` (app) automatically because the SPA uses client-side routing and `VITE_APP_BASE=/`.
+- Optional: when ready, add a Cloudflare redirect rule from `production.atishaykasliwal.com/*` to `https://atriveo.com/$1` while keeping a 30-day grace period for existing users.
 
-**Option B – You already have a site at atishaykasliwal.com**
+**If another site already lives at the apex:**
 
-Use a **Cloudflare Worker** on `atishaykasliwal.com` that:
-
-- Serves your existing site for `/` and other paths.
-- For requests to **`/dashboard`** or **`/dashboard/*`**, forwards to your Pages deployment (e.g. `https://job-tracker.pages.dev/dashboard` or the same path on a Pages custom subdomain), or serves the built files from the same Worker (e.g. from R2 or embedded assets).
-
-Example Worker logic (pseudo): if `url.pathname.startsWith('/dashboard')` then `fetch('https://<your-pages>.pages.dev' + url.pathname)` and return the response; else pass to your main site.
+- Put a small Cloudflare Worker in front of the apex that proxies `/dashboard` (and `/dashboard/*`) to the Pages deployment while letting other routes hit the existing origin. The landing page can stay on the existing origin or the Worker can also proxy `/` to Pages.
 
 **Local dev**
 
 - Run the web app: `npm run dev:web` (from repo root).
 - Open **http://localhost:5173/dashboard/** (Vite serves the app under the same base path).
+
+## 8) Atriveo.com cutover checklist
+
+- **DNS**: point `atriveo.com` (and `www`) to the Cloudflare Pages project; keep `production.atishaykasliwal.com` CNAMEd to the same Pages project for a parallel run.
+- **API**: Workers stay on `job-tracker-api` / `job-tracker-api-staging`. If you want a branded hostname, add a Worker route like `api.atriveo.com/*` pointing to the production Worker.
+- **Env**: confirm `SIGNUPS_ENABLED=true` in Wrangler (`wrangler.toml` already sets it) and set `VITE_APP_BASE=/` in Pages env vars.
+- **Analytics/GA allowed hosts**: include both `atriveo.com` and `production.atishaykasliwal.com` if GA is enabled.
+- **Graceful migration**: after verifying atriveo.com, keep the old domain live for ~30 days; then add 301 redirects from `production.atishaykasliwal.com/*` to `atriveo.com/$1`.

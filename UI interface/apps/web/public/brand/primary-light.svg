@@ -1,0 +1,8 @@
+<svg width="1600" height="400" viewBox="0 0 1600 400" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .brand { font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-weight: 900; letter-spacing: -0.02em; font-size: 250px; }
+    .main { fill: #000000; }
+    .dot { fill: #0066FF; }
+  </style>
+  <text x="80" y="275" class="brand"><tspan class="main">Atriveo</tspan><tspan class="dot">.</tspan></text>
+</svg>

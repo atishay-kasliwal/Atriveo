@@ -4,6 +4,7 @@ import { z } from "zod";
 import {
   authMiddleware,
   createSession,
+  hashPassword,
   normalizeEmail,
   revokeSession,
   verifyPassword,
@@ -35,6 +36,13 @@ const loginInput = z.object({
   password: z.string().min(1).max(128),
 });
 
+const signupInput = z.object({
+  email: z.string().email(),
+  password: z.string().min(8).max(128),
+  first_name: z.string().trim().max(80).optional(),
+  last_name: z.string().trim().max(80).optional(),
+});
+
 const MAX_FRIENDS = 10;
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -47,13 +55,79 @@ const friendRequestInput = z.object({
   email: z.string().email().optional(),
 });
 
+function areSignupsEnabled(env: Bindings): boolean {
+  const raw = env.SIGNUPS_ENABLED ?? env.ALLOW_SIGNUPS;
+  if (raw == null) return true; // default to enabled for launch; allow opt-out via env
+  const normalized = String(raw).trim().toLowerCase();
+  return normalized === "true" || normalized === "1" || normalized === "yes";
+}
+
 const targetsUpsertInput = z.object({
   daily_target: z.number().int().min(0).nullable().optional(),
   weekly_target: z.number().int().min(0).nullable().optional(),
   monthly_target: z.number().int().min(0).nullable().optional(),
 });
 
-app.post("/auth/signup", async (c) => c.json({ error: "Signup is disabled for this dashboard." }, 403));
+app.post("/auth/signup", async (c) => {
+  if (!areSignupsEnabled(c.env)) {
+    return c.json({ error: "Signup is disabled for this environment." }, 403);
+  }
+
+  const parsed = signupInput.safeParse(await c.req.json());
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
+
+  const email = normalizeEmail(parsed.data.email);
+  const firstName = parsed.data.first_name?.trim() || null;
+  const lastName = parsed.data.last_name?.trim() || null;
+
+  const [existing] = await query<{ id: number; password_hash: string | null; first_name: string | null; last_name: string | null }>(
+    c.env,
+    "SELECT id, password_hash, first_name, last_name FROM dashboard_users WHERE LOWER(email) = $1 LIMIT 1",
+    [email],
+  );
+
+  if (existing?.password_hash) {
+    return c.json({ error: "Account already exists. Please log in." }, 409);
+  }
+
+  const { hash, salt, iterations } = await hashPassword(parsed.data.password);
+
+  const [user] = await query<{ id: number; email: string; first_name: string | null; last_name: string | null }>(
+    c.env,
+    `
+    INSERT INTO dashboard_users (email, password_hash, password_salt, password_iterations, first_name, last_name)
+    VALUES ($1, $2, $3, $4, NULLIF($5, ''), NULLIF($6, ''))
+    ON CONFLICT (email)
+    DO UPDATE SET
+      password_hash = EXCLUDED.password_hash,
+      password_salt = EXCLUDED.password_salt,
+      password_iterations = EXCLUDED.password_iterations,
+      first_name = COALESCE(NULLIF(EXCLUDED.first_name, ''), dashboard_users.first_name),
+      last_name = COALESCE(NULLIF(EXCLUDED.last_name, ''), dashboard_users.last_name),
+      updated_at = NOW()
+    RETURNING id, email, first_name, last_name
+    `,
+    [email, hash, salt, iterations, firstName ?? "", lastName ?? ""],
+  );
+
+  if (!user) {
+    return c.json({ error: "Unable to create account right now." }, 500);
+  }
+
+  const token = await createSession(c.env, Number(user.id));
+  return c.json(
+    {
+      token,
+      user: {
+        id: Number(user.id),
+        email: String(user.email),
+        first_name: user.first_name ?? null,
+        last_name: user.last_name ?? null,
+      },
+    },
+    201,
+  );
+});
 
 app.post("/auth/login", async (c) => {
   const parsed = loginInput.safeParse(await c.req.json());

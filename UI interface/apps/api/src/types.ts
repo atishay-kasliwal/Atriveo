@@ -6,6 +6,8 @@ export type Bindings = {
   OWNER_ACCESS_ONLY?: string;
   SESSION_TTL_DAYS?: string;
   APP_ENV?: string;
+  SIGNUPS_ENABLED?: string;
+  ALLOW_SIGNUPS?: string;
 };
 
 export type DbRow = Record<string, unknown>;

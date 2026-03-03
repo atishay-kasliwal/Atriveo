@@ -9,6 +9,8 @@ import PendingPage from "./pages/PendingPage";
 import NotesPage from "./pages/NotesPage";
 import NetworkPage from "./pages/NetworkPage";
 import AuthPage from "./pages/AuthPage";
+import SignupPage from "./pages/SignupPage";
+import LandingPage from "./pages/LandingPage";
 import {
   clearStoredSession,
   getMe,
@@ -19,6 +21,7 @@ import {
   type AuthSession,
 } from "./lib/api";
 import { initAnalytics, trackPageView } from "./lib/analytics";
+import { DASHBOARD_BASE_PATH, withDashboardBase } from "./lib/paths";
 
 const BASENAME = (() => {
   const baseUrl = import.meta.env.BASE_URL || "/";
@@ -85,18 +88,30 @@ export default function App() {
       <SiteShell>
         <Routes>
           <Route
+            path="/"
+            element={session ? <Navigate to={withDashboardBase("")} replace /> : <LandingPage isAuthenticated={Boolean(session)} />}
+          />
+          <Route
             path="/login"
             element={
-              session ? (
-                <Navigate to="/" replace />
-              ) : (
-                <AuthPage onAuthenticated={handleAuthenticated} />
-              )
+              session ? <Navigate to={withDashboardBase("")} replace /> : <AuthPage onAuthenticated={handleAuthenticated} />
             }
           />
           <Route
-            path="/"
-            element={session ? <Layout userEmail={session.user.email} onLogout={handleLogout} /> : <Navigate to="/login" replace />}
+            path="/signup"
+            element={
+              session ? <Navigate to={withDashboardBase("")} replace /> : <SignupPage onAuthenticated={handleAuthenticated} />
+            }
+          />
+          <Route
+            path={`${DASHBOARD_BASE_PATH}/*`}
+            element={
+              session ? (
+                <Layout userEmail={session.user.email} onLogout={handleLogout} />
+              ) : (
+                <Navigate to="/login" replace />
+              )
+            }
           >
             <Route index element={<DashboardPage />} />
             <Route path="jobs" element={<JobsPage />} />
@@ -105,9 +120,10 @@ export default function App() {
             <Route path="pending" element={<PendingPage />} />
             <Route path="notes" element={<NotesPage />} />
             <Route path="network" element={<NetworkPage />} />
-            <Route path="friends" element={<Navigate to="/network" replace />} />
+            <Route path="friends" element={<Navigate to="network" replace />} />
           </Route>
-          <Route path="*" element={<Navigate to={session ? "/" : "/login"} replace />} />
+          <Route path="/app/*" element={<Navigate to={withDashboardBase("")} replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </SiteShell>
     </BrowserRouter>

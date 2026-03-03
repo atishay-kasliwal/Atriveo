@@ -97,6 +97,14 @@ export function login(email: string, password: string) {
   );
 }
 
+export function signup(payload: { email: string; password: string; first_name?: string; last_name?: string }) {
+  return request<{ token: string; user: AuthUser }>(
+    "/auth/signup",
+    { method: "POST", body: JSON.stringify(payload) },
+    { skipAuth: true },
+  );
+}
+
 export function getMe() {
   return request<{ user: AuthUser }>("/api/auth/me");
 }
