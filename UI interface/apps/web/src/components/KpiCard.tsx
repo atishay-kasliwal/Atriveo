@@ -28,7 +28,7 @@ function Sparkline({
     })
     .join(" ");
   const stroke =
-    color ?? (accent === "red" ? "rgba(248, 113, 113, 0.9)" : "rgba(96, 165, 250, 0.9)");
+    color ?? (accent === "red" ? "rgba(248, 113, 113, 0.9)" : "rgba(37, 99, 235, 0.9)");
   return (
     <svg
       className="kpi-sparkline"

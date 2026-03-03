@@ -13,7 +13,7 @@ import {
   YAxis,
 } from "recharts";
 import Spinner from "../components/Spinner";
-import { formatTableDateTime, formatTableTime } from "../lib/formatDate";
+import { formatTableDateTime } from "../lib/formatDate";
 import {
   deleteJob,
   deleteOaArchive,
@@ -65,7 +65,6 @@ type SortField = "date_saved" | "applied_at" | "company" | "role" | "referral_st
 type SortOrder = "asc" | "desc";
 
 const BASE_SORT_CONFIG: { key: SortField; label: string }[] = [
-  { key: "date_saved", label: "Date" },
   { key: "applied_at", label: "Applied At" },
   { key: "company", label: "Company" },
   { key: "role", label: "Position" },
@@ -106,16 +105,16 @@ function compareJobs(
   return order === "asc" ? cmp : -cmp;
 }
 
-// Executive-level chart design: muted colors, clean typography, minimal noise
+// Theme-aware chart tokens used only on Jobs page charts.
 const CHART_COLORS = {
-  applied: "#6ee7b7", // muted green (low saturation)
-  rejected: "#f59e0b", // muted amber (low saturation)
-  grid: "rgba(255,255,255,0.12)", // 12% opacity horizontal gridlines
-  tooltipBg: "#18181b",
-  tooltipBorder: "rgba(255,255,255,0.12)",
-  axis: "#71717a", // subtle axis color
-  text: "#e4e4e7", // primary text
-  textSecondary: "#a1a1aa", // secondary text (tick labels)
+  applied: "#2563eb",
+  rejected: "#f59e0b",
+  grid: "var(--chart-grid)",
+  tooltipBg: "var(--chart-tooltip-bg)",
+  tooltipBorder: "var(--chart-tooltip-border)",
+  axis: "var(--chart-axis)",
+  text: "var(--chart-text)",
+  textSecondary: "var(--chart-text-secondary)",
 };
 
 function parseIsoDay(day: string): { y: number; m: number; d: number } | null {
@@ -359,12 +358,15 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     // Find insights for annotations
     const maxApplied = Math.max(...data.map((d) => d.applied), 0);
     const maxAppliedDay = data.find((d) => d.applied === maxApplied);
+    const maxRejected = Math.max(...data.map((d) => d.rejected), 0);
+    const maxRejectedDay = data.find((d) => d.rejected === maxRejected);
     const rejectionDays = data.filter((d) => d.rejected > 0);
 
     return {
       data,
       insights: {
         maxApplied: maxAppliedDay ? { day: maxAppliedDay.dayLabel, value: maxApplied, index: data.indexOf(maxAppliedDay) } : null,
+        maxRejected: maxRejectedDay ? { day: maxRejectedDay.dayLabel, value: maxRejected, index: data.indexOf(maxRejectedDay) } : null,
         rejectionDays: rejectionDays.map((d) => ({ day: d.dayLabel, value: d.rejected, index: data.indexOf(d) })),
       },
     };
@@ -373,12 +375,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
   const hasNext = data.length === LIMIT;
   const hasPrev = page > 1;
 
-  const sortConfig = useMemo(() => {
-    const dateLabel = statusFilter === "rejected" ? "Archive date" : "Date";
-    return BASE_SORT_CONFIG.map((cfg) =>
-      cfg.key === "date_saved" ? { ...cfg, label: dateLabel } : cfg,
-    );
-  }, [statusFilter]);
+  const sortConfig = BASE_SORT_CONFIG;
 
   async function onDelete(job: Record<string, unknown>) {
     const id = job.id as number | string | undefined;
@@ -532,240 +529,222 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
 
       {/* Application Momentum Chart - Single Unified View (only for active jobs) */}
       {statusFilter !== "rejected" && (
-        <div className="card card-chart-trend" style={{ padding: "24px", marginBottom: "24px" }}>
-        <div style={{ marginBottom: 20 }}>
-          <h2 style={{ margin: "0 0 8px 0", fontSize: "1.5rem", fontWeight: 600, color: CHART_COLORS.text }}>
-            Application Momentum
-          </h2>
-          <p style={{ margin: 0, fontSize: "0.875rem", color: CHART_COLORS.textSecondary }}>
-            Last 30 days • Applications with rejection context
-          </p>
-        </div>
-        {isLoadingTrend ? (
-          <div style={{ padding: "60px", textAlign: "center" }}>
-            <Spinner />
+        <div className="card card-chart-trend trend-uniform-card" style={{ marginBottom: "24px" }}>
+          <div className="trend-uniform-head">
+            <h2>Application Momentum</h2>
+            <p>Last 30 days • Applications with rejection context</p>
           </div>
-        ) : !chartData.data || chartData.data.length === 0 ? (
-          <div className="chart-empty">No data available</div>
-        ) : (
-          <ResponsiveContainer width="100%" height={360}>
-            <ComposedChart
-              data={chartData.data}
-              margin={{ top: 20, right: 24, left: 8, bottom: 24 }}
-              barCategoryGap="14%"
-            >
-              <CartesianGrid
-                strokeDasharray="3 3"
-                stroke={CHART_COLORS.grid}
-                horizontal={true}
-                vertical={false}
-              />
-              <XAxis
-                dataKey="dayLabel"
-                stroke={CHART_COLORS.axis}
-                tick={{ fill: CHART_COLORS.textSecondary, fontSize: 10, fontWeight: 400 }}
-                axisLine={{ stroke: CHART_COLORS.axis, strokeWidth: 1 }}
-                tickLine={false}
-                height={32}
-                interval="preserveStartEnd"
-              />
-              <YAxis
-                stroke={CHART_COLORS.axis}
-                tick={{ fill: CHART_COLORS.textSecondary, fontSize: 10, fontWeight: 400 }}
-                axisLine={false}
-                tickLine={false}
-                allowDecimals={false}
-                width={40}
-                label={{ value: "Count", angle: -90, position: "insideLeft", fill: CHART_COLORS.textSecondary, fontSize: 11, style: { textAnchor: "middle" } }}
-              />
-              <Tooltip
-                contentStyle={{
-                  background: CHART_COLORS.tooltipBg,
-                  border: `1px solid ${CHART_COLORS.tooltipBorder}`,
-                  borderRadius: 6,
-                  padding: "10px 14px",
-                }}
-                cursor={{ fill: "rgba(245, 158, 11, 0.08)" }}
-                formatter={(value: number, name: string) => {
-                  if (name === "applied") {
-                    return [`${value}`, "Applied"];
-                  }
-                  if (name === "rejected") {
-                    return [`${value}`, "Rejected"];
-                  }
-                  return [value, name];
-                }}
-                labelStyle={{ color: CHART_COLORS.text, fontSize: 11, fontWeight: 500, marginBottom: 6 }}
-                itemStyle={{ fontSize: 13, fontWeight: 600 }}
-                labelFormatter={(label) => `Date: ${label}`}
-              />
-              {/* Rejections - Primary signal (bars) */}
-              <Bar
-                dataKey="rejected"
-                fill={CHART_COLORS.rejected}
-                radius={[4, 4, 0, 0]}
-                minPointSize={2}
-                label={{
-                  position: "top",
-                  fill: CHART_COLORS.textSecondary,
-                  fontSize: 9,
-                  fontWeight: 400,
-                  formatter: (value: number) => (value > 0 ? String(value) : ""),
-                }}
-              >
-                {chartData.data.map((entry, index) => {
-                  // Highlight days with rejection activity
-                  const hasRejection = entry.rejected > 0;
-                  return (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={CHART_COLORS.rejected}
-                      style={hasRejection ? { opacity: 1 } : { opacity: 0.3 }}
-                    />
-                  );
-                })}
-              </Bar>
-              {/* Applications - Secondary signal (line with small markers) */}
-              <Line
-                type="monotone"
-                dataKey="applied"
-                stroke={CHART_COLORS.applied}
-                strokeWidth={2}
-                dot={{
-                  r: 3,
-                  fill: CHART_COLORS.applied,
-                  strokeWidth: 0,
-                  opacity: 0.8,
-                }}
-                activeDot={{
-                  r: 5,
-                  fill: CHART_COLORS.applied,
-                  strokeWidth: 2,
-                  stroke: CHART_COLORS.tooltipBg,
-                }}
-                connectNulls={false}
-                strokeDasharray="0"
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
-        )}
-        {/* Subtle annotations below chart */}
-        {chartData.insights.maxApplied && (
-          <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${CHART_COLORS.grid}`, fontSize: "0.75rem", color: CHART_COLORS.textSecondary }}>
-            <span style={{ color: CHART_COLORS.applied, opacity: 0.8 }}>
-              Peak: {chartData.insights.maxApplied.value} applications on {chartData.insights.maxApplied.day}
-            </span>
-            {chartData.insights.rejectionDays.length > 0 && (
-              <span style={{ marginLeft: 16, color: CHART_COLORS.rejected, opacity: 0.7 }}>
-                • {chartData.insights.rejectionDays.length} day{chartData.insights.rejectionDays.length !== 1 ? "s" : ""} with rejection{chartData.insights.rejectionDays.length !== 1 ? "s" : ""}
-              </span>
+          <div className="trend-uniform-body">
+            {isLoadingTrend ? (
+              <div className="trend-uniform-loading">
+                <Spinner />
+              </div>
+            ) : !chartData.data || chartData.data.length === 0 ? (
+              <div className="chart-empty">No data available</div>
+            ) : (
+              <ResponsiveContainer width="100%" height={360}>
+                <ComposedChart
+                  data={chartData.data}
+                  margin={{ top: 20, right: 24, left: 8, bottom: 24 }}
+                  barCategoryGap="14%"
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke={CHART_COLORS.grid}
+                    horizontal={true}
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="dayLabel"
+                    stroke={CHART_COLORS.axis}
+                    tick={{ fill: CHART_COLORS.textSecondary, fontSize: 10, fontWeight: 400 }}
+                    axisLine={{ stroke: CHART_COLORS.axis, strokeWidth: 1 }}
+                    tickLine={false}
+                    height={32}
+                    interval="preserveStartEnd"
+                  />
+                  <YAxis
+                    stroke={CHART_COLORS.axis}
+                    tick={{ fill: CHART_COLORS.textSecondary, fontSize: 10, fontWeight: 400 }}
+                    axisLine={{ stroke: CHART_COLORS.axis, strokeWidth: 1 }}
+                    tickLine={false}
+                    allowDecimals={false}
+                    width={40}
+                    label={{ value: "Count", angle: -90, position: "insideLeft", fill: CHART_COLORS.textSecondary, fontSize: 11, style: { textAnchor: "middle" } }}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: CHART_COLORS.tooltipBg,
+                      border: `1px solid ${CHART_COLORS.tooltipBorder}`,
+                      borderRadius: 6,
+                      padding: "10px 14px",
+                    }}
+                    cursor={false}
+                    formatter={(value: number, name: string) => {
+                      if (name === "applied") {
+                        return [`${value}`, "Applied"];
+                      }
+                      if (name === "rejected") {
+                        return [`${value}`, "Rejected"];
+                      }
+                      return [value, name];
+                    }}
+                    labelStyle={{ color: CHART_COLORS.text, fontSize: 11, fontWeight: 500, marginBottom: 6 }}
+                    itemStyle={{ fontSize: 13, fontWeight: 600 }}
+                    labelFormatter={(label) => `Date: ${label}`}
+                  />
+                  <Bar
+                    dataKey="rejected"
+                    fill={CHART_COLORS.rejected}
+                    radius={[4, 4, 0, 0]}
+                    minPointSize={2}
+                    label={{
+                      position: "top",
+                      fill: CHART_COLORS.textSecondary,
+                      fontSize: 9,
+                      fontWeight: 400,
+                      formatter: (value: number) => (value > 0 ? String(value) : ""),
+                    }}
+                  >
+                    {chartData.data.map((entry, index) => {
+                      const hasRejection = entry.rejected > 0;
+                      return (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={CHART_COLORS.rejected}
+                          style={hasRejection ? { opacity: 1 } : { opacity: 0.3 }}
+                        />
+                      );
+                    })}
+                  </Bar>
+                  <Line
+                    type="monotone"
+                    dataKey="applied"
+                    stroke={CHART_COLORS.applied}
+                    strokeWidth={2}
+                    dot={{
+                      r: 2,
+                      fill: CHART_COLORS.applied,
+                      strokeWidth: 0,
+                      opacity: 0.85,
+                    }}
+                    activeDot={false}
+                    connectNulls={false}
+                    strokeDasharray="0"
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
             )}
           </div>
-        )}
+          <div className="trend-uniform-foot">
+            <span className="trend-uniform-foot-item trend-uniform-foot-item--applied">
+              {chartData.insights.maxApplied
+                ? `Peak: ${chartData.insights.maxApplied.value} applications on ${chartData.insights.maxApplied.day}`
+                : "Peak: -"}
+            </span>
+            <span className="trend-uniform-foot-item trend-uniform-foot-item--rejected">
+              • {chartData.insights.rejectionDays.length} day{chartData.insights.rejectionDays.length !== 1 ? "s" : ""} with rejection{chartData.insights.rejectionDays.length !== 1 ? "s" : ""}
+            </span>
+          </div>
         </div>
       )}
 
       {/* Rejected Jobs Chart - Last 30 Days (only for archive tab) */}
       {statusFilter === "rejected" && (
-        <div className="card card-chart-trend" style={{ padding: "24px", marginBottom: "24px" }}>
-        <div style={{ marginBottom: 20 }}>
-          <h2 style={{ margin: "0 0 8px 0", fontSize: "1.5rem", fontWeight: 600, color: CHART_COLORS.text }}>
-            Rejected Jobs Trend
-          </h2>
-          <p style={{ margin: 0, fontSize: "0.875rem", color: CHART_COLORS.textSecondary }}>
-            Last 30 days • Daily rejected applications
-          </p>
-        </div>
-        {isLoadingTrend ? (
-          <div style={{ padding: "60px", textAlign: "center" }}>
-            <Spinner />
+        <div className="card card-chart-trend trend-uniform-card" style={{ marginBottom: "24px" }}>
+          <div className="trend-uniform-head">
+            <h2>Rejected Jobs Trend</h2>
+            <p>Last 30 days • Daily rejected applications</p>
           </div>
-        ) : !chartData.data || chartData.data.length === 0 ? (
-          <div className="chart-empty">No data available</div>
-        ) : (
-          <ResponsiveContainer width="100%" height={360}>
-            <BarChart
-              data={chartData.data}
-              margin={{ top: 20, right: 24, left: 8, bottom: 24 }}
-              barCategoryGap="14%"
-            >
-              <CartesianGrid
-                strokeDasharray="3 3"
-                stroke={CHART_COLORS.grid}
-                horizontal={true}
-                vertical={false}
-              />
-              <XAxis
-                dataKey="dayLabel"
-                stroke={CHART_COLORS.axis}
-                tick={{ fill: CHART_COLORS.textSecondary, fontSize: 10, fontWeight: 400 }}
-                axisLine={{ stroke: CHART_COLORS.axis, strokeWidth: 1 }}
-                tickLine={false}
-                height={32}
-                interval="preserveStartEnd"
-              />
-              <YAxis
-                stroke={CHART_COLORS.axis}
-                tick={{ fill: CHART_COLORS.textSecondary, fontSize: 10, fontWeight: 400 }}
-                axisLine={false}
-                tickLine={false}
-                allowDecimals={false}
-                width={40}
-                label={{ value: "Rejected", angle: -90, position: "insideLeft", fill: CHART_COLORS.textSecondary, fontSize: 11, style: { textAnchor: "middle" } }}
-              />
-              <Tooltip
-                contentStyle={{
-                  background: CHART_COLORS.tooltipBg,
-                  border: `1px solid ${CHART_COLORS.tooltipBorder}`,
-                  borderRadius: 6,
-                  padding: "10px 14px",
-                }}
-                cursor={{ fill: "rgba(245, 158, 11, 0.08)" }}
-                labelStyle={{ color: CHART_COLORS.text, fontSize: 11, fontWeight: 500, marginBottom: 6 }}
-                itemStyle={{ fontSize: 13, fontWeight: 600, color: CHART_COLORS.rejected }}
-                labelFormatter={(label) => `Date: ${label}`}
-                formatter={(value: number) => [`${value}`, "Rejected"]}
-              />
-              <Bar
-                dataKey="rejected"
-                fill={CHART_COLORS.rejected}
-                radius={[4, 4, 0, 0]}
-                minPointSize={2}
-                label={{
-                  position: "top",
-                  fill: CHART_COLORS.textSecondary,
-                  fontSize: 9,
-                  fontWeight: 400,
-                  formatter: (value: number) => (value > 0 ? String(value) : ""),
-                }}
-              >
-                {chartData.data.map((entry, index) => {
-                  const hasRejection = entry.rejected > 0;
-                  return (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={CHART_COLORS.rejected}
-                      style={hasRejection ? { opacity: 1 } : { opacity: 0.3 }}
-                    />
-                  );
-                })}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        )}
-        {/* Subtle annotations below chart */}
-        {chartData.insights.maxRejected && (
-          <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${CHART_COLORS.grid}`, fontSize: "0.75rem", color: CHART_COLORS.textSecondary }}>
-            <span style={{ color: CHART_COLORS.rejected, opacity: 0.8 }}>
-              Peak: {chartData.insights.maxRejected.value} rejections on {chartData.insights.maxRejected.day}
-            </span>
-            {chartData.insights.rejectionDays.length > 0 && (
-              <span style={{ marginLeft: 16, color: CHART_COLORS.textSecondary, opacity: 0.7 }}>
-                • {chartData.insights.rejectionDays.length} day{chartData.insights.rejectionDays.length !== 1 ? "s" : ""} with rejection{chartData.insights.rejectionDays.length !== 1 ? "s" : ""}
-              </span>
+          <div className="trend-uniform-body">
+            {isLoadingTrend ? (
+              <div className="trend-uniform-loading">
+                <Spinner />
+              </div>
+            ) : !chartData.data || chartData.data.length === 0 ? (
+              <div className="chart-empty">No data available</div>
+            ) : (
+              <ResponsiveContainer width="100%" height={360}>
+                <BarChart
+                  data={chartData.data}
+                  margin={{ top: 20, right: 24, left: 8, bottom: 24 }}
+                  barCategoryGap="14%"
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke={CHART_COLORS.grid}
+                    horizontal={true}
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="dayLabel"
+                    stroke={CHART_COLORS.axis}
+                    tick={{ fill: CHART_COLORS.textSecondary, fontSize: 10, fontWeight: 400 }}
+                    axisLine={{ stroke: CHART_COLORS.axis, strokeWidth: 1 }}
+                    tickLine={false}
+                    height={32}
+                    interval="preserveStartEnd"
+                  />
+                  <YAxis
+                    stroke={CHART_COLORS.axis}
+                    tick={{ fill: CHART_COLORS.textSecondary, fontSize: 10, fontWeight: 400 }}
+                    axisLine={{ stroke: CHART_COLORS.axis, strokeWidth: 1 }}
+                    tickLine={false}
+                    allowDecimals={false}
+                    width={40}
+                    label={{ value: "Rejected", angle: -90, position: "insideLeft", fill: CHART_COLORS.textSecondary, fontSize: 11, style: { textAnchor: "middle" } }}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: CHART_COLORS.tooltipBg,
+                      border: `1px solid ${CHART_COLORS.tooltipBorder}`,
+                      borderRadius: 6,
+                      padding: "10px 14px",
+                    }}
+                    cursor={false}
+                    labelStyle={{ color: CHART_COLORS.text, fontSize: 11, fontWeight: 500, marginBottom: 6 }}
+                    itemStyle={{ fontSize: 13, fontWeight: 600, color: CHART_COLORS.rejected }}
+                    labelFormatter={(label) => `Date: ${label}`}
+                    formatter={(value: number) => [`${value}`, "Rejected"]}
+                  />
+                  <Bar
+                    dataKey="rejected"
+                    fill={CHART_COLORS.rejected}
+                    radius={[4, 4, 0, 0]}
+                    minPointSize={2}
+                    label={{
+                      position: "top",
+                      fill: CHART_COLORS.textSecondary,
+                      fontSize: 9,
+                      fontWeight: 400,
+                      formatter: (value: number) => (value > 0 ? String(value) : ""),
+                    }}
+                  >
+                    {chartData.data.map((entry, index) => {
+                      const hasRejection = entry.rejected > 0;
+                      return (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={CHART_COLORS.rejected}
+                          style={hasRejection ? { opacity: 1 } : { opacity: 0.3 }}
+                        />
+                      );
+                    })}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
             )}
           </div>
-        )}
+          <div className="trend-uniform-foot">
+            <span className="trend-uniform-foot-item trend-uniform-foot-item--rejected">
+              {chartData.insights.maxRejected
+                ? `Peak: ${chartData.insights.maxRejected.value} rejections on ${chartData.insights.maxRejected.day}`
+                : "Peak: -"}
+            </span>
+            <span className="trend-uniform-foot-item trend-uniform-foot-item--muted">
+              • {chartData.insights.rejectionDays.length} day{chartData.insights.rejectionDays.length !== 1 ? "s" : ""} with rejection{chartData.insights.rejectionDays.length !== 1 ? "s" : ""}
+            </span>
+          </div>
         </div>
       )}
 
@@ -805,49 +784,32 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          handleSort("date_saved");
+                          handleSort("applied_at");
                         }}
-                        title={sortBy === "date_saved" ? `${sortOrder === "asc" ? "A→Z" : "Z→A"} (click to reverse)` : "Sort by Date"}
+                        title={sortBy === "applied_at" ? `${sortOrder === "asc" ? "A→Z" : "Z→A"} (click to reverse)` : "Sort by Applied At"}
                       >
-                        {sortConfig.find((c) => c.key === "date_saved")?.label ?? "Date"}
-                        {sortBy === "date_saved" ? (
+                        {sortConfig.find((c) => c.key === "applied_at")?.label ?? "Applied At"}
+                        {sortBy === "applied_at" ? (
                           <span className="th-sort-icon" aria-hidden>{sortOrder === "asc" ? " ↑" : " ↓"}</span>
                         ) : null}
                       </button>
                     </th>
                     <th>
-                      <div className="th-stack">
-                        <button
-                          type="button"
-                          className="th-sort"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleSort("company");
-                          }}
-                          title="Sort by Company"
-                        >
-                          Company
-                          {sortBy === "company" ? (
-                            <span className="th-sort-icon" aria-hidden>{sortOrder === "asc" ? " ↑" : " ↓"}</span>
-                          ) : null}
-                        </button>
-                        <button
-                          type="button"
-                          className="th-sort th-sort-sub"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleSort("role");
-                          }}
-                          title="Sort by Position"
-                        >
-                          Position
-                          {sortBy === "role" ? (
-                            <span className="th-sort-icon" aria-hidden>{sortOrder === "asc" ? " ↑" : " ↓"}</span>
-                          ) : null}
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        className="th-sort"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleSort("company");
+                        }}
+                        title="Sort by Company / Position"
+                      >
+                        Company / Position
+                        {sortBy === "company" ? (
+                          <span className="th-sort-icon" aria-hidden>{sortOrder === "asc" ? " ↑" : " ↓"}</span>
+                        ) : null}
+                      </button>
                     </th>
                     <th>
                       <button
@@ -888,23 +850,6 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                       </button>
                     </th>
                     <th>Application Status</th>
-                    <th>
-                      <button
-                        type="button"
-                        className="th-sort"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleSort("applied_at");
-                        }}
-                        title="Sort by Applied At"
-                      >
-                        Applied At
-                        {sortBy === "applied_at" ? (
-                          <span className="th-sort-icon" aria-hidden>{sortOrder === "asc" ? " ↑" : " ↓"}</span>
-                        ) : null}
-                      </button>
-                    </th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -920,9 +865,9 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                       <td className="jobs-col-no">{(page - 1) * LIMIT + idx + 1}</td>
                       <td>
                         {formatTableDateTime(
-                          statusFilter === "rejected"
-                            ? ((j as any).archive_date ?? j.date_saved)
-                            : j.date_saved,
+                          (j as any).applied_at
+                            ? (j as any).applied_at
+                            : (statusFilter === "rejected" ? ((j as any).archive_date ?? j.date_saved) : j.date_saved),
                         )}
                       </td>
                       <td>
@@ -961,7 +906,6 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                           {getStatusMeta(String(j.application_status ?? "Applied")).label}
                         </span>
                       </td>
-                      <td>{formatTableTime((j as any).applied_at)}</td>
                       <td>
                         <div className="row-actions">
                           <button type="button" className="action-btn" onClick={() => openEdit(j)}>

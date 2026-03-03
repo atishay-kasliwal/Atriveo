@@ -11,6 +11,7 @@ import NetworkPage from "./pages/NetworkPage";
 import AuthPage from "./pages/AuthPage";
 import SignupPage from "./pages/SignupPage";
 import LandingPage from "./pages/LandingPage";
+import HeaderTestPage from "./pages/HeaderTestPage";
 import {
   clearStoredSession,
   getMe,
@@ -23,6 +24,16 @@ import {
 import { initAnalytics, trackPageView } from "./lib/analytics";
 import { DASHBOARD_BASE_PATH, withDashboardBase } from "./lib/paths";
 
+type AppTheme = "light" | "dark";
+const THEME_STORAGE_KEY = "atriveo_theme";
+
+function getInitialTheme(): AppTheme {
+  if (typeof window === "undefined") return "light";
+  const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
+  if (stored === "light" || stored === "dark") return stored;
+  return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
 const BASENAME = (() => {
   const baseUrl = import.meta.env.BASE_URL || "/";
   if (baseUrl === "/") return "/";
@@ -32,6 +43,16 @@ const BASENAME = (() => {
 export default function App() {
   const [session, setSession] = useState<AuthSession | null>(() => getStoredSession());
   const [checkingSession, setCheckingSession] = useState(true);
+  const [theme, setTheme] = useState<AppTheme>(() => getInitialTheme());
+
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      document.documentElement.setAttribute("data-theme", theme);
+    }
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+    }
+  }, [theme]);
 
   useEffect(() => {
     const existing = getStoredSession();
@@ -70,6 +91,10 @@ export default function App() {
     setSession(nextSession);
   }
 
+  function handleToggleTheme() {
+    setTheme((current) => (current === "light" ? "dark" : "light"));
+  }
+
   if (checkingSession) {
     return (
       <BrowserRouter basename={BASENAME}>
@@ -89,25 +114,57 @@ export default function App() {
         <Routes>
           <Route
             path="/"
-            element={session ? <Navigate to={withDashboardBase("")} replace /> : <LandingPage isAuthenticated={Boolean(session)} />}
+            element={
+              session ? (
+                <Navigate to={withDashboardBase("")} replace />
+              ) : (
+                <LandingPage
+                  isAuthenticated={Boolean(session)}
+                  theme={theme}
+                  onToggleTheme={handleToggleTheme}
+                />
+              )
+            }
           />
           <Route
             path="/login"
             element={
-              session ? <Navigate to={withDashboardBase("")} replace /> : <AuthPage onAuthenticated={handleAuthenticated} />
+              session ? (
+                <Navigate to={withDashboardBase("")} replace />
+              ) : (
+                <AuthPage
+                  onAuthenticated={handleAuthenticated}
+                  theme={theme}
+                  onToggleTheme={handleToggleTheme}
+                />
+              )
             }
           />
           <Route
             path="/signup"
             element={
-              session ? <Navigate to={withDashboardBase("")} replace /> : <SignupPage onAuthenticated={handleAuthenticated} />
+              session ? (
+                <Navigate to={withDashboardBase("")} replace />
+              ) : (
+                <SignupPage
+                  onAuthenticated={handleAuthenticated}
+                  theme={theme}
+                  onToggleTheme={handleToggleTheme}
+                />
+              )
             }
           />
+          <Route path="/header-test" element={<HeaderTestPage />} />
           <Route
             path={`${DASHBOARD_BASE_PATH}/*`}
             element={
               session ? (
-                <Layout userEmail={session.user.email} onLogout={handleLogout} />
+                <Layout
+                  userEmail={session.user.email}
+                  onLogout={handleLogout}
+                  theme={theme}
+                  onToggleTheme={handleToggleTheme}
+                />
               ) : (
                 <Navigate to="/login" replace />
               )

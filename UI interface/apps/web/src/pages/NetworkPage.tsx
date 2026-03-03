@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Area, Bar, BarChart, CartesianGrid, Cell, LabelList, Line, LineChart, ReferenceDot, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import Spinner from "../components/Spinner";
 import TargetSignalsCarousel from "../components/network/TargetSignalsCarousel";
@@ -12,23 +12,51 @@ import {
 import { formatTableDateTime, getLocalISODate } from "../lib/formatDate";
 import { buildNetworkTickerFacts } from "../lib/networkTicker";
 
-const NETWORK_TREND_COLORS = ["#4f8cff", "#22d3ee", "#60a5fa", "#a78bfa", "#38bdf8", "#818cf8"];
+const ENTERPRISE_CHART_COLORS = [
+  "#2563EB",
+  "#3B82F6",
+  "#0EA5E9",
+  "#14B8A6",
+  "#64748B",
+  "#7C8FB5",
+  "#5C739B",
+  "#4A678F",
+  "#7A8FB4",
+  "#6B7FA3",
+];
+const NETWORK_TREND_COLORS = [
+  ENTERPRISE_CHART_COLORS[0],
+  ENTERPRISE_CHART_COLORS[1],
+  ENTERPRISE_CHART_COLORS[2],
+  ENTERPRISE_CHART_COLORS[3],
+  ENTERPRISE_CHART_COLORS[5],
+  ENTERPRISE_CHART_COLORS[8],
+];
 const MAX_NETWORK_TREND_FRIENDS = 5;
 const NETWORK_CHART_THEME = {
-  grid: "rgba(255,255,255,0.08)",
-  tooltipBg: "#18181b",
-  tooltipBorder: "rgba(255,255,255,0.12)",
-  axis: "#71717a",
-  textSecondary: "#a1a1aa",
+  grid: "var(--chart-grid)",
+  tooltipBg: "var(--chart-tooltip-bg)",
+  tooltipBorder: "var(--chart-tooltip-border)",
+  tooltipShadow: "var(--chart-tooltip-shadow)",
+  axis: "var(--chart-axis)",
+  textSecondary: "var(--chart-text-secondary)",
+  textPrimary: "var(--chart-text)",
+  accentSoft: "var(--accent-soft)",
 };
-const WEEKLY_LINE_PALETTE = ["#f5c14b", "#7dd3fc", "#a78bfa", "#fb7185", "#34d399"];
+const WEEKLY_LINE_PALETTE = [
+  ENTERPRISE_CHART_COLORS[0],
+  ENTERPRISE_CHART_COLORS[1],
+  ENTERPRISE_CHART_COLORS[2],
+  ENTERPRISE_CHART_COLORS[3],
+  ENTERPRISE_CHART_COLORS[4],
+];
 
 function rgbaFromHex(hex: string, alpha: number): string {
   const normalized = String(hex || "").trim();
   const short = /^#([0-9a-f]{3})$/i.exec(normalized);
   const full = /^#([0-9a-f]{6})$/i.exec(normalized);
-  if (!short && !full) return normalized || `rgba(125, 211, 252, ${alpha})`;
-  const raw = short ? short[1].split("").map((c) => `${c}${c}`).join("") : full?.[1] ?? "7dd3fc";
+  if (!short && !full) return normalized || `rgba(37, 99, 235, ${alpha})`;
+  const raw = short ? short[1].split("").map((c) => `${c}${c}`).join("") : full?.[1] ?? "3385ff";
   const r = Number.parseInt(raw.slice(0, 2), 16);
   const g = Number.parseInt(raw.slice(2, 4), 16);
   const b = Number.parseInt(raw.slice(4, 6), 16);
@@ -114,7 +142,7 @@ function NetworkInsightBarTooltip({
   const row = payload[0];
   const name = String(row?.payload?.label ?? "");
   const value = Number(row?.value ?? 0);
-  const color = String(row?.payload?.color ?? "#a1a1aa");
+  const color = String(row?.payload?.color ?? "var(--chart-text-secondary)");
 
   return (
     <div
@@ -124,10 +152,11 @@ function NetworkInsightBarTooltip({
         borderRadius: 8,
         padding: "10px 12px",
         minWidth: 180,
+        boxShadow: NETWORK_CHART_THEME.tooltipShadow,
       }}
     >
       <p style={{ margin: "0 0 8px", fontSize: 12, color, fontWeight: 700 }}>{name}</p>
-      <p style={{ margin: 0, fontSize: 12, color: "#d4d4d8" }}>
+      <p style={{ margin: 0, fontSize: 12, color: "var(--chart-text-secondary)" }}>
         {metricLabel}: <strong>{value}</strong>
       </p>
     </div>
@@ -148,7 +177,7 @@ function NetworkWeeklyTooltip({
     .map((p) => ({
       name: String(p.name ?? ""),
       value: Number(p.value ?? 0),
-      color: String(p.color ?? "#a1a1aa"),
+      color: String(p.color ?? "var(--chart-text-secondary)"),
     }))
     .filter((r) => r.name)
     .sort((a, b) => b.value - a.value);
@@ -161,9 +190,10 @@ function NetworkWeeklyTooltip({
         borderRadius: 8,
         padding: "10px 12px",
         minWidth: 190,
+        boxShadow: NETWORK_CHART_THEME.tooltipShadow,
       }}
     >
-      <p style={{ margin: "0 0 8px", color: "#d4d4d8", fontSize: 12, fontWeight: 700 }}>{String(label ?? "")}</p>
+      <p style={{ margin: "0 0 8px", color: "var(--chart-text)", fontSize: 12, fontWeight: 700 }}>{String(label ?? "")}</p>
       {rows.map((row) => (
         <p key={row.name} style={{ margin: "0 0 6px", color: row.color, fontSize: 12 }}>
           {row.name}: <strong>{row.value}</strong>
@@ -534,24 +564,6 @@ export default function NetworkPage() {
           key: `${friend.key}-${String(row.day ?? row.label ?? "")}`,
         })),
       );
-    const passedDayLeaderLabels = weeklyDailyRows.slice(0, todayWeekIndex + 1).map((row) => {
-      const ranked = weeklyLeaderboard
-        .map((friend) => ({
-          label: String(friend.label).trim().split(/\s+/)[0] || String(friend.label),
-          color: friend.lineColor,
-          score: Number(row[friend.key] ?? 0),
-        }))
-        .sort((a, b) => b.score - a.score);
-      const top = ranked[0] ?? { label: "", color: "#a1a1aa", score: 0 };
-      return {
-        dayLabel: String(row.label ?? ""),
-        y: top.score,
-        color: top.color,
-        text: `${top.label} ${top.score}`,
-      };
-    });
-    const lastDayLabel = weeklyDailyRows.length ? String(weeklyDailyRows[weeklyDailyRows.length - 1].label ?? "") : "";
-    const passedDayLeaderLabelsWithoutEnd = passedDayLeaderLabels.filter((item) => item.dayLabel !== lastDayLabel);
     const weeklyEndLabels = (() => {
       if (!weeklyDailyRows.length) return [] as Array<{ key: string; label: string; shortLabel: string; lineColor: string; y: number; dy: number; isLeader: boolean; dayValue: number }>;
       const last = weeklyDailyRows[weeklyDailyRows.length - 1] as Record<string, string | number>;
@@ -577,7 +589,7 @@ export default function NetworkPage() {
           curr.dy = -5;
         }
       }
-      return rows;
+      return rows.filter((row) => row.dayValue > 0);
     })();
 
     return {
@@ -600,7 +612,6 @@ export default function NetworkPage() {
       weeklyEndLabels,
       passedDayLabels,
       historicalDots,
-      passedDayLeaderLabels: passedDayLeaderLabelsWithoutEnd,
     };
   }, [trendData]);
   const tickerFacts = useMemo(() => {
@@ -729,13 +740,6 @@ export default function NetworkPage() {
                                     </linearGradient>
                                   );
                                 })}
-                                <filter id="todayLeaderGlow" x="-50%" y="-50%" width="200%" height="200%">
-                                  <feGaussianBlur stdDeviation="3" result="blur" />
-                                  <feMerge>
-                                    <feMergeNode in="blur" />
-                                    <feMergeNode in="SourceGraphic" />
-                                  </feMerge>
-                                </filter>
                               </defs>
                               <CartesianGrid strokeDasharray="3 3" stroke={NETWORK_CHART_THEME.grid} vertical={false} />
                               <XAxis
@@ -758,38 +762,31 @@ export default function NetworkPage() {
                                 width={34}
                                 domain={[0, (dataMax: number) => Math.max(4, Math.ceil(Number(dataMax || 0) * 1.18 + 1))]}
                               />
-                              <ReferenceLine
-                                y={insightCharts.todayStats.average}
-                                stroke="rgba(110, 231, 183, 0.7)"
-                                strokeDasharray="5 5"
-                                strokeWidth={1.2}
-                                ifOverflow="extendDomain"
-                                label={(props: { viewBox?: { x?: number; y?: number; width?: number } }) => {
-                                  const x = Number(props.viewBox?.x ?? 0) + Number(props.viewBox?.width ?? 0) / 2;
-                                  const y = Number(props.viewBox?.y ?? 0) - 6;
-                                  return (
-                                    <text
-                                      x={x}
-                                      y={y}
-                                      textAnchor="middle"
-                                      fill="rgba(167, 243, 208, 0.95)"
-                                      fontSize={11}
-                                      fontWeight={700}
-                                      stroke="rgba(10,14,24,0.75)"
-                                      strokeWidth={2}
-                                      paintOrder="stroke"
-                                    >
-                                      {`Avg ${insightCharts.todayStats.average.toFixed(1)}`}
-                                    </text>
-                                  );
-                                }}
-                              />
-                              <Tooltip content={<NetworkInsightBarTooltip metricLabel="Applications today" />} cursor={{ fill: "rgba(96, 165, 250, 0.08)" }} />
+                              {insightCharts.todayStats.average > 0 ? (
+                                <ReferenceLine
+                                  y={insightCharts.todayStats.average}
+                                  stroke={NETWORK_CHART_THEME.accentSoft}
+                                  strokeDasharray="5 5"
+                                  strokeWidth={1.2}
+                                  ifOverflow="extendDomain"
+                                  label={(props: { viewBox?: { x?: number; y?: number; width?: number } }) => {
+                                    const x = Number(props.viewBox?.x ?? 0) + Number(props.viewBox?.width ?? 0) / 2;
+                                    const y = Number(props.viewBox?.y ?? 0) - 6;
+                                    return (
+                                      <text x={x} y={y} textAnchor="middle" fill={NETWORK_CHART_THEME.accentSoft} fontSize={11} fontWeight={700}>
+                                        {`Avg ${insightCharts.todayStats.average.toFixed(1)}`}
+                                      </text>
+                                    );
+                                  }}
+                                />
+                              ) : null}
+                              <Tooltip content={<NetworkInsightBarTooltip metricLabel="Applications today" />} cursor={false} />
                               <Bar
                                 dataKey="total"
                                 fillOpacity={0.96}
                                 radius={[8, 8, 0, 0]}
                                 maxBarSize={56}
+                                activeBar={false}
                               >
                                 <LabelList
                                   dataKey="total"
@@ -805,10 +802,10 @@ export default function NetworkPage() {
                                     const width = Number(props.width ?? 0);
                                     const value = Number(props.value ?? 0);
                                     const isLeader = Boolean(props.payload?.isLeader);
-                                    const payloadColor = String(props.payload?.color ?? "#7dd3fc");
-                                    if (!(value >= 0) || width <= 0) return null;
+                                    const payloadColor = String(props.payload?.color ?? "#2563eb");
+                                    if (!(value > 0) || width <= 0) return null;
                                     const centerX = x + width / 2;
-                                    const valueColor = value <= 0 ? "rgba(161,161,170,0.9)" : isLeader ? payloadColor : rgbaFromHex(payloadColor, 0.9);
+                                    const valueColor = isLeader ? payloadColor : rgbaFromHex(payloadColor, 0.9);
                                     return (
                                       <g>
                                         {insightCharts.todayLeader.hasSingleLeader && isLeader ? (
@@ -837,7 +834,6 @@ export default function NetworkPage() {
                                     fillOpacity={1}
                                     stroke={row.total > 0 ? (row.isLeader ? "rgba(255,255,255,0.62)" : rgbaFromHex(row.color, 0.56)) : "rgba(255,255,255,0.12)"}
                                     strokeWidth={row.isLeader ? 1.5 : 1}
-                                    filter={row.isLeader ? "url(#todayLeaderGlow)" : undefined}
                                   />
                                 ))}
                               </Bar>
@@ -896,12 +892,12 @@ export default function NetworkPage() {
                                 <ReferenceLine
                                   key={`passed-day-${label}`}
                                   x={label}
-                                  stroke="rgba(255,255,255,0.22)"
+                                  stroke={NETWORK_CHART_THEME.grid}
                                   strokeDasharray="2 4"
                                   strokeWidth={1}
                                 />
                               ))}
-                              <Tooltip content={<NetworkWeeklyTooltip />} cursor={{ stroke: "rgba(125, 211, 252, 0.45)", strokeWidth: 1 }} />
+                              <Tooltip content={<NetworkWeeklyTooltip />} cursor={false} />
                               {insightCharts.weeklyShadeKeys.map((key) => {
                                 const row = insightCharts.weeklyLeaderboard.find((friend) => friend.key === key);
                                 if (!row) return null;
@@ -912,7 +908,7 @@ export default function NetworkPage() {
                                     dataKey={row.key}
                                     stroke="none"
                                     fill={`url(#${weeklyShadeGradientId(row.key)})`}
-                                    fillOpacity={row.isSelf ? 0.92 : 0.86}
+                                    fillOpacity={row.isSelf ? 0.22 : 0.16}
                                     baseValue={0}
                                     isAnimationActive={false}
                                   />
@@ -925,9 +921,9 @@ export default function NetworkPage() {
                                   dataKey={friend.key}
                                   name={friend.label}
                                   stroke={friend.lineColor}
-                                  strokeWidth={friend.isLeader ? 2.6 : 2}
+                                  strokeWidth={2}
                                   dot={false}
-                                  activeDot={{ r: 4, strokeWidth: 2, stroke: NETWORK_CHART_THEME.tooltipBg, fill: friend.lineColor }}
+                                  activeDot={false}
                                   isAnimationActive
                                 />
                               ))}
@@ -938,25 +934,8 @@ export default function NetworkPage() {
                                   y={dot.y}
                                   r={2.5}
                                   fill={dot.color}
-                                  stroke="rgba(10,14,24,0.9)"
+                                  stroke="color-mix(in srgb, var(--bg-base) 70%, transparent)"
                                   strokeWidth={1}
-                                />
-                              ))}
-                              {insightCharts.passedDayLeaderLabels.map((item, idx) => (
-                                <ReferenceDot
-                                  key={`passed-leader-${item.dayLabel}`}
-                                  x={item.dayLabel}
-                                  y={item.y}
-                                  r={0}
-                                  ifOverflow="extendDomain"
-                                  label={{
-                                    value: item.text,
-                                    position: "top",
-                                    dy: idx % 2 === 0 ? -10 : -16,
-                                    fill: item.color,
-                                    fontSize: 10,
-                                    fontWeight: 700,
-                                  }}
                                 />
                               ))}
                               {insightCharts.weeklyDailyRows.length > 0
@@ -984,9 +963,6 @@ export default function NetworkPage() {
                                                 fill={row.lineColor}
                                                 fontSize={10}
                                                 fontWeight={row.isLeader ? 700 : 600}
-                                                stroke="rgba(10,14,24,0.85)"
-                                                strokeWidth={2}
-                                                paintOrder="stroke"
                                               >
                                                 {text}
                                               </text>
@@ -1024,11 +1000,7 @@ export default function NetworkPage() {
                       ) : null}
                       <div className="network-mini-board-list">
                         {insightCharts.weeklyLeaderboard.map((row) => (
-                          <div
-                            key={`mini-board-${row.key}`}
-                            className={`network-mini-board-row${row.isLeader ? " is-leader" : ""}`}
-                            style={{ "--network-board-accent": row.lineColor } as CSSProperties}
-                          >
+                          <div key={`mini-board-${row.key}`} className={`network-mini-board-row${row.isLeader ? " is-leader" : ""}`}>
                             <span className="network-mini-board-rank">{row.rank}</span>
                             <span className="network-mini-board-name">{row.displayName}</span>
                             <strong className="network-mini-board-total">{row.total}</strong>
@@ -1080,8 +1052,7 @@ export default function NetworkPage() {
                           <thead>
                             <tr>
                               <th>#</th>
-                              <th>Company</th>
-                              <th>Role</th>
+                              <th>Company / Position</th>
                               <th>Date</th>
                               <th>OA</th>
                               <th>OA Deadline</th>
@@ -1110,11 +1081,15 @@ export default function NetworkPage() {
                                 }
                               >
                                 <td className="network-cell-index">{idx + 1}</td>
-                                <td className="network-cell-primary" title={String(job.company ?? "—")}>
-                                  {String(job.company ?? "—")}
-                                </td>
-                                <td className="network-cell-secondary" title={String(job.role ?? "—")}>
-                                  {String(job.role ?? "—")}
+                                <td className="network-cell-company-role">
+                                  <div className="job-main">
+                                    <div className="job-company" title={String(job.company ?? "—")}>
+                                      {String(job.company ?? "—")}
+                                    </div>
+                                    <div className="job-role" title={String(job.role ?? "—")}>
+                                      {String(job.role ?? "—")}
+                                    </div>
+                                  </div>
                                 </td>
                                 <td className="network-cell-date">{formatTableDateTime(job.date_saved)}</td>
                                 <td>{normalizeOaStatus(job.oa_status)}</td>

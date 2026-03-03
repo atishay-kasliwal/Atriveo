@@ -4,10 +4,11 @@ import { deleteNote, getNotes, updateNote } from "../lib/api";
 import { formatTableDate } from "../lib/formatDate";
 
 type NotePriority = "High" | "Medium" | "Low" | "Archive";
+type NotesTab = "All" | NotePriority;
 
 type NoteRow = Record<string, any>;
-
-const ACTIVE_PRIORITIES: NotePriority[] = ["High", "Medium", "Low"];
+const NOTE_TABS: NotesTab[] = ["All", "High", "Medium", "Low", "Archive"];
+const NOTE_PAGE_SIZE = 3;
 
 function normalizePriority(note: NoteRow): NotePriority {
   const raw = String(note.priority ?? "").trim();
@@ -63,12 +64,8 @@ export default function NotesPage() {
     priority: "Medium",
     show_on_dashboard: true,
   });
-  const [expanded, setExpanded] = useState<Record<NotePriority, boolean>>({
-    High: true,
-    Medium: false,
-    Low: false,
-    Archive: false,
-  });
+  const [activeTab, setActiveTab] = useState<NotesTab>("All");
+  const [notesPageIndex, setNotesPageIndex] = useState(0);
 
   async function load() {
     try {
@@ -122,6 +119,49 @@ export default function NotesPage() {
       Archive: archiveNotes,
     };
   }, [activeNotes, archiveNotes]);
+
+  const tabCounts = useMemo(() => {
+    const counts: Record<NotesTab, number> = {
+      All: grouped.High.length + grouped.Medium.length + grouped.Low.length + grouped.Archive.length,
+      High: grouped.High.length,
+      Medium: grouped.Medium.length,
+      Low: grouped.Low.length,
+      Archive: grouped.Archive.length,
+    };
+    return counts;
+  }, [grouped]);
+
+  const visibleNotes = useMemo(() => {
+    const withPriority = (items: NoteRow[], priority: NotePriority) =>
+      items.map((note) => ({ note, priority }));
+
+    if (activeTab === "All") {
+      return [
+        ...withPriority(grouped.High, "High"),
+        ...withPriority(grouped.Medium, "Medium"),
+        ...withPriority(grouped.Low, "Low"),
+        ...withPriority(grouped.Archive, "Archive"),
+      ];
+    }
+
+    return withPriority(grouped[activeTab], activeTab);
+  }, [activeTab, grouped]);
+
+  const totalPages = Math.max(1, Math.ceil(visibleNotes.length / NOTE_PAGE_SIZE));
+
+  useEffect(() => {
+    setNotesPageIndex(0);
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (notesPageIndex <= totalPages - 1) return;
+    setNotesPageIndex(Math.max(0, totalPages - 1));
+  }, [notesPageIndex, totalPages]);
+
+  const pagedVisibleNotes = useMemo(() => {
+    const start = notesPageIndex * NOTE_PAGE_SIZE;
+    return visibleNotes.slice(start, start + NOTE_PAGE_SIZE);
+  }, [notesPageIndex, visibleNotes]);
 
   function startEdit(note: NoteRow) {
     const parsed = splitNoteForEdit(String(note.comments ?? ""));
@@ -204,78 +244,106 @@ export default function NotesPage() {
     }
   }
 
-  function toggleSection(priority: NotePriority) {
-    setExpanded((prev) => ({ ...prev, [priority]: !prev[priority] }));
-  }
-
-  function renderSection(priority: NotePriority, items: NoteRow[]) {
-    const isArchive = priority === "Archive";
-    return (
-      <div key={priority} className="notes-section">
-        <button
-          type="button"
-          className="notes-section-head"
-          onClick={() => toggleSection(priority)}
-          aria-expanded={expanded[priority]}
-        >
-          <div className="notes-section-title-wrap">
-            <span className={`status-chip notes-priority-chip notes-priority-chip--${priority.toLowerCase()}`}>{priority}</span>
-            <span className="notes-section-count">{items.length}</span>
-          </div>
-          <span className={`notes-section-arrow ${expanded[priority] ? "open" : ""}`}>▾</span>
-        </button>
-
-        {expanded[priority] ? (
-          items.length === 0 ? (
-            <div className="notes-empty">No notes in this section.</div>
-          ) : (
-            <div className="notes-board-grid">
-              {items.map((n) => {
-                const full = String(n.comments ?? "");
-                const { title, body } = splitNote(full);
-                return (
-                  <article key={String(n.id)} className="notes-card">
-                    <div className="notes-card-head">
-                      <strong>{title}</strong>
-                    </div>
-                    {body ? <p className="notes-card-body">{body}</p> : null}
-                    <div className="notes-card-footer">
-                      <div className="row-actions row-actions--notes">
-                        <button type="button" className="action-btn" onClick={() => startEdit(n)}>
-                          Edit
-                        </button>
-                        {isArchive ? (
-                          <button type="button" className="action-btn" onClick={() => restoreNote(n.id)}>
-                            Restore
-                          </button>
-                        ) : (
-                          <button type="button" className="action-btn" onClick={() => markDone(n.id)}>
-                            Archive
-                          </button>
-                        )}
-                        <button type="button" className="action-btn" onClick={() => handleDelete(n.id)}>
-                          Delete
-                        </button>
-                      </div>
-                      {n.note_date ? <span className="pending-meta notes-card-date">{formatTableDate(n.note_date)}</span> : null}
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          )
-        ) : null}
-      </div>
-    );
-  }
-
   return (
     <>
       {error ? <div className="error">{error}</div> : null}
       <section>
         <div className="card">
-          <h2>Notes</h2>
-          {isLoading ? <Spinner /> : <div className="notes-board">{(["High", "Medium", "Low", "Archive"] as NotePriority[]).map((p) => renderSection(p, grouped[p]))}</div>}
+          <div className="notes-page-shell">
+            <div className="notes-page-head">
+              <h2>Notes</h2>
+              <p className="notes-page-sub">Keep outreach and follow-up messages organized by priority.</p>
+            </div>
+            {isLoading ? (
+              <Spinner />
+            ) : (
+              <>
+                <div className="notes-tab-row" role="tablist" aria-label="Notes filters">
+                  {NOTE_TABS.map((tab) => (
+                    <button
+                      key={tab}
+                      type="button"
+                      role="tab"
+                      aria-selected={activeTab === tab}
+                      className={`notes-tab${activeTab === tab ? " is-active" : ""}`}
+                      onClick={() => setActiveTab(tab)}
+                    >
+                      <span>{tab}</span>
+                      <span className="notes-tab-count">{tabCounts[tab]}</span>
+                    </button>
+                  ))}
+                </div>
+                {visibleNotes.length > NOTE_PAGE_SIZE ? (
+                  <div className="notes-pager" aria-label="Notes pagination">
+                    <button
+                      type="button"
+                      className="notes-pager-btn"
+                      onClick={() => setNotesPageIndex((p) => Math.max(0, p - 1))}
+                      disabled={notesPageIndex === 0}
+                      aria-label="Previous notes"
+                    >
+                      ←
+                    </button>
+                    <span className="notes-pager-label">
+                      {notesPageIndex + 1} / {totalPages}
+                    </span>
+                    <button
+                      type="button"
+                      className="notes-pager-btn"
+                      onClick={() => setNotesPageIndex((p) => Math.min(totalPages - 1, p + 1))}
+                      disabled={notesPageIndex >= totalPages - 1}
+                      aria-label="Next notes"
+                    >
+                      →
+                    </button>
+                  </div>
+                ) : null}
+
+                {visibleNotes.length === 0 ? (
+                  <div className="notes-empty">No notes in this section.</div>
+                ) : (
+                  <div className="notes-board-grid">
+                    {pagedVisibleNotes.map(({ note, priority }) => {
+                      const full = String(note.comments ?? "");
+                      const { title, body } = splitNote(full);
+                      const isArchive = priority === "Archive";
+                      return (
+                        <article key={String(note.id)} className={`notes-card notes-card--${priority.toLowerCase()}`}>
+                          <div className="notes-card-head">
+                            <span className={`status-chip notes-priority-chip notes-priority-chip--${priority.toLowerCase()}`}>{priority}</span>
+                            {note.note_date ? <span className="notes-card-date">{formatTableDate(note.note_date)}</span> : null}
+                          </div>
+                          <h3 className="notes-card-title">{title}</h3>
+                          <p className={`notes-card-body${body ? "" : " notes-card-body--empty"}`}>
+                            {body || "No additional details yet."}
+                          </p>
+                          <div className="notes-card-footer">
+                            <div className="row-actions row-actions--notes">
+                              <button type="button" className="action-btn" onClick={() => startEdit(note)}>
+                                Edit
+                              </button>
+                              {isArchive ? (
+                                <button type="button" className="action-btn" onClick={() => restoreNote(note.id)}>
+                                  Restore
+                                </button>
+                              ) : (
+                                <button type="button" className="action-btn" onClick={() => markDone(note.id)}>
+                                  Archive
+                                </button>
+                              )}
+                              <button type="button" className="action-btn" onClick={() => handleDelete(note.id)}>
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </section>
 

@@ -395,6 +395,7 @@ export default function TargetSignalsCarousel({ todayData, useDemoFallback = fal
             <table className="target-signals-table">
               <thead>
                 <tr>
+                  <th>No.</th>
                   <th>Role</th>
                   <th>Applied By</th>
                   <th>Applied Time</th>
@@ -405,6 +406,7 @@ export default function TargetSignalsCarousel({ todayData, useDemoFallback = fal
               <tbody>
                 {selectedCard.recentApplications.map((app, idx) => (
                   <tr key={`${selectedCard.company}-app-${idx}`}>
+                    <td className="table-col-no">{idx + 1}</td>
                     <td>{app.role}</td>
                     <td>{app.appliedBy}</td>
                     <td>{formatAppliedAt(app.dateIso)}</td>

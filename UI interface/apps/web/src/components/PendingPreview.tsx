@@ -34,6 +34,17 @@ export default function PendingPreview() {
     }
   }
 
+  function dueInfo(value: unknown): { label: string; tone: "normal" | "overdue" } | null {
+    if (!value) return null;
+    const raw = String(value);
+    const date = new Date(`${raw}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tone: "normal" | "overdue" = date.getTime() < today.getTime() ? "overdue" : "normal";
+    return { label: formatTableDate(raw), tone };
+  }
+
   if (loading) {
     return (
       <div style={{ paddingTop: 8 }}>
@@ -54,7 +65,9 @@ export default function PendingPreview() {
           <div className="panel-count">{pendingItems.length} item{pendingItems.length !== 1 ? "s" : ""}</div>
           <div className="panel-scroll">
             <ul className="pending-list">
-              {pendingItems.map((it: any) => (
+              {pendingItems.map((it: any) => {
+                const due = dueInfo(it.end_date);
+                return (
                 <li key={it.id} className="pending-item">
                   <div className="pending-item-head">
                     <div className="title-row">
@@ -69,11 +82,17 @@ export default function PendingPreview() {
                     {it.position_name ? <span>{it.position_name}</span> : null}
                     {it.pending_date ? <span>· {formatTableDate(it.pending_date)}</span> : null}
                   </div>
+                  {due ? (
+                    <div className={`pending-due-line pending-due-line--${due.tone}`}>
+                      Due: <strong>{due.label}</strong>
+                    </div>
+                  ) : null}
                   {it.comment ? (
                     <div className="pending-comment clamp-2">{it.comment}</div>
                   ) : null}
                 </li>
-              ))}
+                );
+              })}
             </ul>
           </div>
         </>

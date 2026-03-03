@@ -60,7 +60,7 @@ export default function NotesPreview() {
                         <div className="title-row">
                           <strong>{firstLine || "(Untitled note)"}</strong>
                           {n.note_date ? (
-                            <span className="pending-meta">{String(n.note_date)}</span>
+                            <span className="pending-meta">Updated {String(n.note_date)}</span>
                           ) : null}
                         </div>
                       </div>

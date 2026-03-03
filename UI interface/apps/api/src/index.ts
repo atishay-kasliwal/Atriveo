@@ -1425,6 +1425,116 @@ function normalizeOaStatus(value: unknown): "Yes" | "No" | null {
   return "No";
 }
 
+function asTrimmedString(value: unknown): string | null {
+  const raw = String(value ?? "").trim();
+  return raw ? raw : null;
+}
+
+function toIsoDate(value: unknown): string | null {
+  const raw = String(value ?? "").trim();
+  if (!raw) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toISOString().slice(0, 10);
+}
+
+async function syncReferralFromJob(
+  env: Bindings,
+  userId: number,
+  job: Record<string, unknown>,
+): Promise<void> {
+  const company = asTrimmedString(job.company);
+  const requestLog = asTrimmedString(job.role);
+  const referralStatus = normalizeReferralStatus(job.referral_status);
+  if (!company || !requestLog || !referralStatus) return;
+
+  const requestLink = asTrimmedString((job as any).job_link);
+  const requestDate = toIsoDate((job as any).date_saved) ?? toIsoDate((job as any).applied_at);
+  const keywordMatching = normalizeKeywordMatching((job as any).keyword_matching) ?? "Medium";
+  const comment = asTrimmedString((job as any).notes);
+
+  let existingId: number | null = null;
+
+  if (requestLink) {
+    const [byLink] = await query<{ id: number }>(
+      env,
+      `
+      SELECT id
+      FROM referrals
+      WHERE user_id = $1
+        AND TRIM(COALESCE(request_link, '')) = TRIM($2)
+      ORDER BY COALESCE(updated_date, request_date) DESC NULLS LAST, id DESC
+      LIMIT 1
+      `,
+      [userId, requestLink],
+    );
+    existingId = byLink?.id ?? null;
+  }
+
+  if (!existingId) {
+    const [byCompanyRole] = await query<{ id: number }>(
+      env,
+      `
+      SELECT id
+      FROM referrals
+      WHERE user_id = $1
+        AND LOWER(TRIM(company)) = LOWER(TRIM($2))
+        AND LOWER(TRIM(COALESCE(request_log, ''))) = LOWER(TRIM($3))
+      ORDER BY COALESCE(updated_date, request_date) DESC NULLS LAST, id DESC
+      LIMIT 1
+      `,
+      [userId, company, requestLog],
+    );
+    existingId = byCompanyRole?.id ?? null;
+  }
+
+  // Only create referral rows for statuses that should appear on the referrals page.
+  const shouldCreate = referralStatus === "Requested" || referralStatus === "Yes";
+  if (!existingId && !shouldCreate) return;
+
+  if (existingId) {
+    await query(
+      env,
+      `
+      UPDATE referrals
+      SET
+        company = $3,
+        request_log = $4,
+        request_date = COALESCE($5::date, request_date),
+        updated_date = COALESCE($5::date, CURRENT_DATE),
+        request_link = $6,
+        referral_received = $7,
+        keyword_matching = COALESCE($8, keyword_matching, 'Medium'),
+        comment = $9,
+        updated_at = NOW()
+      WHERE id = $1 AND user_id = $2
+      `,
+      [
+        existingId,
+        userId,
+        company,
+        requestLog,
+        requestDate,
+        requestLink,
+        referralStatus,
+        keywordMatching,
+        comment,
+      ],
+    );
+    return;
+  }
+
+  await query(
+    env,
+    `
+    INSERT INTO referrals (user_id, source, company, request_log, request_date, updated_date, request_link, referral_received, keyword_matching, comment)
+    VALUES ($1, 'job-sync', $2, $3, $4::date, COALESCE($4::date, CURRENT_DATE), $5, $6, COALESCE($7, 'Medium'), $8)
+    `,
+    [userId, company, requestLog, requestDate, requestLink, referralStatus, keywordMatching, comment],
+  );
+}
+
 app.get("/api/jobs", async (c) => {
   const userId = c.get("authUser").id;
   const page = Number(c.req.query("page") ?? 1);
@@ -1513,6 +1623,9 @@ app.post("/api/jobs", async (c) => {
       p.date_saved ?? null,
     ],
   );
+  if (row) {
+    await syncReferralFromJob(c.env, userId, row as Record<string, unknown>);
+  }
   return c.json(row, 201);
 });
 
@@ -1850,6 +1963,7 @@ app.patch("/api/jobs/:id", async (c) => {
     ],
   );
   if (!row) return c.json({ error: "Not found" }, 404);
+  await syncReferralFromJob(c.env, userId, row as Record<string, unknown>);
   return c.json(row);
 });
 

@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import { NavLink, Outlet, Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { NavLink, Outlet, Link, useLocation } from "react-router-dom";
 import {
   acceptFriendRequest,
   blockFriendship,
@@ -20,10 +20,15 @@ import {
 } from "../lib/api";
 import { getLocalISODate } from "../lib/formatDate";
 import NotificationBell from "./layout/NotificationBell";
+import QuickCreateSplitButton from "./layout/QuickCreateSplitButton";
+import HeaderAvatarMenu from "./layout/HeaderAvatarMenu";
+import { ThemeToggle } from "./ThemeToggle";
 
 type LayoutProps = {
   userEmail: string;
   onLogout: () => void;
+  theme: "light" | "dark";
+  onToggleTheme: () => void;
 };
 
 const emptyJobForm = {
@@ -64,11 +69,12 @@ const emptyNoteForm = {
   note: "",
 };
 
-export default function Layout({ userEmail, onLogout }: LayoutProps) {
+export default function Layout({ userEmail, onLogout, theme, onToggleTheme }: LayoutProps) {
+  const location = useLocation();
+  const isNetworkView = location.pathname.includes("/network");
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [showPendingTask, setShowPendingTask] = useState(false);
   const [showNoteModal, setShowNoteModal] = useState(false);
-  const [showCsvTools, setShowCsvTools] = useState(false);
   const [showCsvModal, setShowCsvModal] = useState(false);
   const [showFriendModal, setShowFriendModal] = useState(false);
   const [csvMode, setCsvMode] = useState<"import" | "export">("import");
@@ -92,23 +98,10 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
   const [form, setForm] = useState(emptyJobForm);
   const [pendingForm, setPendingForm] = useState(emptyPendingForm);
   const [noteForm, setNoteForm] = useState(emptyNoteForm);
-  const csvToolsRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!showQuickAdd && !showPendingTask && !showNoteModal) setModalError("");
   }, [showQuickAdd, showPendingTask, showNoteModal]);
-
-  useEffect(() => {
-    if (!showCsvTools) return;
-    function onDocumentClick(e: MouseEvent) {
-      const target = e.target as Node | null;
-      if (csvToolsRef.current && target && !csvToolsRef.current.contains(target)) {
-        setShowCsvTools(false);
-      }
-    }
-    document.addEventListener("mousedown", onDocumentClick);
-    return () => document.removeEventListener("mousedown", onDocumentClick);
-  }, [showCsvTools]);
 
   useEffect(() => {
     function onOpenFriendManager() {
@@ -157,7 +150,6 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
     setCsvMode(mode);
     setCsvError("");
     setCsvSuccess("");
-    setShowCsvTools(false);
     setShowCsvModal(true);
   }
 
@@ -170,7 +162,6 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
   }
 
   function openFriendModal() {
-    setShowCsvTools(false);
     setFriendError("");
     setFriendSuccess("");
     setShowFriendModal(true);
@@ -426,77 +417,79 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
     }
   }
 
+  function openNewApplicationModal() {
+    setModalError("");
+    setShowPendingTask(false);
+    setShowNoteModal(false);
+    setShowQuickAdd(true);
+  }
+
+  function openCreateTaskModal() {
+    setModalError("");
+    setShowQuickAdd(false);
+    setShowNoteModal(false);
+    setShowPendingTask(true);
+  }
+
+  function openLogNoteModal() {
+    setModalError("");
+    setShowQuickAdd(false);
+    setShowPendingTask(false);
+    setShowNoteModal(true);
+  }
+
   return (
-    <div className="page">
-      <nav className="app-nav">
-        <div className="app-nav-links">
-          <NavLink to="network" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
-            Network
-          </NavLink>
-          <NavLink to="." end className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
-            Dashboard
-          </NavLink>
-          <NavLink to="jobs" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
-            Active Jobs
-          </NavLink>
-          <NavLink to="referrals" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
-            Referrals
-          </NavLink>
-          <NavLink to="archive" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
-            Archive
-          </NavLink>
-          <NavLink to="pending" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
-            Pending Tasks
-          </NavLink>
-          <NavLink to="notes" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
-            Notes
-          </NavLink>
-        </div>
-        <div className="app-nav-actions app-nav-actions--segmented">
-          <NotificationBell
-            userEmail={userEmail}
-            onOpenFriendModal={openFriendModal}
-            onBeforeOpen={() => setShowCsvTools(false)}
-          />
-          <button type="button" className="quick-add-btn app-btn" onClick={() => setShowQuickAdd(true)}>
-            New Application
-          </button>
-          <button type="button" className="quick-add-btn pending-task-btn mid-btn" onClick={() => setShowPendingTask(true)}>
-            Create Task
-          </button>
-          <button type="button" className="quick-add-btn pending-task-btn note-btn mid-btn" onClick={() => setShowNoteModal(true)}>
-            Log Note
-          </button>
-          <div className="csv-tools" ref={csvToolsRef}>
-            <button
-              type="button"
-              className="quick-add-btn settings-btn"
-              onClick={() => setShowCsvTools((prev) => !prev)}
-              aria-label="Open settings tools"
-              title="Settings"
-            >
-              Settings
-            </button>
-            {showCsvTools ? (
-              <div className="csv-tools-menu">
-                <button type="button" className="csv-tools-item" onClick={() => openCsvModal("import")}>
-                  Import CSV
-                </button>
-                <button type="button" className="csv-tools-item" onClick={() => openCsvModal("export")}>
-                  Export CSV
-                </button>
-                <button type="button" className="csv-tools-item" onClick={openFriendModal}>
-                  Add Friend
-                </button>
-                <a className="csv-tools-item" href="/jobs_import_sample.csv" download onClick={() => setShowCsvTools(false)}>
-                  Download Sample CSV
-                </a>
-              </div>
-            ) : null}
+    <div className={`page${isNetworkView ? " page--network" : ""}`}>
+      <nav className={`app-nav${isNetworkView ? " app-nav--network" : ""}`}>
+        <div className="app-nav-top">
+          <Link to="/" className="app-nav-brand" aria-label="Atriveo home">
+            Atriveo<span>.</span>
+          </Link>
+          <div className="app-nav-actions">
+            <div className="app-nav-actions-main">
+              <QuickCreateSplitButton
+                onNewApplication={openNewApplicationModal}
+                onCreateTask={openCreateTaskModal}
+                onLogNote={openLogNoteModal}
+              />
+            </div>
+            <div className="app-nav-actions-utility">
+              <NotificationBell
+                userEmail={userEmail}
+                onOpenFriendModal={openFriendModal}
+              />
+              <HeaderAvatarMenu
+                onImportCsv={() => openCsvModal("import")}
+                onExportCsv={() => openCsvModal("export")}
+                onAddFriend={openFriendModal}
+                onLogout={onLogout}
+                templateHref="/jobs_import_sample.csv"
+              />
+            </div>
           </div>
-          <button type="button" className="quick-add-btn logout-btn" onClick={onLogout} title="Logout" aria-label="Logout">
-            <span className="logout-emoji">⏻</span>
-          </button>
+        </div>
+        <div className="app-nav-bottom">
+          <div className="app-nav-links">
+            <NavLink to="network" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
+              Network
+            </NavLink>
+            <NavLink to="." end className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
+              Dashboard
+            </NavLink>
+            <NavLink to="jobs" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
+              Active Jobs
+            </NavLink>
+            <NavLink to="referrals" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
+              Referrals
+            </NavLink>
+            <NavLink to="pending" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
+              Follow Up
+            </NavLink>
+            <NavLink to="archive" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
+              Archive
+            </NavLink>
+          </div>
+          <ThemeToggle theme={theme} onToggle={onToggleTheme} className="app-nav-theme-toggle" />
         </div>
       </nav>
       <main className="page-main">
@@ -625,14 +618,16 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
                     <table className="network-friends-table">
                       <thead>
                         <tr>
+                          <th>No.</th>
                           <th>Email</th>
                           <th>Connected At</th>
                           <th>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {friends.map((f) => (
+                        {friends.map((f, idx) => (
                           <tr key={String(f.friendship_id)}>
+                            <td className="table-col-no">{idx + 1}</td>
                             <td>{String(f.friend_name || f.friend_email)}</td>
                             <td>{formatDateTimeCell(f.accepted_at ?? f.created_at ?? "-")}</td>
                             <td>
@@ -665,13 +660,15 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
                       <table className="network-incoming-table">
                         <thead>
                           <tr>
+                            <th>No.</th>
                             <th>From</th>
                             <th>Actions</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {incoming.map((r) => (
+                          {incoming.map((r, idx) => (
                             <tr key={String(r.friendship_id)}>
+                              <td className="table-col-no">{idx + 1}</td>
                               <td className="network-email-cell" title={String(r.requester_name || r.requester_email)}>
                                 {String(r.requester_name || r.requester_email)}
                               </td>
@@ -712,12 +709,14 @@ export default function Layout({ userEmail, onLogout }: LayoutProps) {
                       <table className="network-outgoing-table">
                         <thead>
                           <tr>
+                            <th>No.</th>
                             <th>To</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {outgoing.map((r) => (
+                          {outgoing.map((r, idx) => (
                             <tr key={String(r.friendship_id)}>
+                              <td className="table-col-no">{idx + 1}</td>
                               <td className="network-email-cell" title={String(r.receiver_name || r.receiver_email)}>
                                 {String(r.receiver_name || r.receiver_email)}
                               </td>

@@ -61,36 +61,44 @@ const DEFAULT_TARGETS = {
   monthly: 30,
 } as const;
 
-// Executive-level chart design: muted bluish colors, clean typography, minimal noise
+const ENTERPRISE_SERIES_COLORS = [
+  "#2563EB",
+  "#0EA5E9",
+  "#14B8A6",
+  "#22C55E",
+  "#84CC16",
+  "#F59E0B",
+  "#F97316",
+  "#EF4444",
+  "#A855F7",
+  "#EC4899",
+];
+
 const CHART_COLORS = {
-  // Main trend chart
-  trendLine: "#6ee7b7", // soft mint
-  trendGradientTop: "rgba(110, 231, 183, 0.22)",
-  trendGradientBottom: "rgba(110, 231, 183, 0)",
-  barGradientTop: "rgba(96, 165, 250, 0.9)",
-  barGradientBottom: "rgba(30, 64, 175, 0.85)",
-  // Different colors for different chart types
-  weeklyBar: "#60a5fa", // muted blue for weekly
-  monthlyBar: "#3b82f6", // darker blue for monthly
-  referralBar: ["#60a5fa", "#818cf8", "#a78bfa"], // blue, indigo, purple
-  responseBar: "#818cf8", // indigo for response status
-  oaBar: "#a78bfa", // purple for OA status
-  bar: ["#60a5fa", "#3b82f6", "#818cf8", "#a78bfa", "#c084fc", "#94a3b8"], // bluish palette
-  grid: "rgba(255,255,255,0.08)", // lighter gridlines
-  tooltipBg: "#18181b",
-  tooltipBorder: "rgba(255,255,255,0.12)",
-  axis: "#71717a", // subtle axis color
-  text: "#e4e4e7", // primary text
-  textSecondary: "#a1a1aa", // secondary text (tick labels)
+  trendLine: ENTERPRISE_SERIES_COLORS[0],
+  trendGradientTop: "rgba(37, 99, 235, 0.25)",
+  trendGradientBottom: "rgba(37, 99, 235, 0)",
+  barGradientTop: "rgba(14, 165, 233, 0.9)",
+  barGradientBottom: "rgba(37, 99, 235, 0.72)",
+  weeklyBar: ENTERPRISE_SERIES_COLORS[2],
+  responseBar: ENTERPRISE_SERIES_COLORS[7],
+  grid: "var(--chart-grid)",
+  tooltipBg: "var(--chart-tooltip-bg)",
+  tooltipBorder: "var(--chart-tooltip-border)",
+  axis: "var(--chart-axis)",
+  text: "var(--chart-text)",
+  textSecondary: "var(--chart-text-secondary)",
+  accentSoft: "var(--accent-soft)",
+  targetLine: "color-mix(in srgb, var(--accent-soft) 86%, transparent)",
+  lastMonthBar: "color-mix(in srgb, var(--text-muted) 56%, transparent)",
+  movingAverage: "color-mix(in srgb, var(--text-muted) 74%, transparent)",
 };
 
 const WEEK_COLORS = [
-  "#4f8cff",
-  "#22d3ee",
-  "#60a5fa",
-  "#a78bfa",
-  "#38bdf8",
-  "#818cf8",
+  ENTERPRISE_SERIES_COLORS[0],
+  ENTERPRISE_SERIES_COLORS[1],
+  ENTERPRISE_SERIES_COLORS[2],
+  ENTERPRISE_SERIES_COLORS[0],
 ];
 
 
@@ -215,7 +223,7 @@ function MtdTooltip({
       <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: CHART_COLORS.trendLine }}>
         This month: {thisMonth}
       </p>
-      <p style={{ margin: "4px 0 0 0", fontSize: 13, fontWeight: 600, color: "rgba(96, 165, 250, 0.9)" }}>
+      <p style={{ margin: "4px 0 0 0", fontSize: 13, fontWeight: 600, color: CHART_COLORS.accentSoft }}>
         Last month: {lastMonth}
       </p>
     </div>
@@ -886,13 +894,13 @@ export default function DashboardPage() {
           label="Total applications with referral"
           value={derivedKpis.jobsWithReferral}
           sparkline={kpiSparklineByMetric.referral}
-          sparklineColor="rgba(110, 231, 183, 0.9)"
+          sparklineColor="#14b8a6"
         />
         <KpiCard
           label="Monthly target progress"
           value={monthlyTargetKpiValue}
           sparkline={kpiSparklineByMetric.thisMonth}
-          sparklineColor="rgba(110, 231, 183, 0.9)"
+          sparklineColor="#22c55e"
         />
         <KpiCard label="Total rejects" value={derivedKpis.rejected} accent="red" sparkline={kpiSparklineByMetric.rejects} />
       </section>
@@ -900,9 +908,17 @@ export default function DashboardPage() {
         <button type="button" className="quick-add-btn" onClick={() => setShowTargetModal(true)}>
           Set Targets
         </button>
-        <span className="pending-meta">
-          {todayTargetLabel} {targetProgress?.daily.current ?? 0}/{effectiveTargets.daily} · Weekly target {targetProgress?.weekly.current ?? 0}/{effectiveTargets.weekly} · Monthly target {targetProgress?.monthly.current ?? 0}/{effectiveTargets.monthly}
-        </span>
+        <div className="dashboard-target-summary">
+          <span className="dashboard-target-chip">
+            <strong>{todayTargetLabel}</strong> {targetProgress?.daily.current ?? 0}/{effectiveTargets.daily}
+          </span>
+          <span className="dashboard-target-chip">
+            <strong>Weekly target</strong> {targetProgress?.weekly.current ?? 0}/{effectiveTargets.weekly}
+          </span>
+          <span className="dashboard-target-chip">
+            <strong>Monthly target</strong> {targetProgress?.monthly.current ?? 0}/{effectiveTargets.monthly}
+          </span>
+        </div>
       </section>
 
       {showTargetModal ? (
@@ -965,14 +981,20 @@ export default function DashboardPage() {
             </div>
             <div className="chart-filter">
               {weeklyInsights ? (
-                <span className="delta-pill">
+                <span
+                  className={`delta-pill ${
+                    weeklyInsights.diff < 0 ? "delta-pill--down" : weeklyInsights.diff > 0 ? "delta-pill--up" : "delta-pill--neutral"
+                  }`}
+                >
                   {weeklyInsights.diff === 0
                     ? "Same as last week"
                     : `${weeklyInsights.diff > 0 ? "+" : "−"}${Math.abs(weeklyInsights.diff)} vs last week`}
                 </span>
               ) : null}
-              <span className="delta-pill">
-                Daily Target Achieved: {targetHeaderMetrics.dailyHits}/{targetHeaderMetrics.daysInMonth} · Monthly Target Behind: {targetHeaderMetrics.monthlyBehind}
+              <span className="delta-pill delta-pill--target">
+                Daily target hit <strong>{targetHeaderMetrics.dailyHits}/{targetHeaderMetrics.daysInMonth}</strong>
+                <span className="delta-pill-sep">•</span>
+                Behind <strong>{targetHeaderMetrics.monthlyBehind}</strong>
               </span>
               <label className="chart-filter-label" htmlFor="trend-days">
                 Show last
@@ -1042,7 +1064,7 @@ export default function DashboardPage() {
                     </div>
                   );
                 }}
-                cursor={{ fill: "rgba(96, 165, 250, 0.08)" }}
+                cursor={false}
               />
               {showTodayLine ? (
                 <ReferenceLine x={todayLabel} stroke={CHART_COLORS.textSecondary} strokeWidth={1.5} strokeDasharray="4 4" label={{ value: "Today", fill: CHART_COLORS.textSecondary, fontSize: 10 }} />
@@ -1053,7 +1075,13 @@ export default function DashboardPage() {
                 stroke="none"
                 fill="url(#trendAreaGradient)"
               />
-              <Bar dataKey="total" fillOpacity={0.85} radius={[5, 5, 0, 0]} label={{ position: "top", fill: CHART_COLORS.textSecondary, fontSize: 11, fontWeight: 400, dy: -4 }}>
+              <Bar
+                dataKey="total"
+                fillOpacity={0.85}
+                radius={[5, 5, 0, 0]}
+                activeBar={false}
+                label={{ position: "top", fill: CHART_COLORS.textSecondary, fontSize: 11, fontWeight: 400, dy: -4 }}
+              >
                 {trendData.map((row, i) => (
                   <Cell key={row.day ?? i} fill={WEEK_COLORS[row.weekIndex % WEEK_COLORS.length]} />
                 ))}
@@ -1063,14 +1091,14 @@ export default function DashboardPage() {
                 type="monotone"
                 dataKey="total"
                 stroke={CHART_COLORS.trendLine}
-                strokeWidth={1.6}
+                strokeWidth={2}
                 dot={{ r: 3, strokeWidth: 0, fill: CHART_COLORS.trendLine, opacity: 0.9 }}
-                activeDot={{ r: 5, strokeWidth: 2, stroke: CHART_COLORS.tooltipBg, fill: CHART_COLORS.trendLine }}
+                activeDot={false}
               />
               <Line
                 type="monotone"
                 dataKey="avg7"
-                stroke="rgba(255,255,255,0.45)"
+                stroke={CHART_COLORS.movingAverage}
                 strokeWidth={1.2}
                 strokeDasharray="4 4"
                 dot={false}
@@ -1081,7 +1109,7 @@ export default function DashboardPage() {
                 stroke={CHART_COLORS.responseBar}
                 strokeWidth={1.4}
                 dot={false}
-                activeDot={{ r: 4, strokeWidth: 2, stroke: CHART_COLORS.tooltipBg, fill: CHART_COLORS.responseBar }}
+                activeDot={false}
               />
 
             </ComposedChart>
@@ -1130,7 +1158,7 @@ export default function DashboardPage() {
                     : `You are ${Math.abs(weeklyInsights.diff)} applications ${weeklyInsights.status} vs last week`}
                 </span>
                 {weeklyInsights.peakLabel ? (
-                  <span style={{ color: "#6ee7b7" }}>
+                  <span style={{ color: CHART_COLORS.accentSoft }}>
                     • Peak day: {weeklyInsights.peakValue} on {weeklyInsights.peakLabel}
                   </span>
                 ) : null}
@@ -1196,17 +1224,24 @@ export default function DashboardPage() {
                   />
                   <ReferenceLine
                     y={effectiveTargets.daily}
-                    stroke="rgba(52, 211, 153, 0.85)"
+                    stroke={CHART_COLORS.targetLine}
                     strokeDasharray="4 4"
                     label={{ value: `Target ${effectiveTargets.daily}`, fill: CHART_COLORS.textSecondary, fontSize: 10 }}
                   />
-                  <Tooltip content={<MtdTooltip />} cursor={{ fill: "rgba(96, 165, 250, 0.08)" }} />
-                  <Bar dataKey="lastMonth" name="Last month" fill="rgba(96, 165, 250, 0.6)" barSize={6} radius={[3, 3, 0, 0]} />
-                  <Bar dataKey="thisMonth" name="This month" barSize={6} radius={[3, 3, 0, 0]}>
+                  <Tooltip content={<MtdTooltip />} cursor={false} />
+                  <Bar
+                    dataKey="lastMonth"
+                    name="Last month"
+                    fill={CHART_COLORS.lastMonthBar}
+                    barSize={6}
+                    radius={[3, 3, 0, 0]}
+                    activeBar={false}
+                  />
+                  <Bar dataKey="thisMonth" name="This month" barSize={6} radius={[3, 3, 0, 0]} activeBar={false}>
                     {mtdDailyCompare.map((row, idx) => (
                       <Cell
                         key={`mtd-this-${idx}`}
-                        fill={(row.thisMonth ?? 0) >= effectiveTargets.daily ? "#34d399" : CHART_COLORS.trendLine}
+                        fill={(row.thisMonth ?? 0) >= effectiveTargets.daily ? CHART_COLORS.trendLine : CHART_COLORS.accentSoft}
                       />
                     ))}
                   </Bar>
@@ -1239,8 +1274,8 @@ export default function DashboardPage() {
                   </div>
                 );
               }
-              // Fixed 5-shade scale:
-              // 0 -> bright red, 1-12 -> amber, 13-24 -> yellow, 25-35 -> mint, >35 -> bright green
+              // Keep a neutral-to-green default heatmap scale across themes.
+              // 0 -> neutral, 1-12 -> light green, 13-24 -> medium green, 25-35 -> strong green, >35 -> peak green.
               let level = 0;
               if (cell.value > 35) level = 4;
               else if (cell.value >= 25) level = 3;
@@ -1263,30 +1298,30 @@ export default function DashboardPage() {
 
       {/* Bottom row: Pending / Referrals / OA / Notes */}
       <section className="chart-grid chart-grid-four dashboard-bottom-panels">
-        <div className="card pending-list-card">
+        <div className="card pending-list-card dashboard-panel dashboard-panel--pending">
           <h2>Pending</h2>
           <p className="chart-subtitle">Outstanding items</p>
           <div className="dashboard-panel-body">
             <PendingPreview />
           </div>
         </div>
-        <div className="card">
+        <div className="card dashboard-panel dashboard-panel--referrals">
           <h2>Referrals</h2>
           <p className="chart-subtitle">Open referral requests</p>
           <div className="dashboard-panel-body">
             <ReferralsPreview />
           </div>
         </div>
-        <div className="card">
+        <div className="card dashboard-panel dashboard-panel--oa">
           <h2>OA Received</h2>
           <p className="chart-subtitle">Active online assessments</p>
           <div className="dashboard-panel-body">
             <OaPreview />
           </div>
         </div>
-        <div className="card">
+        <div className="card dashboard-panel dashboard-panel--notes">
           <h2>Notes</h2>
-          <p className="chart-subtitle">Recent notes</p>
+          <p className="chart-subtitle">Recent activity</p>
           <div className="dashboard-panel-body">
             <NotesPreview />
           </div>
@@ -1302,8 +1337,8 @@ export default function DashboardPage() {
               <ComposedChart data={summary.weeklyTrend} margin={{ top: 16, right: 24, left: 8, bottom: 8 }}>
                 <defs>
                   <linearGradient id="weeklyArea" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={CHART_COLORS.weeklyBar} stopOpacity={0.5} />
-                    <stop offset="100%" stopColor={CHART_COLORS.weeklyBar} stopOpacity={0.5} />
+                    <stop offset="0%" stopColor={CHART_COLORS.weeklyBar} stopOpacity={0.3} />
+                    <stop offset="100%" stopColor={CHART_COLORS.weeklyBar} stopOpacity={0.05} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
@@ -1330,7 +1365,7 @@ export default function DashboardPage() {
                     borderRadius: 6,
                     padding: "10px 14px",
                   }}
-                  cursor={{ fill: "rgba(96, 165, 250, 0.08)" }}
+                  cursor={false}
                   labelStyle={{ color: CHART_COLORS.text, fontSize: 11, fontWeight: 500, marginBottom: 6 }}
                   itemStyle={{ fontSize: 13, fontWeight: 600, color: CHART_COLORS.weeklyBar }}
                   labelFormatter={formatWeek}
@@ -1345,7 +1380,7 @@ export default function DashboardPage() {
                   stroke={CHART_COLORS.weeklyBar}
                   strokeWidth={2.0}
                   dot={{ r: 3, strokeWidth: 0 }}
-                  activeDot={{ r: 5, strokeWidth: 2, stroke: CHART_COLORS.tooltipBg, fill: CHART_COLORS.weeklyBar }}
+                  activeDot={false}
                 >
                   <LabelList
                     dataKey="total"

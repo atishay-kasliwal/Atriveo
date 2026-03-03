@@ -76,8 +76,8 @@ export default function OaPreview() {
     <div className="panel-shell">
       {error ? <div className="error">{error}</div> : null}
       {rows.length === 0 ? (
-        <div className="chart-empty" style={{ minHeight: 80 }}>
-          No active OA items.
+        <div className="chart-empty oa-empty" style={{ minHeight: 80 }}>
+          <p>No active OA items.</p>
         </div>
       ) : (
         <>
