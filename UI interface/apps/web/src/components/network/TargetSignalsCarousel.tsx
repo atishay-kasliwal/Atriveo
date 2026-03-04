@@ -306,31 +306,39 @@ export default function TargetSignalsCarousel({ todayData, useDemoFallback = fal
         <div>
           <h3>Target Company Signals</h3>
         </div>
-        <div className="target-signals-controls">
-          <span className="target-signals-page">{cards.length === 0 ? "0 / 0" : `${page + 1} / ${totalPages}`}</span>
-          <button
-            type="button"
-            className="target-signals-arrow"
-            onClick={() => setPage((p) => Math.max(0, p - 1))}
-            disabled={page === 0}
-            aria-label="Previous companies"
-          >
-            ‹
-          </button>
-          <button
-            type="button"
-            className="target-signals-arrow"
-            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-            disabled={page >= totalPages - 1}
-            aria-label="Next companies"
-          >
-            ›
-          </button>
+        <div className="target-signals-controls" aria-label="Target company pagination">
+          <div className="target-signals-controls-strip">
+            <span className="target-signals-page">{cards.length === 0 ? "0 / 0" : `${page + 1} / ${totalPages}`}</span>
+            <button
+              type="button"
+              className="target-signals-arrow"
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              disabled={page === 0}
+              aria-label="Previous companies"
+            >
+              ‹
+            </button>
+            <button
+              type="button"
+              className="target-signals-arrow"
+              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+              disabled={page >= totalPages - 1}
+              aria-label="Next companies"
+            >
+              ›
+            </button>
+          </div>
         </div>
       </div>
 
       {cards.length === 0 ? (
-        <div className="target-signals-empty">No friend applications in your top target companies today.</div>
+        <div className="target-signals-empty network-empty-state" role="status" aria-live="polite">
+          <div className="network-empty-state-icon" aria-hidden="true">
+            ◎
+          </div>
+          <p className="network-empty-state-title">No target company signals yet</p>
+          <p className="network-empty-state-copy">No friend applications in your top target companies today.</p>
+        </div>
       ) : (
         <div className="target-signals-grid" style={{ "--target-cols": perPage } as CSSProperties}>
           {pageCards.map((card) => (

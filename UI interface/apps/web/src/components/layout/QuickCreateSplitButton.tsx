@@ -12,6 +12,7 @@ type QuickCreateSplitButtonProps = {
   onNewApplication: () => void;
   onCreateTask: () => void;
   onLogNote: () => void;
+  className?: string;
 };
 
 type SplitAction = {
@@ -25,6 +26,7 @@ export default function QuickCreateSplitButton({
   onNewApplication,
   onCreateTask,
   onLogNote,
+  className = "",
 }: QuickCreateSplitButtonProps) {
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
@@ -135,7 +137,7 @@ export default function QuickCreateSplitButton({
   }
 
   return (
-    <div className="app-split-create" ref={rootRef}>
+    <div className={`app-split-create ${className}`.trim()} ref={rootRef}>
       <button
         type="button"
         className="app-split-create-primary"
@@ -157,7 +159,9 @@ export default function QuickCreateSplitButton({
         aria-controls={isOpen ? menuId : undefined}
         aria-label="Open create menu"
       >
-        ▾
+        <span className="app-split-create-trigger-icon" aria-hidden>
+          ▾
+        </span>
       </button>
       {isOpen ? (
         <ul id={menuId} className="app-split-create-menu" role="menu" aria-label="Create options">

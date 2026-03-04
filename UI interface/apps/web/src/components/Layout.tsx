@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from "react";
 import { NavLink, Outlet, Link, useLocation } from "react-router-dom";
 import {
   acceptFriendRequest,
@@ -32,9 +32,9 @@ type LayoutProps = {
 };
 
 const emptyJobForm = {
-  role: "Software Engineer",
+  role: "",
   company: "",
-  location_raw: "United States of America",
+  location_raw: "United States",
   job_link: "",
   job_application_id: "",
   oa_deadline_date: "",
@@ -68,6 +68,96 @@ const emptyNoteForm = {
   show_on_dashboard: "Yes",
   note: "",
 };
+
+const COUNTRY_OPTIONS = [
+  "United States",
+  "Canada",
+  "United Kingdom",
+  "India",
+  "Germany",
+  "Australia",
+];
+
+type SectionHeaderProps = {
+  icon: ReactNode;
+  title: string;
+};
+
+function SectionHeader({ icon, title }: SectionHeaderProps) {
+  return (
+    <div className="new-app-section-header">
+      <span className="new-app-section-icon" aria-hidden="true">
+        {icon}
+      </span>
+      <h4>{title}</h4>
+    </div>
+  );
+}
+
+type InputProps = {
+  label: string;
+  required?: boolean;
+  icon?: ReactNode;
+} & Omit<InputHTMLAttributes<HTMLInputElement>, "required">;
+
+function Input({ label, required, icon, id, className, ...props }: InputProps) {
+  return (
+    <label className="new-app-field" htmlFor={id}>
+      <span className="new-app-label">
+        {icon ? <span className="new-app-label-icon">{icon}</span> : null}
+        {label}
+        {required ? " *" : ""}
+      </span>
+      <input id={id} className={["new-app-input", className].filter(Boolean).join(" ")} {...props} />
+    </label>
+  );
+}
+
+type SelectProps = {
+  label: string;
+  required?: boolean;
+  icon?: ReactNode;
+  options: Array<{ label: string; value: string }>;
+} & Omit<SelectHTMLAttributes<HTMLSelectElement>, "required">;
+
+function Select({ label, required, icon, id, className, options, ...props }: SelectProps) {
+  return (
+    <label className="new-app-field" htmlFor={id}>
+      <span className="new-app-label">
+        {icon ? <span className="new-app-label-icon">{icon}</span> : null}
+        {label}
+        {required ? " *" : ""}
+      </span>
+      <select id={id} className={["new-app-input", "new-app-select", className].filter(Boolean).join(" ")} {...props}>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+type DatePickerProps = {
+  label: string;
+  required?: boolean;
+} & Omit<InputHTMLAttributes<HTMLInputElement>, "required" | "type">;
+
+function DatePicker({ label, required, id, className, ...props }: DatePickerProps) {
+  return (
+    <label className="new-app-field" htmlFor={id}>
+      <span className="new-app-label">
+        <span className="new-app-label-icon" aria-hidden="true">
+          📅
+        </span>
+        {label}
+        {required ? " *" : ""}
+      </span>
+      <input id={id} type="date" className={["new-app-input", className].filter(Boolean).join(" ")} {...props} />
+    </label>
+  );
+}
 
 export default function Layout({ userEmail, onLogout, theme, onToggleTheme }: LayoutProps) {
   const location = useLocation();
@@ -434,6 +524,7 @@ export default function Layout({ userEmail, onLogout, theme, onToggleTheme }: La
 
   function openNewApplicationModal() {
     setModalError("");
+    setForm({ ...emptyJobForm, date_saved: getLocalISODate() });
     setShowPendingTask(false);
     setShowNoteModal(false);
     setShowQuickAdd(true);
@@ -462,11 +553,7 @@ export default function Layout({ userEmail, onLogout, theme, onToggleTheme }: La
           </Link>
           <div className="app-nav-actions">
             <div className="app-nav-actions-main">
-              <QuickCreateSplitButton
-                onNewApplication={openNewApplicationModal}
-                onCreateTask={openCreateTaskModal}
-                onLogNote={openLogNoteModal}
-              />
+              <ThemeToggle theme={theme} onToggle={onToggleTheme} className="app-nav-theme-toggle app-nav-theme-toggle--top" />
             </div>
             <div className="app-nav-actions-utility">
               <NotificationBell
@@ -504,7 +591,12 @@ export default function Layout({ userEmail, onLogout, theme, onToggleTheme }: La
               Archive
             </NavLink>
           </div>
-          <ThemeToggle theme={theme} onToggle={onToggleTheme} className="app-nav-theme-toggle" />
+          <QuickCreateSplitButton
+            className="app-split-create--nav-bottom"
+            onNewApplication={openNewApplicationModal}
+            onCreateTask={openCreateTaskModal}
+            onLogNote={openLogNoteModal}
+          />
         </div>
       </nav>
       <main className="page-main">
@@ -751,129 +843,147 @@ export default function Layout({ userEmail, onLogout, theme, onToggleTheme }: La
       ) : null}
 
       {showQuickAdd && (
-        <div className="modal-overlay" onClick={() => !isSaving && setShowQuickAdd(false)}>
+        <div className="modal-overlay modal-overlay--quickadd" onClick={() => !isSaving && setShowQuickAdd(false)}>
           <div className="modal modal--quickadd" onClick={(e) => e.stopPropagation()}>
-            <h3>New Application</h3>
             {modalError ? <div className="auth-error">{modalError}</div> : null}
-            <form className="form form--quickadd" onSubmit={onCreateJob}>
-              <div className="qa-left">
-                <input
-                  placeholder="Position *"
-                  value={form.role}
-                  onChange={(e) => setForm((p) => ({ ...p, role: e.target.value }))}
-                  autoFocus
-                />
-                <div className="form-row">
-                  <label className="form-label">Date</label>
-                  <input
-                    type="date"
+            <form className="new-app-form" onSubmit={onCreateJob}>
+              <header className="new-app-header">
+                <h3>New Application</h3>
+                <p>Track a new job application</p>
+              </header>
+
+              <section className="new-app-section">
+                <SectionHeader icon="▦" title="JOB INFORMATION" />
+                <div className="new-app-grid-2">
+                  <Input
+                    id="new-app-role"
+                    label="Job Title"
+                    required
+                    placeholder="e.g. Software Engineer"
+                    value={form.role}
+                    onChange={(e) => setForm((p) => ({ ...p, role: e.target.value }))}
+                    autoFocus
+                  />
+                  <Input
+                    id="new-app-company"
+                    label="Company"
+                    required
+                    icon="🏢"
+                    placeholder="e.g. Google"
+                    value={form.company}
+                    onChange={(e) => setForm((p) => ({ ...p, company: e.target.value }))}
+                  />
+                  <Input
+                    id="new-app-link"
+                    label="Job Link"
+                    icon="↗"
+                    type="url"
+                    placeholder="https://..."
+                    value={form.job_link}
+                    onChange={(e) => setForm((p) => ({ ...p, job_link: e.target.value }))}
+                  />
+                  <Input
+                    id="new-app-id"
+                    label="Job / Application ID"
+                    icon="#"
+                    placeholder="Optional"
+                    value={form.job_application_id}
+                    onChange={(e) => setForm((p) => ({ ...p, job_application_id: e.target.value }))}
+                  />
+                </div>
+              </section>
+
+              <section className="new-app-section">
+                <SectionHeader icon="◷" title="TIMELINE & LOCATION" />
+                <div className="new-app-grid-2">
+                  <DatePicker
+                    id="new-app-date"
+                    label="Date Applied"
+                    required
                     value={form.date_saved}
                     onChange={(e) => setForm((p) => ({ ...p, date_saved: e.target.value }))}
                   />
-                </div>
-                <input
-                  placeholder="Location"
-                  value={form.location_raw}
-                  onChange={(e) => setForm((p) => ({ ...p, location_raw: e.target.value }))}
-                />
-                <div className="form-row">
-                  <label className="form-label">Referral</label>
-                  <select
-                    value={form.referral_status}
-                    onChange={(e) => setForm((p) => ({ ...p, referral_status: e.target.value }))}
-                    className="form-select"
-                  >
-                    <option value="">—</option>
-                    <option value="Requested">Requested</option>
-                    <option value="Yes">Yes</option>
-                    <option value="No">No</option>
-                  </select>
-                </div>
-                {form.referral_status === "Requested" && (
-                  <p className="referral-hint">
-                    This will add an entry on the <Link to="/referrals" className="table-link">Referrals</Link> page. Change its status there to create a job.
-                  </p>
-                )}
-                {form.referral_status === "Yes" && (
-                  <p className="referral-hint">
-                    Add a referral for this company on the <Link to="/referrals" className="table-link">Referrals</Link> page to keep track.
-                  </p>
-                )}
-                <textarea
-                  placeholder="Notes"
-                  rows={2}
-                  value={form.notes}
-                  onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
-                />
-              </div>
-              <div className="qa-right">
-                <input
-                  placeholder="Company *"
-                  value={form.company}
-                  onChange={(e) => setForm((p) => ({ ...p, company: e.target.value }))}
-                />
-                <input
-                  placeholder="Job link (URL)"
-                  type="url"
-                  value={form.job_link}
-                  onChange={(e) => setForm((p) => ({ ...p, job_link: e.target.value }))}
-                />
-                <input
-                  placeholder="Job/Application ID (optional)"
-                  value={form.job_application_id}
-                  onChange={(e) => setForm((p) => ({ ...p, job_application_id: e.target.value }))}
-                />
-                <div className="form-row">
-                  <label className="form-label">OA Deadline (optional)</label>
-                  <input
-                    type="date"
+                  <DatePicker
+                    id="new-app-oa-deadline"
+                    label="OA Deadline"
                     value={form.oa_deadline_date}
                     onChange={(e) => setForm((p) => ({ ...p, oa_deadline_date: e.target.value }))}
                   />
                 </div>
-                <div className="form-row">
-                  <label className="form-label">Online Assessment (OA)</label>
-                  <select
+                <Select
+                  id="new-app-country"
+                  label="Country"
+                  required
+                  icon="◎"
+                  options={COUNTRY_OPTIONS.map((country) => ({ label: country, value: country }))}
+                  value={form.location_raw}
+                  onChange={(e) => setForm((p) => ({ ...p, location_raw: e.target.value }))}
+                />
+              </section>
+
+              <section className="new-app-section">
+                <SectionHeader icon="⌁" title="ASSESSMENT & DETAILS" />
+                <div className="new-app-grid-3">
+                  <Select
+                    id="new-app-referral"
+                    label="Referral"
+                    options={[
+                      { label: "No", value: "No" },
+                      { label: "Yes", value: "Yes" },
+                    ]}
+                    value={form.referral_status}
+                    onChange={(e) => setForm((p) => ({ ...p, referral_status: e.target.value }))}
+                  />
+                  <Select
+                    id="new-app-oa"
+                    label="Online Assessment"
+                    options={[
+                      { label: "No", value: "No" },
+                      { label: "Yes", value: "Yes" },
+                    ]}
                     value={form.oa_status}
                     onChange={(e) => setForm((p) => ({ ...p, oa_status: e.target.value }))}
-                    className="form-select"
-                  >
-                    <option value="Yes">Yes</option>
-                    <option value="No">No</option>
-                  </select>
-                </div>
-                <div className="form-row">
-                  <label className="form-label">Keyword Matching</label>
-                  <select
+                  />
+                  <Select
+                    id="new-app-keyword"
+                    label="Keyword Match"
+                    options={[
+                      { label: "High", value: "Strong" },
+                      { label: "Medium", value: "Medium" },
+                      { label: "Low", value: "Weak" },
+                    ]}
                     value={form.keyword_matching}
                     onChange={(e) => setForm((p) => ({ ...p, keyword_matching: e.target.value }))}
-                    className="form-select"
-                  >
-                    <option value="Strong">Strong</option>
-                    <option value="Medium">Medium</option>
-                    <option value="Weak">Weak</option>
-                  </select>
-                  <p className="form-helper">
-                    {form.keyword_matching === "Strong"
-                      ? "Almost every technical keyword matched"
-                      : form.keyword_matching === "Medium"
-                        ? "Few Keywords are not Present"
-                        : "Few Keywords Matched"}
-                  </p>
+                  />
                 </div>
-              </div>
-              <div className="modal-actions">
-                <button type="button" className="action-btn" onClick={() => !isSaving && setShowQuickAdd(false)} disabled={isSaving}>
+                <div className="new-app-alert">Partial Match — Some keywords missing</div>
+                <label className="new-app-field" htmlFor="new-app-notes">
+                  <span className="new-app-label">
+                    <span className="new-app-label-icon" aria-hidden="true">
+                      ☰
+                    </span>
+                    Notes
+                  </span>
+                  <textarea
+                    id="new-app-notes"
+                    className="new-app-input new-app-textarea"
+                    placeholder="Any additional notes about this application..."
+                    rows={5}
+                    value={form.notes}
+                    onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
+                  />
+                </label>
+              </section>
+
+              <div className="new-app-actions">
+                <button type="button" className="new-app-btn new-app-btn--secondary" onClick={() => !isSaving && setShowQuickAdd(false)} disabled={isSaving}>
                   Cancel
                 </button>
-                <button type="submit" disabled={isSaving || !form.company.trim() || !form.role.trim()}>
+                <button type="submit" className="new-app-btn new-app-btn--primary" disabled={isSaving || !form.company.trim() || !form.role.trim()}>
                   {isSaving ? "Saving..." : "Create Application"}
                 </button>
               </div>
             </form>
-            <p className="modal-footnote">
-              View and search all jobs on the <Link to="/jobs" className="table-link">Jobs</Link> page.
-            </p>
           </div>
         </div>
       )}

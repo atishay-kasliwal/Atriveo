@@ -324,7 +324,6 @@ export default function NetworkPage() {
   const [success, setSuccess] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [insightsOpen, setInsightsOpen] = useState(true);
-  const [todayOpen, setTodayOpen] = useState(false);
   const [showPrefillModal, setShowPrefillModal] = useState(false);
   const [isPrefillSaving, setIsPrefillSaving] = useState(false);
   const [prefillError, setPrefillError] = useState("");
@@ -1132,21 +1131,26 @@ export default function NetworkPage() {
       </section>
 
       <section>
-        <div className={`card network-shell-card ${todayOpen ? "is-open" : "is-closed"}`}>
-          <button type="button" className="network-main-head" onClick={() => setTodayOpen((p) => !p)}>
+        <div className="card network-shell-card is-open">
+          <div className="network-main-head network-main-head--static">
             <h2>Today&apos;s Applications</h2>
             <div className="network-main-right">
               <span className="pending-meta">Friends with activity today</span>
-                <span className={`network-section-arrow ${todayOpen ? "open" : ""}`}>▴</span>
             </div>
-          </button>
+          </div>
 
-          {!todayOpen ? null : isLoading ? (
+          {isLoading ? (
             <Spinner />
           ) : (
             <div className="network-card-content">
               {todayWithJobs.length === 0 ? (
-                <div className="empty-state">No friend applications recorded today.</div>
+                <div className="network-empty-state network-empty-state--today" role="status" aria-live="polite">
+                  <div className="network-empty-state-icon" aria-hidden="true">
+                    ◌
+                  </div>
+                  <p className="network-empty-state-title">No applications logged today</p>
+                  <p className="network-empty-state-copy">When friends add applications, they appear here automatically.</p>
+                </div>
               ) : (
                 <div className="network-today-grid">
                   {todayWithJobs.map((friend) => (
