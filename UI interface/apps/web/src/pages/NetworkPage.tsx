@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Area, Bar, BarChart, CartesianGrid, Cell, LabelList, Line, LineChart, ReferenceDot, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import Spinner from "../components/Spinner";
+import ManageSharedFieldsModal from "../components/network/ManageSharedFieldsModal";
 import TargetSignalsCarousel from "../components/network/TargetSignalsCarousel";
 import {
   createJob,
@@ -1282,49 +1283,16 @@ export default function NetworkPage() {
 
       </div>
 
-      {showFieldVisibilityModal ? (
-        <div className="modal-overlay" onClick={() => !isSavingFieldVisibility && setShowFieldVisibilityModal(false)}>
-          <div className="modal network-visibility-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Manage Shared Fields</h3>
-            <p className="network-visibility-subtitle">
-              You only see a field from friends when both sides choose to share that same field.
-            </p>
-            <div className="network-visibility-list">
-              {NETWORK_VISIBILITY_FIELDS.map((field) => {
-                const required = requiredVisibilityFields.includes(field.key);
-                return (
-                  <label key={field.key} className={`network-visibility-item${required ? " is-required" : ""}`}>
-                    <div className="network-visibility-item-left">
-                      <input
-                        type="checkbox"
-                        checked={Boolean(fieldVisibility[field.key])}
-                        disabled={required}
-                        onChange={(e) => setVisibilityValue(field.key, e.target.checked)}
-                      />
-                      <span>{field.label}</span>
-                    </div>
-                    {required ? <span className="network-visibility-required">Required</span> : null}
-                  </label>
-                );
-              })}
-            </div>
-            {fieldVisibilityError ? <div className="auth-error">{fieldVisibilityError}</div> : null}
-            <div className="modal-actions">
-              <button
-                type="button"
-                className="action-btn"
-                onClick={() => setShowFieldVisibilityModal(false)}
-                disabled={isSavingFieldVisibility}
-              >
-                Cancel
-              </button>
-              <button type="button" onClick={saveFieldVisibility} disabled={isSavingFieldVisibility}>
-                {isSavingFieldVisibility ? "Saving..." : "Save"}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <ManageSharedFieldsModal
+        open={showFieldVisibilityModal}
+        saving={isSavingFieldVisibility}
+        error={fieldVisibilityError}
+        visibility={fieldVisibility}
+        requiredFields={requiredVisibilityFields}
+        onClose={() => setShowFieldVisibilityModal(false)}
+        onSave={saveFieldVisibility}
+        onToggle={setVisibilityValue}
+      />
 
       {showPrefillModal ? (
         <div className="modal-overlay" onClick={() => !isPrefillSaving && setShowPrefillModal(false)}>
