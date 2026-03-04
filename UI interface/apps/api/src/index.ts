@@ -1824,6 +1824,7 @@ async function syncReferralFromJob(
   env: Bindings,
   userId: number,
   job: Record<string, unknown>,
+  options?: { referredByName?: string | null },
 ): Promise<void> {
   const company = asTrimmedString(job.company);
   const requestLog = asTrimmedString(job.role);
@@ -1834,6 +1835,7 @@ async function syncReferralFromJob(
   const requestDate = toIsoDate((job as any).date_saved) ?? toIsoDate((job as any).applied_at);
   const keywordMatching = normalizeKeywordMatching((job as any).keyword_matching) ?? "Medium";
   const comment = asTrimmedString((job as any).notes);
+  const referredByName = asTrimmedString(options?.referredByName);
 
   let existingId: number | null = null;
 
@@ -1888,6 +1890,7 @@ async function syncReferralFromJob(
         referral_received = $7,
         keyword_matching = COALESCE($8, keyword_matching, 'Medium'),
         comment = $9,
+        referred_by_name = COALESCE($10, referred_by_name),
         updated_at = NOW()
       WHERE id = $1 AND user_id = $2
       `,
@@ -1901,6 +1904,7 @@ async function syncReferralFromJob(
         referralStatus,
         keywordMatching,
         comment,
+        referredByName,
       ],
     );
     return;
@@ -1909,10 +1913,10 @@ async function syncReferralFromJob(
   await query(
     env,
     `
-    INSERT INTO referrals (user_id, source, company, request_log, request_date, updated_date, request_link, referral_received, keyword_matching, comment)
-    VALUES ($1, 'job-sync', $2, $3, $4::date, COALESCE($4::date, CURRENT_DATE), $5, $6, COALESCE($7, 'Medium'), $8)
+    INSERT INTO referrals (user_id, source, company, request_log, request_date, updated_date, request_link, referral_received, keyword_matching, referred_by_name, comment)
+    VALUES ($1, 'job-sync', $2, $3, $4::date, COALESCE($4::date, CURRENT_DATE), $5, $6, COALESCE($7, 'Medium'), $8, $9)
     `,
-    [userId, company, requestLog, requestDate, requestLink, referralStatus, keywordMatching, comment],
+    [userId, company, requestLog, requestDate, requestLink, referralStatus, keywordMatching, referredByName, comment],
   );
 }
 
@@ -2121,32 +2125,54 @@ app.get("/api/jobs", async (c) => {
   const order: "ASC" | "DESC" = orderRaw === "asc" ? "ASC" : "DESC";
   const offset = (page - 1) * limit;
 
-  const orderBy = `${sort} ${order} NULLS LAST, COALESCE(applied_at, date_saved, created_at) DESC NULLS LAST, created_at DESC NULLS LAST, id DESC`;
+  const orderBy = `j.${sort} ${order} NULLS LAST, COALESCE(j.applied_at, j.date_saved, j.created_at) DESC NULLS LAST, j.created_at DESC NULLS LAST, j.id DESC`;
   const baseSql = `
-    SELECT *
-    FROM jobs
+    SELECT
+      j.*,
+      COALESCE(
+        (
+          SELECT r.referred_by_name
+          FROM referrals r
+          WHERE r.user_id = j.user_id
+            AND TRIM(COALESCE(r.referred_by_name, '')) <> ''
+            AND TRIM(COALESCE(r.request_link, '')) = TRIM(COALESCE(j.job_link, ''))
+          ORDER BY COALESCE(r.updated_date, r.request_date) DESC NULLS LAST, r.id DESC
+          LIMIT 1
+        ),
+        (
+          SELECT r.referred_by_name
+          FROM referrals r
+          WHERE r.user_id = j.user_id
+            AND TRIM(COALESCE(r.referred_by_name, '')) <> ''
+            AND LOWER(TRIM(COALESCE(r.company, ''))) = LOWER(TRIM(COALESCE(j.company, '')))
+            AND LOWER(TRIM(COALESCE(r.request_log, ''))) = LOWER(TRIM(COALESCE(j.role, '')))
+          ORDER BY COALESCE(r.updated_date, r.request_date) DESC NULLS LAST, r.id DESC
+          LIMIT 1
+        )
+      ) AS referred_by_name
+    FROM jobs j
   `;
 
   // Build where clause dynamically to handle company and status filters
-  const whereParts: string[] = ["user_id = $1"];
+  const whereParts: string[] = ["j.user_id = $1"];
   const params: unknown[] = [userId];
   let paramIdx = 2;
   if (company) {
-    whereParts.push(`company ILIKE $${paramIdx}`);
+    whereParts.push(`j.company ILIKE $${paramIdx}`);
     params.push(`%${company}%`);
     paramIdx += 1;
   }
   // statusFilter semantics: 'rejected' => only Rejected, 'active' or empty => exclude Rejected, 'all' => no filter
   if (!statusFilter || statusFilter === "active") {
-    whereParts.push(`LOWER(TRIM(COALESCE(application_status, 'Applied'))) != 'rejected'`);
+    whereParts.push(`LOWER(TRIM(COALESCE(j.application_status, 'Applied'))) != 'rejected'`);
   } else if (statusFilter === "rejected") {
-    whereParts.push(`LOWER(TRIM(COALESCE(application_status, ''))) = 'rejected'`);
+    whereParts.push(`LOWER(TRIM(COALESCE(j.application_status, ''))) = 'rejected'`);
   }
 
   const whereClause = ` WHERE ${whereParts.join(" AND ")}`;
   const [countRow] = await query<{ total: number }>(
     c.env,
-    `SELECT COUNT(*)::int AS total FROM jobs${whereClause}`,
+    `SELECT COUNT(*)::int AS total FROM jobs j${whereClause}`,
     params as unknown[],
   );
   const total = Number(countRow?.total ?? 0);
@@ -2170,6 +2196,7 @@ const jobInput = z.object({
   referral_status: z.string().optional(),
   response_status: z.string().optional(),
   application_status: z.string().optional(),
+  referred_by_name: z.string().optional(),
   notes: z.string().optional(),
   date_saved: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 });
@@ -2204,7 +2231,7 @@ app.post("/api/jobs", async (c) => {
     ],
   );
   if (row) {
-    await syncReferralFromJob(c.env, userId, row as Record<string, unknown>);
+    await syncReferralFromJob(c.env, userId, row as Record<string, unknown>, { referredByName: p.referred_by_name ?? null });
   }
   return c.json(row, 201);
 });
@@ -2494,6 +2521,7 @@ const jobUpdateInput = z.object({
   referral_status: z.string().optional().nullable(),
   response_status: z.string().optional().nullable(),
   application_status: z.string().optional().nullable(),
+  referred_by_name: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
   date_saved: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
 });
@@ -2548,7 +2576,7 @@ app.patch("/api/jobs/:id", async (c) => {
     ],
   );
   if (!row) return c.json({ error: "Not found" }, 404);
-  await syncReferralFromJob(c.env, userId, row as Record<string, unknown>);
+  await syncReferralFromJob(c.env, userId, row as Record<string, unknown>, { referredByName: p.referred_by_name ?? null });
   return c.json(row);
 });
 

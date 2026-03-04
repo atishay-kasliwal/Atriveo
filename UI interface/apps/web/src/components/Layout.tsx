@@ -41,6 +41,7 @@ const emptyJobForm = {
   keyword_matching: "Medium",
   oa_status: "No",
   referral_status: "No",
+  referred_by_name: "",
   notes: "",
   date_saved: getLocalISODate(),
 };
@@ -142,20 +143,111 @@ function Select({ label, required, icon, id, className, options, ...props }: Sel
 type DatePickerProps = {
   label: string;
   required?: boolean;
+  showIcon?: boolean;
 } & Omit<InputHTMLAttributes<HTMLInputElement>, "required" | "type">;
 
-function DatePicker({ label, required, id, className, ...props }: DatePickerProps) {
+function DatePicker({ label, required, showIcon = true, id, className, ...props }: DatePickerProps) {
   return (
     <label className="new-app-field" htmlFor={id}>
       <span className="new-app-label">
-        <span className="new-app-label-icon" aria-hidden="true">
-          📅
-        </span>
+        {showIcon ? (
+          <span className="new-app-label-icon" aria-hidden="true">
+            📅
+          </span>
+        ) : null}
         {label}
         {required ? " *" : ""}
       </span>
       <input id={id} type="date" className={["new-app-input", className].filter(Boolean).join(" ")} {...props} />
     </label>
+  );
+}
+
+type YesNoToggleProps = {
+  id: string;
+  label: string;
+  value: "Yes" | "No";
+  onChange: (value: "Yes" | "No") => void;
+};
+
+function YesNoToggle({ id, label, value, onChange }: YesNoToggleProps) {
+  return (
+    <div className="new-app-field new-app-toggle-field">
+      <span className="new-app-label" id={`${id}-label`}>
+        {label}
+      </span>
+      <div className="new-app-toggle" role="radiogroup" aria-labelledby={`${id}-label`}>
+        <button
+          type="button"
+          id={`${id}-yes`}
+          role="radio"
+          aria-checked={value === "Yes"}
+          className={value === "Yes" ? "is-active" : ""}
+          onClick={() => onChange("Yes")}
+        >
+          Yes
+        </button>
+        <button
+          type="button"
+          id={`${id}-no`}
+          role="radio"
+          aria-checked={value === "No"}
+          className={value === "No" ? "is-active" : ""}
+          onClick={() => onChange("No")}
+        >
+          No
+        </button>
+      </div>
+    </div>
+  );
+}
+
+type KeywordMatchRadioProps = {
+  id: string;
+  label: string;
+  value: "Strong" | "Medium" | "Weak";
+  onChange: (value: "Strong" | "Medium" | "Weak") => void;
+};
+
+function KeywordMatchRadio({ id, label, value, onChange }: KeywordMatchRadioProps) {
+  return (
+    <div className="new-app-field new-app-keyword-field">
+      <span className="new-app-label" id={`${id}-label`}>
+        {label}
+      </span>
+      <div className="new-app-keyword-toggle" role="radiogroup" aria-labelledby={`${id}-label`}>
+        <button
+          type="button"
+          id={`${id}-strong`}
+          role="radio"
+          aria-checked={value === "Strong"}
+          className={value === "Strong" ? "is-active" : ""}
+          onClick={() => onChange("Strong")}
+        >
+          High
+        </button>
+        <button
+          type="button"
+          id={`${id}-medium`}
+          role="radio"
+          aria-checked={value === "Medium"}
+          className={value === "Medium" ? "is-active" : ""}
+          onClick={() => onChange("Medium")}
+        >
+          Medium
+        </button>
+        <button
+          type="button"
+          id={`${id}-weak`}
+          role="radio"
+          aria-checked={value === "Weak"}
+          className={value === "Weak" ? "is-active" : ""}
+          onClick={() => onChange("Weak")}
+        >
+          Low
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -424,6 +516,7 @@ export default function Layout({ userEmail, onLogout, theme, onToggleTheme }: La
           request_link: form.job_link.trim() || undefined,
           referral_received: form.referral_status,
           keyword_matching: form.keyword_matching,
+          referred_by_name: form.referred_by_name.trim() || undefined,
           comment: form.notes.trim() || undefined,
         });
         setForm({ ...emptyJobForm, date_saved: getLocalISODate() });
@@ -448,6 +541,7 @@ export default function Layout({ userEmail, onLogout, theme, onToggleTheme }: La
         oa_deadline_date: form.oa_deadline_date || undefined,
         oa_status: form.oa_status || "No",
         referral_status: form.referral_status.trim() || undefined,
+        referred_by_name: form.referred_by_name.trim() || undefined,
         notes: form.notes.trim() || undefined,
       });
       setForm({ ...emptyJobForm, date_saved: getLocalISODate() });
@@ -854,7 +948,7 @@ export default function Layout({ userEmail, onLogout, theme, onToggleTheme }: La
 
               <section className="new-app-section">
                 <SectionHeader icon="▦" title="JOB INFORMATION" />
-                <div className="new-app-grid-2">
+                <div className="new-app-grid-3">
                   <Input
                     id="new-app-role"
                     label="Job Title"
@@ -874,15 +968,6 @@ export default function Layout({ userEmail, onLogout, theme, onToggleTheme }: La
                     onChange={(e) => setForm((p) => ({ ...p, company: e.target.value }))}
                   />
                   <Input
-                    id="new-app-link"
-                    label="Job Link"
-                    icon="↗"
-                    type="url"
-                    placeholder="https://..."
-                    value={form.job_link}
-                    onChange={(e) => setForm((p) => ({ ...p, job_link: e.target.value }))}
-                  />
-                  <Input
                     id="new-app-id"
                     label="Job / Application ID"
                     icon="#"
@@ -891,88 +976,102 @@ export default function Layout({ userEmail, onLogout, theme, onToggleTheme }: La
                     onChange={(e) => setForm((p) => ({ ...p, job_application_id: e.target.value }))}
                   />
                 </div>
+                <div className="new-app-grid-2">
+                  <Input
+                    id="new-app-link"
+                    label="Job Link"
+                    icon="↗"
+                    type="url"
+                    placeholder="https://..."
+                    value={form.job_link}
+                    onChange={(e) => setForm((p) => ({ ...p, job_link: e.target.value }))}
+                  />
+                  <KeywordMatchRadio
+                    id="new-app-keyword"
+                    label="Keyword Match"
+                    value={form.keyword_matching as "Strong" | "Medium" | "Weak"}
+                    onChange={(next) => setForm((p) => ({ ...p, keyword_matching: next }))}
+                  />
+                </div>
               </section>
 
               <section className="new-app-section">
-                <SectionHeader icon="◷" title="TIMELINE & LOCATION" />
-                <div className="new-app-grid-2">
-                  <DatePicker
-                    id="new-app-date"
-                    label="Date Applied"
-                    required
-                    value={form.date_saved}
-                    onChange={(e) => setForm((p) => ({ ...p, date_saved: e.target.value }))}
+                <SectionHeader icon="⌁" title="REFERRAL & OA" />
+                <div className="new-app-grid-2 new-app-grid-referral">
+                  <YesNoToggle
+                    id="new-app-referral"
+                    label="Referral"
+                    value={form.referral_status}
+                    onChange={(next) => setForm((p) => ({ ...p, referral_status: next }))}
+                  />
+                  <Input
+                    id="new-app-referral-name"
+                    label="Referral Name"
+                    placeholder="Optional"
+                    value={form.referred_by_name}
+                    onChange={(e) => setForm((p) => ({ ...p, referred_by_name: e.target.value }))}
+                  />
+                  <YesNoToggle
+                    id="new-app-oa"
+                    label="Online Assessment"
+                    value={form.oa_status}
+                    onChange={(next) => setForm((p) => ({ ...p, oa_status: next }))}
                   />
                   <DatePicker
                     id="new-app-oa-deadline"
                     label="OA Deadline"
+                    showIcon={false}
                     value={form.oa_deadline_date}
                     onChange={(e) => setForm((p) => ({ ...p, oa_deadline_date: e.target.value }))}
                   />
                 </div>
-                <Select
-                  id="new-app-country"
-                  label="Country"
-                  required
-                  icon="◎"
-                  options={COUNTRY_OPTIONS.map((country) => ({ label: country, value: country }))}
-                  value={form.location_raw}
-                  onChange={(e) => setForm((p) => ({ ...p, location_raw: e.target.value }))}
-                />
               </section>
 
               <section className="new-app-section">
-                <SectionHeader icon="⌁" title="ASSESSMENT & DETAILS" />
-                <div className="new-app-grid-3">
-                  <Select
-                    id="new-app-referral"
-                    label="Referral"
-                    options={[
-                      { label: "No", value: "No" },
-                      { label: "Yes", value: "Yes" },
-                    ]}
-                    value={form.referral_status}
-                    onChange={(e) => setForm((p) => ({ ...p, referral_status: e.target.value }))}
-                  />
-                  <Select
-                    id="new-app-oa"
-                    label="Online Assessment"
-                    options={[
-                      { label: "No", value: "No" },
-                      { label: "Yes", value: "Yes" },
-                    ]}
-                    value={form.oa_status}
-                    onChange={(e) => setForm((p) => ({ ...p, oa_status: e.target.value }))}
-                  />
-                  <Select
-                    id="new-app-keyword"
-                    label="Keyword Match"
-                    options={[
-                      { label: "High", value: "Strong" },
-                      { label: "Medium", value: "Medium" },
-                      { label: "Low", value: "Weak" },
-                    ]}
-                    value={form.keyword_matching}
-                    onChange={(e) => setForm((p) => ({ ...p, keyword_matching: e.target.value }))}
-                  />
-                </div>
-                <div className="new-app-alert">Partial Match — Some keywords missing</div>
-                <label className="new-app-field" htmlFor="new-app-notes">
-                  <span className="new-app-label">
-                    <span className="new-app-label-icon" aria-hidden="true">
-                      ☰
+                <details className="new-app-details">
+                  <summary className="new-app-details-summary">
+                    <span className="new-app-details-title">Additional Information</span>
+                    <span className="new-app-details-toggle" aria-hidden="true">
+                      <span className="new-app-details-icon">▾</span>
                     </span>
-                    Notes
-                  </span>
-                  <textarea
-                    id="new-app-notes"
-                    className="new-app-input new-app-textarea"
-                    placeholder="Any additional notes about this application..."
-                    rows={5}
-                    value={form.notes}
-                    onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
-                  />
-                </label>
+                  </summary>
+                  <div className="new-app-details-body">
+                    <div className="new-app-grid-2">
+                      <DatePicker
+                        id="new-app-date"
+                        label="Date Applied"
+                        required
+                        value={form.date_saved}
+                        onChange={(e) => setForm((p) => ({ ...p, date_saved: e.target.value }))}
+                      />
+                      <Select
+                        id="new-app-country"
+                        label="Country"
+                        required
+                        icon="◎"
+                        options={COUNTRY_OPTIONS.map((country) => ({ label: country, value: country }))}
+                        value={form.location_raw}
+                        onChange={(e) => setForm((p) => ({ ...p, location_raw: e.target.value }))}
+                      />
+                    </div>
+                    <label className="new-app-field" htmlFor="new-app-notes">
+                      <span className="new-app-label">
+                        <span className="new-app-label-icon" aria-hidden="true">
+                          ☰
+                        </span>
+                        Notes
+                      </span>
+                      <textarea
+                        id="new-app-notes"
+                        className="new-app-input new-app-textarea"
+                        placeholder="Any additional notes about this application..."
+                        rows={3}
+                        value={form.notes}
+                        onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
+                      />
+                    </label>
+                  </div>
+                </details>
               </section>
 
               <div className="new-app-actions">

@@ -403,7 +403,7 @@ export default function ReferralsPage() {
                     <th>Referral date</th>
                     <th>Company / Position</th>
                     <th>Status</th>
-                    <th>Referred by</th>
+                    <th>Referral Name</th>
                     <th>Notes</th>
                     <th>Link</th>
                     <th>Actions</th>
@@ -487,7 +487,7 @@ export default function ReferralsPage() {
                     <th>Updated</th>
                     <th>Company / Position</th>
                     <th>Status</th>
-                    <th>Referred by</th>
+                    <th>Referral Name</th>
                     <th>Notes</th>
                     <th>Link</th>
                     <th>Actions</th>

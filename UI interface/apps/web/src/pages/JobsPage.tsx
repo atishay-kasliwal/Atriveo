@@ -161,6 +161,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     keyword_matching: "Medium",
     oa_status: "No",
     referral_status: "",
+    referred_by_name: "",
     response_status: "",
     application_status: "",
     notes: "",
@@ -309,6 +310,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
           : String((job as any).keyword_matching ?? "Medium"),
       oa_status: normalizeOaStatus((job as any).oa_status),
       referral_status: normalizeReferralStatus(job.referral_status),
+      referred_by_name: String((job as any).referred_by_name ?? ""),
       response_status: String(job.response_status ?? ""),
       application_status: String(job.application_status ?? "Applied"),
       notes: String(job.notes ?? ""),
@@ -331,6 +333,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
         keyword_matching: editForm.keyword_matching || undefined,
         oa_status: editForm.oa_status || undefined,
         referral_status: editForm.referral_status.trim() || undefined,
+        referred_by_name: editForm.referred_by_name.trim() || undefined,
         response_status: editForm.response_status.trim() || undefined,
         application_status: editForm.application_status.trim() || undefined,
         notes: editForm.notes.trim() || undefined,
@@ -832,6 +835,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                         ) : null}
                       </button>
                     </th>
+                    <th>Referral Name</th>
                     <th>Keyword Match</th>
                     <th>OA</th>
                     <th>OA Deadline</th>
@@ -883,6 +887,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                         </div>
                       </td>
                       <td>{normalizeReferralStatus(j.referral_status) || "-"}</td>
+                      <td>{String((j as any).referred_by_name ?? "-") || "-"}</td>
                       <td>
                         <span className={getKeywordMeta(String((j as any).keyword_matching ?? "Medium")).cls}>
                           {getKeywordMeta(String((j as any).keyword_matching ?? "Medium")).label}
@@ -1140,6 +1145,11 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                   ))}
                 </select>
               </div>
+              <input
+                placeholder="Referral name (optional)"
+                value={editForm.referred_by_name}
+                onChange={(e) => setEditForm((p) => ({ ...p, referred_by_name: e.target.value }))}
+              />
               <div className="form-row">
                 <label className="form-label">Application Status</label>
                 <select
