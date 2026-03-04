@@ -11,12 +11,14 @@ type TargetSignalsCarouselProps = {
       company: string | null;
       role: string | null;
       date_saved: string | null;
+      applied_at: string | null;
       job_link: string | null;
       job_application_id: string | null;
       oa_deadline_date: string | null;
       oa_status: string | null;
       referral_status: string | null;
       application_status: string | null;
+      notes: string | null;
     };
   }) => void;
 };
@@ -132,6 +134,7 @@ export default function TargetSignalsCarousel({ todayData, useDemoFallback = fal
       const friendId = Number(friend.friend_id ?? 0);
       const friendLabel = String(friend.friend_name || friend.friend_email || "Friend");
       friend.jobs.forEach((job) => {
+        if (!job.can_view_company || !job.can_view_role || !job.can_view_applied_at) return;
         const companyRaw = String(job.company ?? "").trim();
         if (!companyRaw) return;
         const canonical = canonicalByNormalized.get(normalizeCompanyName(companyRaw));
@@ -141,7 +144,7 @@ export default function TargetSignalsCarousel({ todayData, useDemoFallback = fal
           role: String(job.role || "Not specified"),
           friendLabel,
           friendId,
-          dateIso: String(job.date_saved || new Date().toISOString()),
+          dateIso: String(job.applied_at || job.date_saved || new Date().toISOString()),
           link: String(job.job_link || ""),
         });
       });
@@ -431,12 +434,14 @@ export default function TargetSignalsCarousel({ todayData, useDemoFallback = fal
                               company: selectedCard.company,
                               role: app.role,
                               date_saved: app.dateIso,
+                              applied_at: app.dateIso,
                               job_link: app.link || null,
                               job_application_id: null,
                               oa_deadline_date: null,
                               oa_status: null,
                               referral_status: null,
                               application_status: null,
+                              notes: null,
                             },
                           });
                         }}

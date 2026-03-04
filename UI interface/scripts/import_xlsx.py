@@ -17,6 +17,8 @@ DEFAULT_OWNER_EMAIL = "katishay@gmail.com"
 class ImportStats:
     jobs_inserted: int = 0
     referrals_inserted: int = 0
+    referrals_synced_updated: int = 0
+    referrals_synced_inserted: int = 0
     notes_inserted: int = 0
     pending_inserted: int = 0
 
@@ -24,6 +26,8 @@ class ImportStats:
         return {
             "jobs_inserted": self.jobs_inserted,
             "referrals_inserted": self.referrals_inserted,
+            "referrals_synced_updated": self.referrals_synced_updated,
+            "referrals_synced_inserted": self.referrals_synced_inserted,
             "notes_inserted": self.notes_inserted,
             "pending_inserted": self.pending_inserted,
         }
@@ -212,6 +216,103 @@ def import_pending(cur: psycopg.Cursor, xls: pd.ExcelFile, stats: ImportStats, u
         stats.pending_inserted += 1
 
 
+def sync_referrals_from_jobs(cur: psycopg.Cursor, user_id: int) -> tuple[int, int]:
+    cur.execute(
+        """
+        WITH candidate_jobs AS (
+          SELECT
+            j.id AS job_id,
+            j.user_id,
+            TRIM(j.company) AS company,
+            TRIM(j.role) AS request_log,
+            COALESCE(j.date_saved::date, j.applied_at::date, CURRENT_DATE) AS request_date,
+            NULLIF(TRIM(COALESCE(j.job_link, '')), '') AS request_link,
+            CASE
+              WHEN LOWER(TRIM(COALESCE(j.referral_status, ''))) = 'requested' THEN 'Requested'
+              WHEN LOWER(TRIM(COALESCE(j.referral_status, ''))) = 'yes' THEN 'Yes'
+              ELSE NULL
+            END AS referral_received,
+            COALESCE(NULLIF(TRIM(COALESCE(j.keyword_matching, '')), ''), 'Medium') AS keyword_matching,
+            NULLIF(TRIM(COALESCE(j.notes, '')), '') AS comment
+          FROM jobs j
+          WHERE j.user_id = %s
+            AND TRIM(COALESCE(j.company, '')) <> ''
+            AND TRIM(COALESCE(j.role, '')) <> ''
+            AND LOWER(TRIM(COALESCE(j.referral_status, ''))) IN ('requested', 'yes')
+        ),
+        job_with_match AS (
+          SELECT
+            cj.*,
+            COALESCE(
+              (
+                SELECT r.id
+                FROM referrals r
+                WHERE r.user_id = cj.user_id
+                  AND cj.request_link IS NOT NULL
+                  AND NULLIF(TRIM(COALESCE(r.request_link, '')), '') = cj.request_link
+                ORDER BY COALESCE(r.updated_date, r.request_date) DESC NULLS LAST, r.id DESC
+                LIMIT 1
+              ),
+              (
+                SELECT r.id
+                FROM referrals r
+                WHERE r.user_id = cj.user_id
+                  AND LOWER(TRIM(r.company)) = LOWER(cj.company)
+                  AND LOWER(TRIM(COALESCE(r.request_log, ''))) = LOWER(cj.request_log)
+                ORDER BY COALESCE(r.updated_date, r.request_date) DESC NULLS LAST, r.id DESC
+                LIMIT 1
+              )
+            ) AS referral_id
+          FROM candidate_jobs cj
+        ),
+        updated AS (
+          UPDATE referrals r
+          SET
+            company = m.company,
+            request_log = m.request_log,
+            request_date = COALESCE(m.request_date, r.request_date),
+            updated_date = COALESCE(m.request_date, CURRENT_DATE),
+            request_link = COALESCE(m.request_link, r.request_link),
+            referral_received = m.referral_received,
+            keyword_matching = COALESCE(m.keyword_matching, r.keyword_matching, 'Medium'),
+            comment = COALESCE(m.comment, r.comment),
+            updated_at = NOW()
+          FROM job_with_match m
+          WHERE m.referral_id IS NOT NULL
+            AND r.id = m.referral_id
+          RETURNING r.id
+        ),
+        inserted AS (
+          INSERT INTO referrals (
+            user_id, source, company, request_log, request_date, updated_date, request_link, referral_received, keyword_matching, comment
+          )
+          SELECT
+            m.user_id,
+            'job-sync-import',
+            m.company,
+            m.request_log,
+            m.request_date,
+            COALESCE(m.request_date, CURRENT_DATE),
+            m.request_link,
+            m.referral_received,
+            COALESCE(m.keyword_matching, 'Medium'),
+            m.comment
+          FROM job_with_match m
+          WHERE m.referral_id IS NULL
+          RETURNING id
+        )
+        SELECT
+          (SELECT COUNT(*)::int FROM updated) AS updated_count,
+          (SELECT COUNT(*)::int FROM inserted) AS inserted_count
+        """,
+        (user_id,),
+    )
+    row = cur.fetchone()
+    if not row:
+        return (0, 0)
+    return (int(row[0] or 0), int(row[1] or 0))
+
+
 def run_import(db_url: str, source_file: Path, report_path: Path) -> dict[str, Any]:
     xls = pd.ExcelFile(source_file)
     stats = ImportStats()
@@ -231,6 +332,9 @@ def run_import(db_url: str, source_file: Path, report_path: Path) -> dict[str, A
             import_referrals(cur, xls, stats, user_id)
             import_notes(cur, xls, stats, user_id)
             import_pending(cur, xls, stats, user_id)
+            synced_updated, synced_inserted = sync_referrals_from_jobs(cur, user_id)
+            stats.referrals_synced_updated = synced_updated
+            stats.referrals_synced_inserted = synced_inserted
 
             details = {
                 "started_at": started,

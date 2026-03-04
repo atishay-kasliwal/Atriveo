@@ -112,6 +112,21 @@ export default function Layout({ userEmail, onLogout, theme, onToggleTheme }: La
   }, []);
 
   useEffect(() => {
+    function onOpenCreateTaskModal() {
+      openCreateTaskModal();
+    }
+    function onOpenLogNoteModal() {
+      openLogNoteModal();
+    }
+    window.addEventListener("open-create-task-modal", onOpenCreateTaskModal);
+    window.addEventListener("open-log-note-modal", onOpenLogNoteModal);
+    return () => {
+      window.removeEventListener("open-create-task-modal", onOpenCreateTaskModal);
+      window.removeEventListener("open-log-note-modal", onOpenLogNoteModal);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!showFriendModal) return;
     void loadFriendManager();
   }, [showFriendModal]);

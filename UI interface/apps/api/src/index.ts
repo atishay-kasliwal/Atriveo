@@ -45,9 +45,75 @@ const signupInput = z.object({
 
 const MAX_FRIENDS = 10;
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+const NETWORK_REQUIRED_VISIBILITY_FIELDS = ["share_company", "share_role", "share_applied_at"] as const;
 
 function parseAnchorDay(rawAnchor: string | undefined): string | null {
   return rawAnchor && ISO_DATE_REGEX.test(rawAnchor) ? rawAnchor : null;
+}
+
+type UserFieldVisibility = {
+  share_company: boolean;
+  share_role: boolean;
+  share_applied_at: boolean;
+  share_oa_status: boolean;
+  share_oa_deadline: boolean;
+  share_referral_used: boolean;
+  share_notes: boolean;
+};
+
+const DEFAULT_USER_FIELD_VISIBILITY: UserFieldVisibility = {
+  share_company: true,
+  share_role: true,
+  share_applied_at: true,
+  share_oa_status: true,
+  share_oa_deadline: true,
+  share_referral_used: true,
+  share_notes: false,
+};
+
+function toBoolean(value: unknown, fallback: boolean): boolean {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value !== 0;
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (raw === "true" || raw === "t" || raw === "1" || raw === "yes") return true;
+  if (raw === "false" || raw === "f" || raw === "0" || raw === "no") return false;
+  return fallback;
+}
+
+function normalizeUserFieldVisibility(row: Record<string, unknown> | undefined): UserFieldVisibility {
+  return {
+    share_company: toBoolean(row?.share_company, DEFAULT_USER_FIELD_VISIBILITY.share_company),
+    share_role: toBoolean(row?.share_role, DEFAULT_USER_FIELD_VISIBILITY.share_role),
+    share_applied_at: toBoolean(row?.share_applied_at, DEFAULT_USER_FIELD_VISIBILITY.share_applied_at),
+    share_oa_status: toBoolean(row?.share_oa_status, DEFAULT_USER_FIELD_VISIBILITY.share_oa_status),
+    share_oa_deadline: toBoolean(row?.share_oa_deadline, DEFAULT_USER_FIELD_VISIBILITY.share_oa_deadline),
+    share_referral_used: toBoolean(row?.share_referral_used, DEFAULT_USER_FIELD_VISIBILITY.share_referral_used),
+    share_notes: toBoolean(row?.share_notes, DEFAULT_USER_FIELD_VISIBILITY.share_notes),
+  };
+}
+
+function applyRequiredVisibilityFields(visibility: UserFieldVisibility): UserFieldVisibility {
+  return {
+    ...visibility,
+    share_company: true,
+    share_role: true,
+    share_applied_at: true,
+  };
+}
+
+async function ensureUserFieldVisibility(env: Bindings, userId: number): Promise<UserFieldVisibility> {
+  const [row] = await query<Record<string, unknown>>(
+    env,
+    `
+    INSERT INTO user_field_visibility (user_id)
+    VALUES ($1)
+    ON CONFLICT (user_id) DO UPDATE
+      SET user_id = EXCLUDED.user_id
+    RETURNING share_company, share_role, share_applied_at, share_oa_status, share_oa_deadline, share_referral_used, share_notes
+    `,
+    [userId],
+  );
+  return applyRequiredVisibilityFields(normalizeUserFieldVisibility(row));
 }
 
 const friendRequestInput = z.object({
@@ -661,6 +727,67 @@ app.post("/api/friends/:id/block", async (c) => {
   return c.json({ ok: true, friendship: row });
 });
 
+const networkFieldVisibilityUpdateInput = z.object({
+  share_company: z.boolean().optional(),
+  share_role: z.boolean().optional(),
+  share_applied_at: z.boolean().optional(),
+  share_oa_status: z.boolean().optional(),
+  share_oa_deadline: z.boolean().optional(),
+  share_referral_used: z.boolean().optional(),
+  share_notes: z.boolean().optional(),
+});
+
+app.get("/api/network/field-visibility", async (c) => {
+  const userId = c.get("authUser").id;
+  const data = await ensureUserFieldVisibility(c.env, userId);
+  return c.json({ data, required_fields: NETWORK_REQUIRED_VISIBILITY_FIELDS });
+});
+
+app.patch("/api/network/field-visibility", async (c) => {
+  const userId = c.get("authUser").id;
+  const parsed = networkFieldVisibilityUpdateInput.safeParse(await c.req.json());
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
+
+  const current = await ensureUserFieldVisibility(c.env, userId);
+  const next = applyRequiredVisibilityFields({
+    ...current,
+    ...parsed.data,
+  });
+
+  const [row] = await query<Record<string, unknown>>(
+    c.env,
+    `
+    UPDATE user_field_visibility
+    SET
+      share_company = $2,
+      share_role = $3,
+      share_applied_at = $4,
+      share_oa_status = $5,
+      share_oa_deadline = $6,
+      share_referral_used = $7,
+      share_notes = $8,
+      updated_at = NOW()
+    WHERE user_id = $1
+    RETURNING share_company, share_role, share_applied_at, share_oa_status, share_oa_deadline, share_referral_used, share_notes
+    `,
+    [
+      userId,
+      next.share_company,
+      next.share_role,
+      next.share_applied_at,
+      next.share_oa_status,
+      next.share_oa_deadline,
+      next.share_referral_used,
+      next.share_notes,
+    ],
+  );
+
+  return c.json({
+    data: applyRequiredVisibilityFields(normalizeUserFieldVisibility(row)),
+    required_fields: NETWORK_REQUIRED_VISIBILITY_FIELDS,
+  });
+});
+
 app.get("/api/network/trend", async (c) => {
   const userId = c.get("authUser").id;
   const days = Math.max(3, Math.min(30, Number(c.req.query("days") ?? 10)));
@@ -676,7 +803,13 @@ app.get("/api/network/trend", async (c) => {
   }>(
     c.env,
     `
-    WITH network_people AS (
+    WITH viewer_visibility AS (
+      SELECT
+        COALESCE(v.share_applied_at, TRUE) AS share_applied_at
+      FROM (SELECT 1) seed
+      LEFT JOIN user_field_visibility v ON v.user_id = $1
+    ),
+    network_people AS (
       SELECT
         u.id AS friend_id,
         u.email AS friend_email,
@@ -709,7 +842,13 @@ app.get("/api/network/trend", async (c) => {
         DATE(j.date_saved) AS day,
         COUNT(*)::int AS cnt
       FROM jobs j
+      CROSS JOIN viewer_visibility vv
+      LEFT JOIN user_field_visibility ov ON ov.user_id = j.user_id
       WHERE j.date_saved IS NOT NULL
+        AND (
+          j.user_id = $1
+          OR (vv.share_applied_at AND COALESCE(ov.share_applied_at, TRUE))
+        )
       GROUP BY j.user_id, DATE(j.date_saved)
     )
     SELECT
@@ -766,16 +905,37 @@ app.get("/api/network/today", async (c) => {
     company: string | null;
     role: string | null;
     date_saved: string | null;
+    applied_at: string | null;
     application_status: string | null;
     referral_status: string | null;
     oa_status: string | null;
     job_application_id: string | null;
     oa_deadline_date: string | null;
     job_link: string | null;
+    notes: string | null;
+    can_view_company: boolean;
+    can_view_role: boolean;
+    can_view_applied_at: boolean;
+    can_view_oa_status: boolean;
+    can_view_oa_deadline: boolean;
+    can_view_referral_used: boolean;
+    can_view_notes: boolean;
   }>(
     c.env,
     `
-    WITH friends AS (
+    WITH viewer_visibility AS (
+      SELECT
+        COALESCE(v.share_company, TRUE) AS share_company,
+        COALESCE(v.share_role, TRUE) AS share_role,
+        COALESCE(v.share_applied_at, TRUE) AS share_applied_at,
+        COALESCE(v.share_oa_status, TRUE) AS share_oa_status,
+        COALESCE(v.share_oa_deadline, TRUE) AS share_oa_deadline,
+        COALESCE(v.share_referral_used, TRUE) AS share_referral_used,
+        COALESCE(v.share_notes, FALSE) AS share_notes
+      FROM (SELECT 1) seed
+      LEFT JOIN user_field_visibility v ON v.user_id = $1
+    ),
+    friends AS (
       SELECT
         CASE WHEN f.requester_id = $1 THEN f.receiver_id ELSE f.requester_id END AS friend_id,
         u.email AS friend_email,
@@ -791,20 +951,113 @@ app.get("/api/network/today", async (c) => {
       fr.friend_email,
       fr.friend_name,
       j.id AS job_id,
-      j.company,
-      j.role,
-      j.date_saved::text AS date_saved,
-      j.application_status,
-      j.referral_status,
-      j.oa_status,
-      j.job_application_id,
-      j.oa_deadline_date::text AS oa_deadline_date,
-      j.job_link
+      CASE
+        WHEN j.id IS NULL THEN NULL
+        WHEN fr.friend_id = $1 OR (vv.share_company AND COALESCE(ov.share_company, TRUE)) THEN j.company
+        ELSE NULL
+      END AS company,
+      CASE
+        WHEN j.id IS NULL THEN NULL
+        WHEN fr.friend_id = $1 OR (vv.share_role AND COALESCE(ov.share_role, TRUE)) THEN j.role
+        ELSE NULL
+      END AS role,
+      CASE
+        WHEN j.id IS NULL THEN NULL
+        WHEN fr.friend_id = $1 OR (vv.share_applied_at AND COALESCE(ov.share_applied_at, TRUE)) THEN j.date_saved::text
+        ELSE NULL
+      END AS date_saved,
+      CASE
+        WHEN j.id IS NULL THEN NULL
+        WHEN fr.friend_id = $1 OR (vv.share_applied_at AND COALESCE(ov.share_applied_at, TRUE)) THEN j.applied_at::text
+        ELSE NULL
+      END AS applied_at,
+      CASE
+        WHEN j.id IS NULL THEN NULL
+        WHEN fr.friend_id = $1 OR (vv.share_applied_at AND COALESCE(ov.share_applied_at, TRUE)) THEN j.application_status
+        ELSE NULL
+      END AS application_status,
+      CASE
+        WHEN j.id IS NULL THEN NULL
+        WHEN fr.friend_id = $1 OR (vv.share_referral_used AND COALESCE(ov.share_referral_used, TRUE)) THEN j.referral_status
+        ELSE NULL
+      END AS referral_status,
+      CASE
+        WHEN j.id IS NULL THEN NULL
+        WHEN fr.friend_id = $1 OR (vv.share_oa_status AND COALESCE(ov.share_oa_status, TRUE)) THEN j.oa_status
+        ELSE NULL
+      END AS oa_status,
+      CASE
+        WHEN j.id IS NULL THEN NULL
+        WHEN fr.friend_id = $1 OR (
+          (vv.share_company AND COALESCE(ov.share_company, TRUE))
+          AND (vv.share_role AND COALESCE(ov.share_role, TRUE))
+        ) THEN j.job_application_id
+        ELSE NULL
+      END AS job_application_id,
+      CASE
+        WHEN j.id IS NULL THEN NULL
+        WHEN fr.friend_id = $1 OR (vv.share_oa_deadline AND COALESCE(ov.share_oa_deadline, TRUE)) THEN j.oa_deadline_date::text
+        ELSE NULL
+      END AS oa_deadline_date,
+      CASE
+        WHEN j.id IS NULL THEN NULL
+        WHEN fr.friend_id = $1 OR (
+          (vv.share_company AND COALESCE(ov.share_company, TRUE))
+          AND (vv.share_role AND COALESCE(ov.share_role, TRUE))
+        ) THEN j.job_link
+        ELSE NULL
+      END AS job_link,
+      CASE
+        WHEN j.id IS NULL THEN NULL
+        WHEN fr.friend_id = $1 OR (vv.share_notes AND COALESCE(ov.share_notes, FALSE)) THEN j.notes
+        ELSE NULL
+      END AS notes,
+      CASE
+        WHEN j.id IS NULL THEN FALSE
+        WHEN fr.friend_id = $1 THEN TRUE
+        ELSE (vv.share_company AND COALESCE(ov.share_company, TRUE))
+      END AS can_view_company,
+      CASE
+        WHEN j.id IS NULL THEN FALSE
+        WHEN fr.friend_id = $1 THEN TRUE
+        ELSE (vv.share_role AND COALESCE(ov.share_role, TRUE))
+      END AS can_view_role,
+      CASE
+        WHEN j.id IS NULL THEN FALSE
+        WHEN fr.friend_id = $1 THEN TRUE
+        ELSE (vv.share_applied_at AND COALESCE(ov.share_applied_at, TRUE))
+      END AS can_view_applied_at,
+      CASE
+        WHEN j.id IS NULL THEN FALSE
+        WHEN fr.friend_id = $1 THEN TRUE
+        ELSE (vv.share_oa_status AND COALESCE(ov.share_oa_status, TRUE))
+      END AS can_view_oa_status,
+      CASE
+        WHEN j.id IS NULL THEN FALSE
+        WHEN fr.friend_id = $1 THEN TRUE
+        ELSE (vv.share_oa_deadline AND COALESCE(ov.share_oa_deadline, TRUE))
+      END AS can_view_oa_deadline,
+      CASE
+        WHEN j.id IS NULL THEN FALSE
+        WHEN fr.friend_id = $1 THEN TRUE
+        ELSE (vv.share_referral_used AND COALESCE(ov.share_referral_used, TRUE))
+      END AS can_view_referral_used,
+      CASE
+        WHEN j.id IS NULL THEN FALSE
+        WHEN fr.friend_id = $1 THEN TRUE
+        ELSE (vv.share_notes AND COALESCE(ov.share_notes, FALSE))
+      END AS can_view_notes
     FROM friends fr
+    CROSS JOIN viewer_visibility vv
+    LEFT JOIN user_field_visibility ov ON ov.user_id = fr.friend_id
     LEFT JOIN jobs j
       ON j.user_id = fr.friend_id
      AND j.date_saved IS NOT NULL
      AND j.date_saved::date = COALESCE($2::date, CURRENT_DATE)
+     AND (
+       fr.friend_id = $1
+       OR (vv.share_applied_at AND COALESCE(ov.share_applied_at, TRUE))
+     )
     ORDER BY
       COALESCE(j.applied_at, j.date_saved, j.created_at) DESC NULLS LAST,
       j.created_at DESC NULLS LAST,
@@ -824,12 +1077,21 @@ app.get("/api/network/today", async (c) => {
       company: string | null;
       role: string | null;
       date_saved: string | null;
+      applied_at: string | null;
       application_status: string | null;
       referral_status: string | null;
       oa_status: string | null;
       job_application_id: string | null;
       oa_deadline_date: string | null;
       job_link: string | null;
+      notes: string | null;
+      can_view_company: boolean;
+      can_view_role: boolean;
+      can_view_applied_at: boolean;
+      can_view_oa_status: boolean;
+      can_view_oa_deadline: boolean;
+      can_view_referral_used: boolean;
+      can_view_notes: boolean;
     }>;
   }>();
 
@@ -849,12 +1111,21 @@ app.get("/api/network/today", async (c) => {
         company: row.company ?? null,
         role: row.role ?? null,
         date_saved: row.date_saved ?? null,
+        applied_at: row.applied_at ?? null,
         application_status: row.application_status ?? null,
         referral_status: row.referral_status ?? null,
         oa_status: row.oa_status ?? null,
         job_application_id: row.job_application_id ?? null,
         oa_deadline_date: row.oa_deadline_date ?? null,
         job_link: row.job_link ?? null,
+        notes: row.notes ?? null,
+        can_view_company: toBoolean(row.can_view_company, false),
+        can_view_role: toBoolean(row.can_view_role, false),
+        can_view_applied_at: toBoolean(row.can_view_applied_at, false),
+        can_view_oa_status: toBoolean(row.can_view_oa_status, false),
+        can_view_oa_deadline: toBoolean(row.can_view_oa_deadline, false),
+        can_view_referral_used: toBoolean(row.can_view_referral_used, false),
+        can_view_notes: toBoolean(row.can_view_notes, false),
       });
     }
   }
@@ -884,7 +1155,16 @@ app.get("/api/network/deadlines", async (c) => {
   }>(
     c.env,
     `
-    WITH friends AS (
+    WITH viewer_visibility AS (
+      SELECT
+        COALESCE(v.share_company, TRUE) AS share_company,
+        COALESCE(v.share_role, TRUE) AS share_role,
+        COALESCE(v.share_oa_status, TRUE) AS share_oa_status,
+        COALESCE(v.share_oa_deadline, TRUE) AS share_oa_deadline
+      FROM (SELECT 1) seed
+      LEFT JOIN user_field_visibility v ON v.user_id = $1
+    ),
+    friends AS (
       SELECT
         CASE WHEN f.requester_id = $1 THEN f.receiver_id ELSE f.requester_id END AS friend_id,
         u.email AS friend_email,
@@ -911,12 +1191,18 @@ app.get("/api/network/deadlines", async (c) => {
       j.job_link,
       j.job_application_id
     FROM friends fr
+    CROSS JOIN viewer_visibility vv
+    LEFT JOIN user_field_visibility ov ON ov.user_id = fr.friend_id
     JOIN jobs j
       ON j.user_id = fr.friend_id
     WHERE LOWER(TRIM(COALESCE(j.oa_status, ''))) = 'yes'
       AND LOWER(TRIM(COALESCE(j.application_status, 'Applied'))) != 'rejected'
       AND j.oa_deadline_date IS NOT NULL
       AND j.oa_deadline_date <= COALESCE($2::date, CURRENT_DATE)
+      AND (vv.share_oa_status AND COALESCE(ov.share_oa_status, TRUE))
+      AND (vv.share_oa_deadline AND COALESCE(ov.share_oa_deadline, TRUE))
+      AND (vv.share_company AND COALESCE(ov.share_company, TRUE))
+      AND (vv.share_role AND COALESCE(ov.share_role, TRUE))
     ORDER BY
       j.oa_deadline_date ASC,
       LOWER(fr.friend_name) ASC,
@@ -1784,11 +2070,12 @@ app.post("/api/jobs/import/csv", async (c) => {
   }
 
   for (const row of imports) {
-    await query(
+    const [inserted] = await query<Record<string, unknown>>(
       c.env,
       `
       INSERT INTO jobs (user_id, source, role, company, location_raw, job_link, job_application_id, oa_deadline_date, keyword_matching, oa_status, referral_status, response_status, application_status, notes, date_saved)
       VALUES ($1, 'import-csv', $2, $3, $4, $5, COALESCE($6, '-'), $7::date, COALESCE($8, 'Medium'), COALESCE($9, 'No'), $10, $11, COALESCE($12, 'Applied'), $13, ($14::date)::timestamp)
+      RETURNING *
       `,
       [
         userId,
@@ -1807,6 +2094,9 @@ app.post("/api/jobs/import/csv", async (c) => {
         row.date_saved,
       ],
     );
+    if (inserted) {
+      await syncReferralFromJob(c.env, userId, inserted);
+    }
   }
 
   return c.json({

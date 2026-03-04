@@ -251,7 +251,16 @@ export default function NotesPage() {
         <div className="card">
           <div className="notes-page-shell">
             <div className="notes-page-head">
-              <h2>Notes</h2>
+              <div className="notes-page-head-row">
+                <h2>Notes</h2>
+                <button
+                  type="button"
+                  className="section-header-btn"
+                  onClick={() => window.dispatchEvent(new CustomEvent("open-log-note-modal"))}
+                >
+                  Add Notes
+                </button>
+              </div>
               <p className="notes-page-sub">Keep outreach and follow-up messages organized by priority.</p>
             </div>
             {isLoading ? (

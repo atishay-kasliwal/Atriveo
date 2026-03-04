@@ -8,8 +8,6 @@ import ReferralsPage from "./pages/ReferralsPage";
 import PendingPage from "./pages/PendingPage";
 import NotesPage from "./pages/NotesPage";
 import NetworkPage from "./pages/NetworkPage";
-import AuthPage from "./pages/AuthPage";
-import SignupPage from "./pages/SignupPage";
 import LandingPage from "./pages/LandingPage";
 import HeaderTestPage from "./pages/HeaderTestPage";
 import {
@@ -122,34 +120,7 @@ export default function App() {
                   isAuthenticated={Boolean(session)}
                   theme={theme}
                   onToggleTheme={handleToggleTheme}
-                />
-              )
-            }
-          />
-          <Route
-            path="/login"
-            element={
-              session ? (
-                <Navigate to={withDashboardBase("")} replace />
-              ) : (
-                <AuthPage
                   onAuthenticated={handleAuthenticated}
-                  theme={theme}
-                  onToggleTheme={handleToggleTheme}
-                />
-              )
-            }
-          />
-          <Route
-            path="/signup"
-            element={
-              session ? (
-                <Navigate to={withDashboardBase("")} replace />
-              ) : (
-                <SignupPage
-                  onAuthenticated={handleAuthenticated}
-                  theme={theme}
-                  onToggleTheme={handleToggleTheme}
                 />
               )
             }
@@ -166,7 +137,7 @@ export default function App() {
                   onToggleTheme={handleToggleTheme}
                 />
               ) : (
-                <Navigate to="/login" replace />
+                <Navigate to="/" replace />
               )
             }
           >

@@ -25,6 +25,14 @@ export function formatTableDate(value: unknown): string {
  * Format a timestamp for display in tables with date + time.
  * Date-only inputs remain date-only to avoid fake midnight times.
  */
+function extractMidnightUtcDate(raw: string): string | null {
+  const normalized = raw.trim().replace(" ", "T");
+  const m = normalized.match(
+    /^(\d{4}-\d{2}-\d{2})T00:00:00(?:\.0+)?(?:Z|[+-]00(?::?00)?)?$/,
+  );
+  return m ? m[1] : null;
+}
+
 export function formatTableDateTime(value: unknown): string {
   if (value == null || value === "") return "—";
   try {
@@ -35,11 +43,8 @@ export function formatTableDateTime(value: unknown): string {
     // Many rows are saved with date-only intent at midnight UTC.
     // Rendering those in local time can show the previous day (e.g. Mar 1 -> Feb 28, 07:00 PM EST).
     // For those cases, keep date-only rendering.
-    const asIso = raw.replace(" ", "T");
-    const midnightUtcMatch = asIso.match(
-      /^(\d{4}-\d{2}-\d{2})T00:00:00(?:\.0+)?(?:Z|\+00:?00)?$/,
-    );
-    if (midnightUtcMatch) return formatTableDate(midnightUtcMatch[1]);
+    const midnightUtcDate = extractMidnightUtcDate(raw);
+    if (midnightUtcDate) return formatTableDate(midnightUtcDate);
 
     const d = new Date(raw);
     if (isNaN(d.getTime())) return raw;
@@ -61,11 +66,7 @@ export function formatTableTime(value: unknown): string {
   if (value == null || value === "") return "—";
   try {
     const raw = String(value);
-    const asIso = raw.replace(" ", "T");
-    const midnightUtcMatch = asIso.match(
-      /^(\d{4}-\d{2}-\d{2})T00:00:00(?:\.0+)?(?:Z|\+00:?00)?$/,
-    );
-    if (midnightUtcMatch) return "12:07 AM";
+    if (extractMidnightUtcDate(raw)) return "12:00 AM";
 
     const d = new Date(raw);
     if (isNaN(d.getTime())) return "—";

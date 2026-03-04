@@ -461,12 +461,21 @@ export type NetworkTodayJob = {
   company: string | null;
   role: string | null;
   date_saved: string | null;
+  applied_at: string | null;
   application_status: string | null;
   referral_status: string | null;
   oa_status: string | null;
   job_application_id: string | null;
   oa_deadline_date: string | null;
   job_link: string | null;
+  notes: string | null;
+  can_view_company: boolean;
+  can_view_role: boolean;
+  can_view_applied_at: boolean;
+  can_view_oa_status: boolean;
+  can_view_oa_deadline: boolean;
+  can_view_referral_used: boolean;
+  can_view_notes: boolean;
 };
 
 export type NetworkTodayFriend = {
@@ -481,6 +490,29 @@ export function getNetworkToday() {
   search.set("anchorDay", getLocalISODate());
   return request<{ anchorDay: string | null; data: NetworkTodayFriend[] }>(
     `/api/network/today?${search.toString()}`
+  );
+}
+
+export type NetworkFieldVisibility = {
+  share_company: boolean;
+  share_role: boolean;
+  share_applied_at: boolean;
+  share_oa_status: boolean;
+  share_oa_deadline: boolean;
+  share_referral_used: boolean;
+  share_notes: boolean;
+};
+
+export function getNetworkFieldVisibility() {
+  return request<{ data: NetworkFieldVisibility; required_fields: Array<keyof NetworkFieldVisibility> }>(
+    "/api/network/field-visibility",
+  );
+}
+
+export function updateNetworkFieldVisibility(payload: Partial<NetworkFieldVisibility>) {
+  return request<{ data: NetworkFieldVisibility; required_fields: Array<keyof NetworkFieldVisibility> }>(
+    "/api/network/field-visibility",
+    { method: "PATCH", body: JSON.stringify(payload) },
   );
 }
 
