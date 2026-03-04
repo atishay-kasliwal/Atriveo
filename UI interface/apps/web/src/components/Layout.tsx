@@ -271,8 +271,8 @@ export default function Layout({ userEmail, onLogout, theme, onToggleTheme }: La
       setCsvError("Please choose a CSV file.");
       return;
     }
-    if (csvFile.size > 1024 * 1024) {
-      setCsvError("CSV file is too large. Maximum allowed size is 1 MB.");
+    if (csvFile.size > 10 * 1024 * 1024) {
+      setCsvError("CSV file is too large. Maximum allowed size is 10 MB.");
       return;
     }
     try {
@@ -280,13 +280,13 @@ export default function Layout({ userEmail, onLogout, theme, onToggleTheme }: La
       const csvText = await csvFile.text();
       const result = await importJobsCsv(csvText);
       const summary = [
-        `Imported ${result.imported} row(s).`,
+        `Imported ${result.imported} of ${result.rowsReceived} row(s).`,
         `Skipped (missing mandatory): ${result.skippedMissingRequired}.`,
         `Skipped (invalid date): ${result.skippedInvalidDate}.`,
         `Defaults applied: ${result.defaultsApplied}.`,
       ].join(" ");
       const warningPreview = result.warnings?.length ? ` ${result.warnings.slice(0, 3).join(" ")}` : "";
-      setCsvSuccess(`${summary}${warningPreview}`);
+      setCsvSuccess(`${summary}${warningPreview} Jobs table is paginated (25 per page).`);
       window.dispatchEvent(new CustomEvent("dashboard-refresh"));
     } catch (err) {
       setCsvError((err as Error).message || "Failed to import CSV.");
@@ -521,8 +521,10 @@ export default function Layout({ userEmail, onLogout, theme, onToggleTheme }: La
             {csvMode === "import" ? (
               <form className="form" onSubmit={onImportCsv}>
                 <p className="csv-helper">
-                  Upload must be CSV, up to 1 MB.
-                  Mandatory per row: <code>role</code>, <code>company</code>, <code>date_saved</code> (YYYY-MM-DD). Rows missing these are skipped.
+                  Upload must be CSV, up to 10 MB.
+                  Mandatory per row: <code>role</code>, <code>company</code>, and at least one of <code>date_saved</code> (YYYY-MM-DD) or <code>applied_at</code> (ISO timestamp).
+                  Include both when possible to preserve exact application time and stable sorting.
+                  If only <code>date_saved</code> is provided, import defaults time to 12:07 AM.
                   Optional fields auto-default when blank or invalid.
                   Allowed values:
                   <code>keyword_matching</code> = Strong/Medium/Weak,

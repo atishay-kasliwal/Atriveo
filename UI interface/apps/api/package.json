@@ -12,6 +12,7 @@
     "deploy:prod": "wrangler deploy --env production",
     "migrate": "node scripts/run-migrations.js",
     "audit:dashboard": "node scripts/audit-dashboard-api.mjs",
+    "audit:csv": "node scripts/audit-csv-import-export.mjs",
     "audit:referrals": "node scripts/audit-referral-sync.js",
     "referrals:sync": "node scripts/sync-referrals-from-jobs.js",
     "seed:users": "node scripts/seed-users.js",

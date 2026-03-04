@@ -1,5 +1,5 @@
-date_saved,role,company,location_raw,job_link,job_application_id,oa_deadline_date,keyword_matching,oa_status,referral_status,response_status,application_status,notes
-2026-02-20,Software Engineer,Example Corp,New York,https://example.com/jobs/123,APP-123,2026-03-05,Medium,No,No,Review,Applied,Valid values example
-2026-02-21,Backend Engineer,Acme Labs,San Francisco,https://example.com/jobs/456,APP-456,2026-03-07,Strong,Yes,Yes,Interview,Interview,Valid values example
-2026-02-22,Frontend Engineer,Beta Systems,Austin,https://example.com/jobs/789,APP-789,,Weak,No,No,No Response,Offer,Valid values example
-2026-02-23,Data Engineer,Default Demo,,,APP-000,InvalidDate,InvalidKeyword,maybe,whatever,bad status,unknown,Leave blank/invalid optional values -> defaults are used
+date_saved,applied_at,role,company,location_raw,job_link,job_application_id,oa_deadline_date,keyword_matching,oa_status,referral_status,response_status,application_status,notes
+2026-02-20,2026-02-20T09:15:00-05:00,Software Engineer,Example Corp,New York,https://example.com/jobs/123,APP-123,2026-03-05,Medium,No,No,Review,Applied,Valid values example
+2026-02-21,2026-02-21T13:40:00-05:00,Backend Engineer,Acme Labs,San Francisco,https://example.com/jobs/456,APP-456,2026-03-07,Strong,Yes,Yes,Interview,Interview,Valid values example
+2026-02-22,2026-02-22T18:05:00-05:00,Frontend Engineer,Beta Systems,Austin,https://example.com/jobs/789,APP-789,,Weak,No,No,No Response,Offer,Valid values example
+2026-02-23,,Data Engineer,Default Demo,,,APP-000,InvalidDate,InvalidKeyword,maybe,whatever,bad status,unknown,Leave blank/invalid optional values -> defaults are used

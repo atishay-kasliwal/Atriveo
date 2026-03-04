@@ -33,6 +33,14 @@ function extractMidnightUtcDate(raw: string): string | null {
   return m ? m[1] : null;
 }
 
+function extractDefaultCsvTimeUtcDate(raw: string): string | null {
+  const normalized = raw.trim().replace(" ", "T");
+  const m = normalized.match(
+    /^(\d{4}-\d{2}-\d{2})T00:07:00(?:\.0+)?(?:Z|[+-]00(?::?00)?)?$/,
+  );
+  return m ? m[1] : null;
+}
+
 export function formatTableDateTime(value: unknown): string {
   if (value == null || value === "") return "—";
   try {
@@ -45,6 +53,21 @@ export function formatTableDateTime(value: unknown): string {
     // For those cases, keep date-only rendering.
     const midnightUtcDate = extractMidnightUtcDate(raw);
     if (midnightUtcDate) return formatTableDate(midnightUtcDate);
+
+    // CSV imports with only date (no explicit time) default to 12:07 AM UTC.
+    // Render this fallback in UTC to keep date + time stable for users.
+    const defaultCsvDate = extractDefaultCsvTimeUtcDate(raw);
+    if (defaultCsvDate) {
+      const synthetic = new Date(`${defaultCsvDate}T00:07:00Z`);
+      return new Intl.DateTimeFormat(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "UTC",
+      }).format(synthetic);
+    }
 
     const d = new Date(raw);
     if (isNaN(d.getTime())) return raw;
@@ -67,6 +90,7 @@ export function formatTableTime(value: unknown): string {
   try {
     const raw = String(value);
     if (extractMidnightUtcDate(raw)) return "12:00 AM";
+    if (extractDefaultCsvTimeUtcDate(raw)) return "12:07 AM";
 
     const d = new Date(raw);
     if (isNaN(d.getTime())) return "—";

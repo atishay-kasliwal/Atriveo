@@ -139,6 +139,7 @@ function formatDayShort(day: string) {
 
 export default function JobsPage({ statusFilter }: { statusFilter?: string } = {}) {
   const [data, setData] = useState<Array<Record<string, unknown>>>([]);
+  const [totalRows, setTotalRows] = useState(0);
   const [page, setPage] = useState(1);
   const [company, setCompany] = useState("");
   const [searchInput, setSearchInput] = useState("");
@@ -205,9 +206,11 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
         status: statusFilter ?? "active",
       });
       setData(res.data ?? []);
+      setTotalRows(Number(res.total ?? 0));
     } catch (e) {
       setError((e as Error).message);
       setData([]);
+      setTotalRows(0);
     } finally {
       setIsLoading(false);
     }
@@ -372,8 +375,9 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     };
   }, [trendData]);
 
-  const hasNext = data.length === LIMIT;
+  const hasNext = page * LIMIT < totalRows;
   const hasPrev = page > 1;
+  const totalPages = Math.max(1, Math.ceil(totalRows / LIMIT));
 
   const sortConfig = BASE_SORT_CONFIG;
 
@@ -943,7 +947,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
               <button type="button" disabled={!hasPrev} onClick={() => setPage((p) => p - 1)}>
                 Prev
               </button>
-              <span>Page {page}</span>
+              <span>Page {page} of {totalPages} • {totalRows} total</span>
               <button type="button" disabled={!hasNext} onClick={() => setPage((p) => p + 1)}>
                 Next
               </button>

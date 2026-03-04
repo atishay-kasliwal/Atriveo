@@ -20,6 +20,7 @@
     "build:api:staging": "npm run build:staging -w @job-tracker/api",
     "deploy:api:staging": "npm run deploy:staging -w @job-tracker/api",
     "deploy:api:prod": "npm run deploy:prod -w @job-tracker/api",
+    "audit:csv": "npm run audit:csv -w @job-tracker/api",
     "audit:referrals": "npm run audit:referrals -w @job-tracker/api",
     "referrals:sync": "npm run referrals:sync -w @job-tracker/api"
   }

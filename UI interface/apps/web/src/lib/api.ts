@@ -162,7 +162,7 @@ export function getJobs(params: GetJobsParams = {}) {
   search.set("sort", sort);
   search.set("order", order);
   if ((params as any).status) search.set("status", String((params as any).status));
-  return request<{ page: number; limit: number; data: Array<Record<string, unknown>> }>(
+  return request<{ page: number; limit: number; total: number; data: Array<Record<string, unknown>> }>(
     `/api/jobs?${search.toString()}`,
     { cache: "no-store" }
   );
