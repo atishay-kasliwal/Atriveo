@@ -1092,7 +1092,7 @@ export default function Layout({ userEmail, onLogout, theme, onToggleTheme }: La
                   <YesNoToggle
                     id="new-app-referral"
                     label="Referral"
-                    value={form.referral_status}
+                    value={form.referral_status === "Yes" ? "Yes" : "No"}
                     onChange={(next) => setForm((p) => ({ ...p, referral_status: next }))}
                   />
                   <Input
@@ -1105,7 +1105,7 @@ export default function Layout({ userEmail, onLogout, theme, onToggleTheme }: La
                   <YesNoToggle
                     id="new-app-oa"
                     label="Online Assessment"
-                    value={form.oa_status}
+                    value={form.oa_status === "Yes" ? "Yes" : "No"}
                     onChange={(next) => setForm((p) => ({ ...p, oa_status: next }))}
                   />
                   <DatePicker

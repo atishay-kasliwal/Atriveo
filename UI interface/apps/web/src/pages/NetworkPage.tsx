@@ -976,11 +976,11 @@ export default function NetworkPage() {
                                 <LabelList
                                   dataKey="total"
                                   content={(props: {
-                                    x?: number;
-                                    y?: number;
-                                    width?: number;
+                                    x?: number | string;
+                                    y?: number | string;
+                                    width?: number | string;
                                     value?: number | string;
-                                    payload?: { isLeader?: boolean; color?: string };
+                                    payload?: { isLeader?: boolean; color?: string } | null;
                                   }) => {
                                     const x = Number(props.x ?? 0);
                                     const y = Number(props.y ?? 0);

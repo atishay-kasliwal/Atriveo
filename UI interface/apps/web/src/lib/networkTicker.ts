@@ -123,14 +123,15 @@ export function buildNetworkTickerFacts(input: BuildNetworkTickerInput): Network
   const topSingleDay = (() => {
     const labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
     let best: { name: string; count: number; day: string } | null = null;
-    weekly.forEach((row) => {
-      row.dayValues.forEach((count, idx) => {
+    for (const row of weekly) {
+      for (let idx = 0; idx < row.dayValues.length; idx += 1) {
+        const count = row.dayValues[idx];
         const safe = Math.max(0, Number(count ?? 0));
         if (!best || safe > best.count) {
           best = { name: row.displayName, count: safe, day: labels[idx] ?? "Day" };
         }
-      });
-    });
+      }
+    }
     return best;
   })();
   if (topSingleDay) {

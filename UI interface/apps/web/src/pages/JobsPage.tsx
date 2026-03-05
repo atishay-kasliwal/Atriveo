@@ -362,10 +362,11 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
 
   async function onSaveEdit(e: React.FormEvent) {
     e.preventDefault();
-    if (!editing?.id) return;
+    const editId = editing?.id;
+    if (typeof editId !== "number" && typeof editId !== "string") return;
     try {
       setIsSaving(true);
-      await updateJob(editing.id, {
+      await updateJob(editId, {
         date_saved: editForm.date_saved || undefined,
         role: editForm.role.trim() || undefined,
         company: editForm.company.trim() || undefined,
@@ -549,11 +550,12 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
 
   async function onSaveOaEdit(e: React.FormEvent) {
     e.preventDefault();
-    if (!oaEditing?.id) return;
+    const oaEditId = oaEditing?.id;
+    if (typeof oaEditId !== "number" && typeof oaEditId !== "string") return;
     try {
       setIsOaSaving(true);
       setOaArchiveError("");
-      await updateOaArchive(oaEditing.id, {
+      await updateOaArchive(oaEditId, {
         role: oaEditForm.role.trim() || null,
         company: oaEditForm.company.trim() || null,
         location_raw: oaEditForm.location_raw.trim() || null,
