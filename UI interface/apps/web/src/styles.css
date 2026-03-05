@@ -106,17 +106,18 @@
   --chart-text: #f8fafc;
   --chart-text-secondary: #cbd5e1;
   --network-chart-grid: rgba(148, 163, 184, 0.18);
-  --heatmap-empty-bg: color-mix(in srgb, var(--bg-card-elevated) 62%, transparent);
-  --heatmap-empty-border: color-mix(in srgb, var(--bg-card-border) 62%, transparent);
-  --heatmap-future-border: color-mix(in srgb, var(--bg-card-border) 52%, transparent);
-  --heatmap-day-text: var(--text-muted);
-  --heatmap-level-0: #22314a;
-  --heatmap-level-1: #1f4b7a;
-  --heatmap-level-2: #2563eb;
-  --heatmap-level-3: #3b82f6;
-  --heatmap-level-4: #60a5fa;
-  --heatmap-active-text: #e6efff;
-  --heatmap-today-border: #93c5fd;
+  --heatmap-empty-bg: #0d1117;
+  --heatmap-empty-border: #30363d;
+  --heatmap-future-border: #30363d;
+  --heatmap-day-text: #8b949e;
+  --heatmap-level-0: #161b22;
+  --heatmap-level-1: #0e4429;
+  --heatmap-level-2: #006d32;
+  --heatmap-level-3: #26a641;
+  --heatmap-level-4: #39d353;
+  --heatmap-active-text-low: #e6edf3;
+  --heatmap-active-text-high: #f0f6fc;
+  --heatmap-today-border: #3fb950;
   --error-bg: rgba(185, 28, 28, 0.2);
   --error-border: rgba(248, 113, 113, 0.3);
   --error-text: #fca5a5;
@@ -189,17 +190,18 @@
   --chart-text: #0f172a;
   --chart-text-secondary: #475569;
   --network-chart-grid: #f1f5f9;
-  --heatmap-empty-bg: #f8fafc;
-  --heatmap-empty-border: #e2e8f0;
-  --heatmap-future-border: #e2e8f0;
-  --heatmap-day-text: #64748b;
-  --heatmap-level-0: #22314a;
-  --heatmap-level-1: #1f4b7a;
-  --heatmap-level-2: #2563eb;
-  --heatmap-level-3: #3b82f6;
-  --heatmap-level-4: #60a5fa;
-  --heatmap-active-text: #e6efff;
-  --heatmap-today-border: #93c5fd;
+  --heatmap-empty-bg: #f6f8fa;
+  --heatmap-empty-border: #d0d7de;
+  --heatmap-future-border: #d0d7de;
+  --heatmap-day-text: #57606a;
+  --heatmap-level-0: #ebedf0;
+  --heatmap-level-1: #9be9a8;
+  --heatmap-level-2: #40c463;
+  --heatmap-level-3: #30a14e;
+  --heatmap-level-4: #216e39;
+  --heatmap-active-text-low: #1f2328;
+  --heatmap-active-text-high: #ffffff;
+  --heatmap-today-border: #1f883d;
   --brand-primary: #2563eb;
   --brand-primary-dark: #1d4ed8;
   --brand-primary-light: #60a5fa;
@@ -267,17 +269,18 @@
   --chart-text: #f8fafc;
   --chart-text-secondary: #cbd5e1;
   --network-chart-grid: rgba(148, 163, 184, 0.18);
-  --heatmap-empty-bg: color-mix(in srgb, var(--bg-card-elevated) 62%, transparent);
-  --heatmap-empty-border: color-mix(in srgb, var(--bg-card-border) 62%, transparent);
-  --heatmap-future-border: color-mix(in srgb, var(--bg-card-border) 52%, transparent);
-  --heatmap-day-text: #9ca3af;
-  --heatmap-level-0: #e2e8f0;
-  --heatmap-level-1: #dcfce7;
-  --heatmap-level-2: #bbf7d0;
-  --heatmap-level-3: #86efac;
-  --heatmap-level-4: #22c55e;
-  --heatmap-active-text: #0f172a;
-  --heatmap-today-border: #16a34a;
+  --heatmap-empty-bg: #0d1117;
+  --heatmap-empty-border: #30363d;
+  --heatmap-future-border: #30363d;
+  --heatmap-day-text: #8b949e;
+  --heatmap-level-0: #161b22;
+  --heatmap-level-1: #0e4429;
+  --heatmap-level-2: #006d32;
+  --heatmap-level-3: #26a641;
+  --heatmap-level-4: #39d353;
+  --heatmap-active-text-low: #e6edf3;
+  --heatmap-active-text-high: #f0f6fc;
+  --heatmap-today-border: #3fb950;
   --marketing-bg: #070b12;
   --marketing-surface: #0f1622;
   --marketing-soft: #111c2c;
@@ -5082,10 +5085,10 @@ body::-webkit-scrollbar-thumb:hover,
   color: var(--text-muted);
 }
 .heatmap-0 { background: var(--heatmap-level-0); }
-.heatmap-1 { background: var(--heatmap-level-1); color: var(--heatmap-active-text); }
-.heatmap-2 { background: var(--heatmap-level-2); color: var(--heatmap-active-text); }
-.heatmap-3 { background: var(--heatmap-level-3); color: var(--heatmap-active-text); }
-.heatmap-4 { background: var(--heatmap-level-4); color: var(--heatmap-active-text); }
+.heatmap-1 { background: var(--heatmap-level-1); color: var(--heatmap-active-text-low); }
+.heatmap-2 { background: var(--heatmap-level-2); color: var(--heatmap-active-text-low); }
+.heatmap-3 { background: var(--heatmap-level-3); color: var(--heatmap-active-text-high); }
+.heatmap-4 { background: var(--heatmap-level-4); color: var(--heatmap-active-text-high); }
 .heatmap-today {
   border-color: var(--heatmap-today-border);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--heatmap-today-border) 58%, transparent);
