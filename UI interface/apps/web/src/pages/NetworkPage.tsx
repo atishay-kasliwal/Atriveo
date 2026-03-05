@@ -1295,10 +1295,10 @@ export default function NetworkPage() {
                                       <span className="network-not-shared">Not shared</span>
                                     )}
                                   </td>
-                                  <td>{job.can_view_oa_status ? normalizeOaStatus(job.oa_status) : <span className="network-not-shared">Not shared</span>}</td>
-                                  <td>{job.can_view_oa_deadline ? (String(job.oa_deadline_date ?? "-") || "-") : <span className="network-not-shared">Not shared</span>}</td>
-                                  <td>{canViewIdentity ? (String(job.job_application_id ?? "-") || "-") : <span className="network-not-shared">Not shared</span>}</td>
-                                  <td>
+                                  <td className="network-cell-oa">{job.can_view_oa_status ? normalizeOaStatus(job.oa_status) : <span className="network-not-shared">Not shared</span>}</td>
+                                  <td className="network-cell-deadline">{job.can_view_oa_deadline ? (String(job.oa_deadline_date ?? "-") || "-") : <span className="network-not-shared">Not shared</span>}</td>
+                                  <td className="network-cell-jobid">{canViewIdentity ? (String(job.job_application_id ?? "-") || "-") : <span className="network-not-shared">Not shared</span>}</td>
+                                  <td className="network-cell-link">
                                     {canOpenLink ? (
                                       <a
                                         href={String(job.job_link)}
@@ -1315,7 +1315,7 @@ export default function NetworkPage() {
                                       <span className="network-not-shared">Not shared</span>
                                     )}
                                   </td>
-                                  <td>
+                                  <td className="network-cell-action">
                                     <button
                                       type="button"
                                       className="action-btn network-add-btn"

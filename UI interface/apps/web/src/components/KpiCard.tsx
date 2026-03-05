@@ -1,3 +1,6 @@
+import { useId } from "react";
+import { Area, AreaChart, ResponsiveContainer, Line } from "recharts";
+
 type Props = {
   label: string;
   value: number | string;
@@ -11,33 +14,64 @@ function Sparkline({
   data,
   accent,
   color,
+  label,
 }: {
   data: number[];
   accent?: "red";
   color?: string;
+  label: string;
 }) {
   if (!data.length) return null;
+
+  const instanceId = useId().replace(/:/g, "");
+  const slug = label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "kpi";
+  const gradientId = `sparkGradient_${slug}_${instanceId}`;
+  const fillColor = color ?? (accent === "red" ? "#EF4444" : "#2563EB");
+  const lineColor = color ?? (accent === "red" ? "#EF4444" : "#2563EB");
   const min = Math.min(...data);
   const max = Math.max(...data);
-  const range = max - min || 1;
-  const points = data
-    .map((v, i) => {
-      const x = (i / (data.length - 1 || 1)) * 100;
-      const y = 30 - ((v - min) / range) * 26 - 2;
-      return `${x},${y}`;
-    })
-    .join(" ");
-  const stroke =
-    color ?? (accent === "red" ? "rgba(248, 113, 113, 0.9)" : "rgba(37, 99, 235, 0.9)");
+  const range = max - min;
+  const hasVariation = range > 0;
+  // Normalize values into a balanced sparkline band while reducing visual top padding.
+  const chartData = data.map((value, idx) => ({
+    idx,
+    value: hasVariation ? 12 + ((value - min) / range) * 84 : 50,
+  }));
+
   return (
-    <svg
-      className="kpi-sparkline"
-      viewBox="0 0 100 30"
-      preserveAspectRatio="none"
-      style={{ color: stroke }}
-    >
-      <polyline points={points} />
-    </svg>
+    <div className="kpi-sparkline">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={chartData} margin={{ top: 0, right: 2, left: 2, bottom: 0 }}>
+          <defs>
+            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={fillColor} stopOpacity={0.72} />
+              <stop offset="100%" stopColor={fillColor} stopOpacity={0.2} />
+            </linearGradient>
+          </defs>
+          <Area
+            type="monotone"
+            dataKey="value"
+            stroke="none"
+            fill={`url(#${gradientId})`}
+            fillOpacity={1}
+            baseValue={0}
+            isAnimationActive={false}
+          />
+          <Line
+            type="monotone"
+            dataKey="value"
+            stroke={lineColor}
+            strokeWidth={4}
+            strokeOpacity={1}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            dot={false}
+            activeDot={false}
+            isAnimationActive={false}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
 
@@ -45,11 +79,30 @@ export default function KpiCard({ label, value, accent, sparkline, sparklineColo
   const displayValue = value !== undefined && value !== null ? value : 0;
   const className = accent === "red" ? "kpi-card kpi-card--red" : "kpi-card";
   const sparklineData = sparkline && sparkline.length > 1 ? sparkline : [0, 0];
+  const startValue = sparklineData[0] ?? 0;
+  const endValue = sparklineData[sparklineData.length - 1] ?? 0;
+  const delta = endValue - startValue;
+  let trendClass = "kpi-change kpi-change--flat";
+  let trendText = "0%";
+  if (startValue !== 0) {
+    const pct = Math.round((Math.abs(delta) / Math.abs(startValue)) * 100);
+    if (delta > 0) {
+      trendClass = "kpi-change kpi-change--up";
+      trendText = `↑ ${pct}%`;
+    } else if (delta < 0) {
+      trendClass = "kpi-change kpi-change--down";
+      trendText = `↓ ${pct}%`;
+    }
+  }
+
   return (
     <div className={className}>
       <div className="kpi-label">{label}</div>
-      <div className="kpi-value">{displayValue}</div>
-      <Sparkline data={sparklineData} accent={accent} color={sparklineColor} />
+      <div className="kpi-value-row">
+        <div className="kpi-value">{displayValue}</div>
+        <span className={trendClass}>{trendText}</span>
+      </div>
+      <Sparkline data={sparklineData} accent={accent} color={sparklineColor} label={label} />
     </div>
   );
 }

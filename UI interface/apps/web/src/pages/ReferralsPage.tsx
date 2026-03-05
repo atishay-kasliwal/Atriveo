@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Area,
   Bar,
   CartesianGrid,
   ComposedChart,
+  LabelList,
   Line,
   ResponsiveContainer,
   Tooltip,
@@ -10,6 +12,7 @@ import {
   YAxis,
 } from "recharts";
 import Spinner from "../components/Spinner";
+import useConfirmDialog from "../components/ui/useConfirmDialog";
 import { formatTableDate, getLocalISODate } from "../lib/formatDate";
 import {
   createReferral,
@@ -37,7 +40,7 @@ const CREATE_REFERRAL_INITIAL = {
 
 const CHART_COLORS = {
   requestedLine: "#2563eb",
-  receivedBar: "#0ea5a4",
+  receivedBar: "#0ea5e9",
   grid: "var(--chart-grid)",
   tooltipBg: "var(--chart-tooltip-bg)",
   tooltipBorder: "var(--chart-tooltip-border)",
@@ -100,6 +103,7 @@ export default function ReferralsPage() {
   });
   const [trendData, setTrendData] = useState<ReferralsTrendData>([]);
   const [isLoadingTrend, setIsLoadingTrend] = useState(true);
+  const { confirm, confirmDialog } = useConfirmDialog();
 
   const loadOpen = useCallback(async () => {
     try {
@@ -221,11 +225,24 @@ export default function ReferralsPage() {
           job_link: jobLink,
           keyword_matching: String((editing as any).keyword_matching ?? "Medium"),
           referral_status: newStatus,
+          referred_by_name: editReferredByName.trim() || undefined,
           notes: (editing.comment as string)?.trim() || undefined,
         });
       }
       setEditing(null);
-      await Promise.all([loadOpen(), loadApplied()]);
+      if (newStatus === "Yes") {
+        const [openRes, appliedRes] = await Promise.all([
+          getReferrals({ page, limit: LIMIT, filter: "open" }),
+          getReferrals({ page: 1, limit: LIMIT, filter: "applied" }),
+        ]);
+        setOpenData(openRes.data ?? []);
+        setAppliedData(appliedRes.data ?? []);
+        setAppliedPage(1);
+      } else {
+        await Promise.all([loadOpen(), loadApplied()]);
+      }
+      await loadTrend();
+      window.dispatchEvent(new CustomEvent("dashboard-refresh"));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -245,9 +262,12 @@ export default function ReferralsPage() {
     const company = String(row.company ?? "").trim();
     const position = String(row.request_log ?? "").trim();
     const label = [company, position].filter(Boolean).join(" — ");
-    const confirmed = window.confirm(
-      `Delete this referral${label ? ` (${label})` : ""}? This action cannot be undone.`,
-    );
+    const confirmed = await confirm({
+      title: "Delete Referral",
+      message: `You're going to delete this referral${label ? ` (${label})` : ""}. This cannot be undone.`,
+      confirmText: "Confirm Delete",
+      cancelText: "No, Keep it",
+    });
     if (!confirmed) return;
     try {
       setError("");
@@ -365,6 +385,16 @@ export default function ReferralsPage() {
           ) : (
             <ResponsiveContainer width="100%" height={360}>
               <ComposedChart data={chartData} margin={{ top: 20, right: 24, left: 8, bottom: 24 }}>
+                <defs>
+                  <linearGradient id="areaGradient_referralsMomentum" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={CHART_COLORS.requestedLine} stopOpacity={0.58} />
+                    <stop offset="55%" stopColor={CHART_COLORS.requestedLine} stopOpacity={0.28} />
+                    <stop offset="95%" stopColor={CHART_COLORS.requestedLine} stopOpacity={0} />
+                  </linearGradient>
+                  <filter id="lineGlow_referralsMomentum" x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow dx="0" dy="0" stdDeviation="2.2" floodColor={CHART_COLORS.requestedLine} floodOpacity={0.42} />
+                  </filter>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} horizontal vertical={false} />
                 <XAxis
                   dataKey="dayLabel"
@@ -408,6 +438,28 @@ export default function ReferralsPage() {
                   labelStyle={{ color: CHART_COLORS.text, fontSize: 11, fontWeight: 500, marginBottom: 6 }}
                   itemStyle={{ fontSize: 13, fontWeight: 600 }}
                 />
+                <Area
+                  type="monotone"
+                  dataKey="requested"
+                  stroke="none"
+                  fill={CHART_COLORS.requestedLine}
+                  fillOpacity={0.12}
+                  baseValue={0}
+                  tooltipType="none"
+                  isAnimationActive={false}
+                  connectNulls={false}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="requested"
+                  stroke="none"
+                  fill="url(#areaGradient_referralsMomentum)"
+                  fillOpacity={1}
+                  baseValue={0}
+                  tooltipType="none"
+                  isAnimationActive={false}
+                  connectNulls={false}
+                />
                 <Bar
                   dataKey="referralReceived"
                   fill={CHART_COLORS.receivedBar}
@@ -425,11 +477,28 @@ export default function ReferralsPage() {
                   type="monotone"
                   dataKey="requested"
                   stroke={CHART_COLORS.requestedLine}
-                  strokeWidth={2}
-                  dot={{ r: 2, fill: CHART_COLORS.requestedLine, strokeWidth: 0, opacity: 0.85 }}
+                  strokeWidth={2.6}
+                  dot={{
+                    r: 3,
+                    fill: CHART_COLORS.requestedLine,
+                    stroke: "var(--bg-card)",
+                    strokeWidth: 1.2,
+                    opacity: 1,
+                  }}
                   activeDot={false}
                   connectNulls={false}
-                />
+                  filter="url(#lineGlow_referralsMomentum)"
+                >
+                  <LabelList
+                    dataKey="requested"
+                    position="top"
+                    offset={8}
+                    fill={CHART_COLORS.requestedLine}
+                    fontSize={10}
+                    fontWeight={700}
+                    formatter={(value: number) => (value > 0 ? String(value) : "")}
+                  />
+                </Line>
               </ComposedChart>
             </ResponsiveContainer>
           )}
@@ -808,6 +877,7 @@ export default function ReferralsPage() {
           </div>
         </div>
       )}
+      {confirmDialog}
     </>
   );
 }

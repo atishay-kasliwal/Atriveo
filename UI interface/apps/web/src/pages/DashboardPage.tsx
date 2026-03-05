@@ -81,6 +81,17 @@ const ENTERPRISE_SERIES_COLORS = [
   "#EC4899",
 ];
 
+const KPI_SPARKLINE_COLORS = {
+  primaryBlue: ENTERPRISE_SERIES_COLORS[0],
+  skyBlue: ENTERPRISE_SERIES_COLORS[1],
+  teal: ENTERPRISE_SERIES_COLORS[2],
+  green: ENTERPRISE_SERIES_COLORS[0],
+  lime: ENTERPRISE_SERIES_COLORS[1],
+  amber: ENTERPRISE_SERIES_COLORS[2],
+  red: ENTERPRISE_SERIES_COLORS[0],
+  purple: ENTERPRISE_SERIES_COLORS[1],
+} as const;
+
 const CHART_COLORS = {
   trendLine: ENTERPRISE_SERIES_COLORS[0],
   trendGradientTop: "rgba(37, 99, 235, 0.25)",
@@ -333,8 +344,13 @@ export default function DashboardPage() {
 
   const trendData = useMemo(() => {
     const raw = summary.dailyTrend ?? [];
-    const lastIso = raw.length ? String(raw[raw.length - 1].day) : "";
-    const lastDate = lastIso ? utcDateFromIsoDay(lastIso) : null;
+    const weekIndexByStart = new Map<string, number>();
+    raw.forEach((row) => {
+      const weekStart = weekStartIsoUtc(String(row.day));
+      if (!weekIndexByStart.has(weekStart)) {
+        weekIndexByStart.set(weekStart, weekIndexByStart.size);
+      }
+    });
 
     return raw.map((row, idx) => {
       const p = parseIsoDay(row.day);
@@ -342,13 +358,8 @@ export default function DashboardPage() {
       const dayOfMonth = p ? p.d : 0;
       const label = `${MONTH_NAMES[monthIndex] ?? MONTH_NAMES[0]} ${dayOfMonth || 0}`;
 
-      const value = row.total ?? 0;
-      const rowDate = row.day ? utcDateFromIsoDay(row.day) : null;
-      const diffDays =
-        lastDate && rowDate
-          ? Math.max(0, Math.round((lastDate.getTime() - rowDate.getTime()) / 86400000))
-          : 0;
-      const weekIndex = Math.floor(diffDays / 7);
+      const weekStart = weekStartIsoUtc(String(row.day));
+      const weekIndex = weekIndexByStart.get(weekStart) ?? 0;
       const windowStart = Math.max(0, idx - 6);
       const windowSlice = raw.slice(windowStart, idx + 1);
       const avg7 =
@@ -360,6 +371,7 @@ export default function DashboardPage() {
         month: monthIndex,
         dayOfMonth,
         weekIndex,
+        weekStart,
         avg7,
       };
     });
@@ -915,23 +927,49 @@ export default function DashboardPage() {
       ) : null}
 
       <section className="kpi-grid">
-        <KpiCard label="Applications till now" value={derivedKpis.jobs} sparkline={kpiSparklineByMetric.total} />
-        <KpiCard label="Applications this month" value={derivedKpis.jobsThisMonth} sparkline={kpiSparklineByMetric.thisMonth} />
-        <KpiCard label="Applications this week" value={derivedKpis.jobsThisWeek} sparkline={kpiSparklineByMetric.thisWeek} />
-        <KpiCard label="Applications today" value={derivedKpis.jobsToday} sparkline={kpiSparklineByMetric.todayWindow} />
+        <KpiCard
+          label="Applications till now"
+          value={derivedKpis.jobs}
+          sparkline={kpiSparklineByMetric.total}
+          sparklineColor={KPI_SPARKLINE_COLORS.primaryBlue}
+        />
+        <KpiCard
+          label="Applications this month"
+          value={derivedKpis.jobsThisMonth}
+          sparkline={kpiSparklineByMetric.thisMonth}
+          sparklineColor={KPI_SPARKLINE_COLORS.skyBlue}
+        />
+        <KpiCard
+          label="Applications this week"
+          value={derivedKpis.jobsThisWeek}
+          sparkline={kpiSparklineByMetric.thisWeek}
+          sparklineColor={KPI_SPARKLINE_COLORS.teal}
+        />
+        <KpiCard
+          label="Applications today"
+          value={derivedKpis.jobsToday}
+          sparkline={kpiSparklineByMetric.todayWindow}
+          sparklineColor={KPI_SPARKLINE_COLORS.green}
+        />
         <KpiCard
           label="Total applications with referral"
           value={derivedKpis.jobsWithReferral}
           sparkline={kpiSparklineByMetric.referral}
-          sparklineColor="#14b8a6"
+          sparklineColor={KPI_SPARKLINE_COLORS.lime}
         />
         <KpiCard
           label="Monthly target progress"
           value={monthlyTargetKpiValue}
           sparkline={kpiSparklineByMetric.thisMonth}
-          sparklineColor="#22c55e"
+          sparklineColor={KPI_SPARKLINE_COLORS.amber}
         />
-        <KpiCard label="Total rejects" value={derivedKpis.rejected} accent="red" sparkline={kpiSparklineByMetric.rejects} />
+        <KpiCard
+          label="Total rejects"
+          value={derivedKpis.rejected}
+          accent="red"
+          sparkline={kpiSparklineByMetric.rejects}
+          sparklineColor={KPI_SPARKLINE_COLORS.red}
+        />
       </section>
       <section className="dashboard-actions">
         <button type="button" className="quick-add-btn" onClick={() => setShowTargetModal(true)}>
