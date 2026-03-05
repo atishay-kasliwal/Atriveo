@@ -408,6 +408,12 @@ export default function NetworkPage() {
     load();
   }, [load]);
 
+  useEffect(() => {
+    const onRefresh = () => load();
+    window.addEventListener("dashboard-refresh", onRefresh);
+    return () => window.removeEventListener("dashboard-refresh", onRefresh);
+  }, [load]);
+
   function openFriendManager() {
     window.dispatchEvent(new CustomEvent("open-friend-manager"));
   }
@@ -566,6 +572,7 @@ export default function NetworkPage() {
       trackLifecycleMilestone(ANALYTICS_EVENTS.first_application_created, {
         source: "network_prefill_modal",
       });
+      window.dispatchEvent(new CustomEvent("dashboard-refresh"));
     } catch (err) {
       trackErrorEvent(ANALYTICS_EVENTS.form_submission_error, {
         component_name: "network_prefill_form",

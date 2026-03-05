@@ -1109,7 +1109,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
 
       {editing && (
         <div className="modal-overlay" onClick={() => !isSaving && setEditing(null)}>
-          <div className="modal modal--form-wide" onClick={(e) => e.stopPropagation()}>
+          <div className="modal modal--quickadd" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
               className="modal-close-x"
@@ -1120,94 +1120,128 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
               ×
             </button>
             <h3>Edit Job</h3>
-            <form className="form form--two-col" onSubmit={onSaveEdit}>
-              <div className="form-row">
-                <label className="form-label">Date</label>
+            <form className="form form--quickadd" onSubmit={onSaveEdit}>
+              <div className="qa-left">
                 <input
-                  type="date"
-                  value={editForm.date_saved}
-                  onChange={(e) => setEditForm((p) => ({ ...p, date_saved: e.target.value }))}
+                  placeholder="Position *"
+                  value={editForm.role}
+                  onChange={(e) => setEditForm((p) => ({ ...p, role: e.target.value }))}
+                  autoFocus
+                />
+                <div className="form-row">
+                  <label className="form-label">Date</label>
+                  <input
+                    type="date"
+                    value={editForm.date_saved}
+                    onChange={(e) => setEditForm((p) => ({ ...p, date_saved: e.target.value }))}
+                  />
+                </div>
+                <input
+                  placeholder="Location"
+                  value={editForm.location_raw}
+                  onChange={(e) => setEditForm((p) => ({ ...p, location_raw: e.target.value }))}
+                />
+                <div className="form-row">
+                  <label className="form-label">Referral</label>
+                  <select
+                    value={editForm.referral_status}
+                    onChange={(e) => setEditForm((p) => ({ ...p, referral_status: e.target.value }))}
+                    className="form-select"
+                  >
+                    {REFERRAL_OPTIONS.map((opt) => (
+                      <option key={opt || "empty"} value={opt}>{opt || "—"}</option>
+                    ))}
+                  </select>
+                </div>
+                {editForm.referral_status === "Requested" && (
+                  <p className="referral-hint">
+                    Track requested referrals on the <Link to="/referrals" className="table-link">Referrals</Link> page.
+                  </p>
+                )}
+                {editForm.referral_status === "Yes" && (
+                  <p className="referral-hint">
+                    Ensure this company has an entry on the <Link to="/referrals" className="table-link">Referrals</Link> page.
+                  </p>
+                )}
+                <div className="form-row">
+                  <label className="form-label">Application Status</label>
+                  <select
+                    value={editForm.application_status}
+                    onChange={(e) => setEditForm((p) => ({ ...p, application_status: e.target.value }))}
+                    className="form-select"
+                  >
+                    <option value="Applied">Applied</option>
+                    <option value="Under consideration">Under consideration</option>
+                    <option value="Rejected">Rejected</option>
+                  </select>
+                </div>
+                <input
+                  placeholder="Response status"
+                  value={editForm.response_status}
+                  onChange={(e) => setEditForm((p) => ({ ...p, response_status: e.target.value }))}
+                />
+                <textarea
+                  placeholder="Notes"
+                  rows={3}
+                  value={editForm.notes}
+                  onChange={(e) => setEditForm((p) => ({ ...p, notes: e.target.value }))}
                 />
               </div>
-              <input
-                placeholder="Position *"
-                value={editForm.role}
-                onChange={(e) => setEditForm((p) => ({ ...p, role: e.target.value }))}
-              />
-              <input
-                placeholder="Company *"
-                value={editForm.company}
-                onChange={(e) => setEditForm((p) => ({ ...p, company: e.target.value }))}
-              />
-              <input
-                placeholder="Location"
-                value={editForm.location_raw}
-                onChange={(e) => setEditForm((p) => ({ ...p, location_raw: e.target.value }))}
-              />
-              <input
-                placeholder="Job link (URL)"
-                value={editForm.job_link}
-                onChange={(e) => setEditForm((p) => ({ ...p, job_link: e.target.value }))}
-              />
-              <input
-                placeholder="Job/Application ID (optional)"
-                value={editForm.job_application_id}
-                onChange={(e) => setEditForm((p) => ({ ...p, job_application_id: e.target.value }))}
-              />
-              <div className="form-row">
-                <label className="form-label">Keyword Matching</label>
-                <select
-                  value={editForm.keyword_matching}
-                  onChange={(e) => setEditForm((p) => ({ ...p, keyword_matching: e.target.value }))}
-                  className="form-select"
-                >
-                  <option value="Strong">Strong</option>
-                  <option value="Medium">Medium</option>
-                  <option value="Weak">Weak</option>
-                </select>
-                <p className="form-helper">
-                  {editForm.keyword_matching === "Strong"
-                    ? "Almost every technical keyword matched"
-                    : editForm.keyword_matching === "Medium"
-                      ? "Few Keywords are not Present"
-                    : "Few Keywords Matched"}
-                </p>
-              </div>
-              <details className="form-accordion form-span-2">
-                <summary>Online Assessment (OA)</summary>
-                <div className="form-accordion-grid">
-                  <div className="form-row">
-                    <label className="form-label">OA Status</label>
-                    <select
-                      value={editForm.oa_status}
-                      onChange={(e) => setEditForm((p) => ({ ...p, oa_status: e.target.value }))}
-                      className="form-select"
-                    >
-                      <option value="Yes">Yes</option>
-                      <option value="No">No</option>
-                    </select>
-                  </div>
-                  <div className="form-row">
-                    <label className="form-label">OA Deadline (optional)</label>
-                    <input
-                      type="date"
-                      value={editForm.oa_deadline_date}
-                      onChange={(e) => setEditForm((p) => ({ ...p, oa_deadline_date: e.target.value }))}
-                    />
-                  </div>
+              <div className="qa-right">
+                <input
+                  placeholder="Company *"
+                  value={editForm.company}
+                  onChange={(e) => setEditForm((p) => ({ ...p, company: e.target.value }))}
+                />
+                <input
+                  placeholder="Job link (URL)"
+                  type="url"
+                  value={editForm.job_link}
+                  onChange={(e) => setEditForm((p) => ({ ...p, job_link: e.target.value }))}
+                />
+                <input
+                  placeholder="Job/Application ID (optional)"
+                  value={editForm.job_application_id}
+                  onChange={(e) => setEditForm((p) => ({ ...p, job_application_id: e.target.value }))}
+                />
+                <div className="form-row">
+                  <label className="form-label">OA Deadline (optional)</label>
+                  <input
+                    type="date"
+                    value={editForm.oa_deadline_date}
+                    onChange={(e) => setEditForm((p) => ({ ...p, oa_deadline_date: e.target.value }))}
+                  />
                 </div>
-              </details>
-              <div className="form-row">
-                <label className="form-label">Referral</label>
-                <select
-                  value={editForm.referral_status}
-                  onChange={(e) => setEditForm((p) => ({ ...p, referral_status: e.target.value }))}
-                  className="form-select"
-                >
-                  {REFERRAL_OPTIONS.map((opt) => (
-                    <option key={opt || "empty"} value={opt}>{opt || "—"}</option>
-                  ))}
-                </select>
+                <div className="form-row">
+                  <label className="form-label">Online Assessment (OA)</label>
+                  <select
+                    value={editForm.oa_status}
+                    onChange={(e) => setEditForm((p) => ({ ...p, oa_status: e.target.value }))}
+                    className="form-select"
+                  >
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                  </select>
+                </div>
+                <div className="form-row">
+                  <label className="form-label">Keyword Matching</label>
+                  <select
+                    value={editForm.keyword_matching}
+                    onChange={(e) => setEditForm((p) => ({ ...p, keyword_matching: e.target.value }))}
+                    className="form-select"
+                  >
+                    <option value="Strong">Strong</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Weak">Weak</option>
+                  </select>
+                  <p className="form-helper">
+                    {editForm.keyword_matching === "Strong"
+                      ? "Almost every technical keyword matched"
+                      : editForm.keyword_matching === "Medium"
+                        ? "Few Keywords are not Present"
+                        : "Few Keywords Matched"}
+                  </p>
+                </div>
               </div>
               <input
                 placeholder="Referral name (optional)"
@@ -1259,7 +1293,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
 
       {oaEditing && (
         <div className="modal-overlay" onClick={() => !isOaSaving && setOaEditing(null)}>
-          <div className="modal modal--form-wide" onClick={(e) => e.stopPropagation()}>
+          <div className="modal modal--quickadd" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
               className="modal-close-x"
@@ -1270,162 +1304,152 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
               ×
             </button>
             <h3>Edit OA Record</h3>
-            <form className="form form--two-col" onSubmit={onSaveOaEdit}>
-              <div className="form-row">
-                <label className="form-label">Position</label>
+            <form className="form form--quickadd" onSubmit={onSaveOaEdit}>
+              <div className="qa-left">
                 <input
                   placeholder="Position"
                   value={oaEditForm.role}
                   onChange={(e) => setOaEditForm((p) => ({ ...p, role: e.target.value }))}
+                  autoFocus
                 />
-              </div>
-              <div className="form-row">
-                <label className="form-label">Company</label>
-                <input
-                  placeholder="Company"
-                  value={oaEditForm.company}
-                  onChange={(e) => setOaEditForm((p) => ({ ...p, company: e.target.value }))}
-                />
-              </div>
-              <div className="form-row">
-                <label className="form-label">Location</label>
+                <div className="form-row">
+                  <label className="form-label">Date Saved</label>
+                  <input
+                    type="date"
+                    value={oaEditForm.date_saved}
+                    onChange={(e) => setOaEditForm((p) => ({ ...p, date_saved: e.target.value }))}
+                  />
+                </div>
                 <input
                   placeholder="Location"
                   value={oaEditForm.location_raw}
                   onChange={(e) => setOaEditForm((p) => ({ ...p, location_raw: e.target.value }))}
                 />
-              </div>
-              <div className="form-row">
-                <label className="form-label">Job Link (URL)</label>
-                <input
-                  placeholder="Job link (URL)"
-                  value={oaEditForm.job_link}
-                  onChange={(e) => setOaEditForm((p) => ({ ...p, job_link: e.target.value }))}
-                />
-              </div>
-              <div className="form-row">
-                <label className="form-label">Job/Application ID</label>
-                <input
-                  placeholder="Job/Application ID"
-                  value={oaEditForm.job_application_id}
-                  onChange={(e) => setOaEditForm((p) => ({ ...p, job_application_id: e.target.value }))}
-                />
-              </div>
-              <div className="form-row">
-                <label className="form-label">Date Saved</label>
-                <input
-                  type="date"
-                  value={oaEditForm.date_saved}
-                  onChange={(e) => setOaEditForm((p) => ({ ...p, date_saved: e.target.value }))}
-                />
-              </div>
-              <div className="form-row">
-                <label className="form-label">Keyword Matching</label>
-                <select
-                  value={oaEditForm.keyword_matching}
-                  onChange={(e) => setOaEditForm((p) => ({ ...p, keyword_matching: e.target.value }))}
-                  className="form-select"
-                >
-                  <option value="Strong">Strong</option>
-                  <option value="Medium">Medium</option>
-                  <option value="Weak">Weak</option>
-                </select>
-              </div>
-              <div className="form-row">
-                <label className="form-label">Referral</label>
-                <select
-                  value={oaEditForm.referral_status}
-                  onChange={(e) => setOaEditForm((p) => ({ ...p, referral_status: e.target.value }))}
-                  className="form-select"
-                >
-                  {REFERRAL_OPTIONS.map((opt) => (
-                    <option key={`oa-ref-${opt || "empty"}`} value={opt}>{opt || "—"}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-row">
-                <label className="form-label">Application Status</label>
-                <select
-                  value={oaEditForm.application_status}
-                  onChange={(e) => setOaEditForm((p) => ({ ...p, application_status: e.target.value }))}
-                  className="form-select"
-                >
-                  <option value="Applied">Applied</option>
-                  <option value="Under consideration">Under consideration</option>
-                  <option value="Rejected">Rejected</option>
-                </select>
-              </div>
-              <div className="form-row form-span-2">
-                <label className="form-label">Response Status</label>
+                <div className="form-row">
+                  <label className="form-label">Referral</label>
+                  <select
+                    value={oaEditForm.referral_status}
+                    onChange={(e) => setOaEditForm((p) => ({ ...p, referral_status: e.target.value }))}
+                    className="form-select"
+                  >
+                    {REFERRAL_OPTIONS.map((opt) => (
+                      <option key={`oa-ref-${opt || "empty"}`} value={opt}>{opt || "—"}</option>
+                    ))}
+                  </select>
+                </div>
+                {oaEditForm.referral_status === "Yes" && (
+                  <p className="referral-hint">
+                    Ensure this company has an entry on the <Link to="/referrals" className="table-link">Referrals</Link> page.
+                  </p>
+                )}
+                <div className="form-row">
+                  <label className="form-label">Application Status</label>
+                  <select
+                    value={oaEditForm.application_status}
+                    onChange={(e) => setOaEditForm((p) => ({ ...p, application_status: e.target.value }))}
+                    className="form-select"
+                  >
+                    <option value="Applied">Applied</option>
+                    <option value="Under consideration">Under consideration</option>
+                    <option value="Rejected">Rejected</option>
+                  </select>
+                </div>
                 <input
                   placeholder="Response status"
                   value={oaEditForm.response_status}
                   onChange={(e) => setOaEditForm((p) => ({ ...p, response_status: e.target.value }))}
                 />
-              </div>
-              <details className="form-accordion form-span-2">
-                <summary>
-                  <span>Online Assessment (OA) Details</span>
-                  <span className="form-accordion-summary-meta">Status: {oaEditForm.oa_result || "—"}</span>
-                </summary>
-                <div className="form-accordion-grid">
-                  <div className="form-row">
-                    <label className="form-label">Record Date</label>
-                    <input
-                      type="date"
-                      value={oaEditForm.oa_result_date}
-                      onChange={(e) => setOaEditForm((p) => ({ ...p, oa_result_date: e.target.value }))}
-                    />
-                  </div>
-                  <div className="form-row">
-                    <label className="form-label">Status</label>
-                    <select
-                      value={oaEditForm.oa_result}
-                      onChange={(e) => setOaEditForm((p) => ({ ...p, oa_result: e.target.value }))}
-                      className="form-select"
-                    >
-                      <option value="Pending">Pending</option>
-                      <option value="Completed">Completed</option>
-                      <option value="Missed">Missed</option>
-                    </select>
-                  </div>
-                  <div className="form-row">
-                    <label className="form-label">OA Status</label>
-                    <select
-                      value={oaEditForm.oa_status}
-                      onChange={(e) => setOaEditForm((p) => ({ ...p, oa_status: e.target.value }))}
-                      className="form-select"
-                    >
-                      <option value="Yes">Yes</option>
-                      <option value="No">No</option>
-                    </select>
-                  </div>
-                  <div className="form-row">
-                    <label className="form-label">OA Deadline</label>
-                    <input
-                      type="date"
-                      value={oaEditForm.oa_deadline_date}
-                      onChange={(e) => setOaEditForm((p) => ({ ...p, oa_deadline_date: e.target.value }))}
-                    />
-                  </div>
-                  <div className="form-row form-span-2">
-                    <label className="form-label">OA Completed Date (legacy)</label>
-                    <input
-                      type="date"
-                      value={oaEditForm.oa_completed_date}
-                      onChange={(e) => setOaEditForm((p) => ({ ...p, oa_completed_date: e.target.value }))}
-                    />
-                  </div>
-                </div>
-              </details>
-              <div className="form-row form-span-2">
-                <label className="form-label">Notes</label>
                 <textarea
                   placeholder="Notes"
                   rows={3}
                   value={oaEditForm.notes}
                   onChange={(e) => setOaEditForm((p) => ({ ...p, notes: e.target.value }))}
                 />
+              </div>
+              <div className="qa-right">
+                <input
+                  placeholder="Company"
+                  value={oaEditForm.company}
+                  onChange={(e) => setOaEditForm((p) => ({ ...p, company: e.target.value }))}
+                />
+                <input
+                  placeholder="Job link (URL)"
+                  type="url"
+                  value={oaEditForm.job_link}
+                  onChange={(e) => setOaEditForm((p) => ({ ...p, job_link: e.target.value }))}
+                />
+                <input
+                  placeholder="Job/Application ID"
+                  value={oaEditForm.job_application_id}
+                  onChange={(e) => setOaEditForm((p) => ({ ...p, job_application_id: e.target.value }))}
+                />
+                <div className="form-row">
+                  <label className="form-label">OA Deadline</label>
+                  <input
+                    type="date"
+                    value={oaEditForm.oa_deadline_date}
+                    onChange={(e) => setOaEditForm((p) => ({ ...p, oa_deadline_date: e.target.value }))}
+                  />
+                </div>
+                <div className="form-row">
+                  <label className="form-label">Online Assessment (OA)</label>
+                  <select
+                    value={oaEditForm.oa_status}
+                    onChange={(e) => setOaEditForm((p) => ({ ...p, oa_status: e.target.value }))}
+                    className="form-select"
+                  >
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                  </select>
+                </div>
+                <div className="form-row">
+                  <label className="form-label">Keyword Matching</label>
+                  <select
+                    value={oaEditForm.keyword_matching}
+                    onChange={(e) => setOaEditForm((p) => ({ ...p, keyword_matching: e.target.value }))}
+                    className="form-select"
+                  >
+                    <option value="Strong">Strong</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Weak">Weak</option>
+                  </select>
+                </div>
+                <details className="form-accordion">
+                  <summary>
+                    <span>OA Result Details</span>
+                    <span className="form-accordion-summary-meta">Status: {oaEditForm.oa_result || "—"}</span>
+                  </summary>
+                  <div className="form-accordion-grid">
+                    <div className="form-row">
+                      <label className="form-label">Record Date</label>
+                      <input
+                        type="date"
+                        value={oaEditForm.oa_result_date}
+                        onChange={(e) => setOaEditForm((p) => ({ ...p, oa_result_date: e.target.value }))}
+                      />
+                    </div>
+                    <div className="form-row">
+                      <label className="form-label">Result Status</label>
+                      <select
+                        value={oaEditForm.oa_result}
+                        onChange={(e) => setOaEditForm((p) => ({ ...p, oa_result: e.target.value }))}
+                        className="form-select"
+                      >
+                        <option value="Pending">Pending</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Missed">Missed</option>
+                      </select>
+                    </div>
+                    <div className="form-row">
+                      <label className="form-label">OA Completed Date (legacy)</label>
+                      <input
+                        type="date"
+                        value={oaEditForm.oa_completed_date}
+                        onChange={(e) => setOaEditForm((p) => ({ ...p, oa_completed_date: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                </details>
               </div>
               <div className="modal-actions">
                 <button type="button" className="action-btn" onClick={() => setOaEditing(null)} disabled={isOaSaving}>

@@ -5560,6 +5560,18 @@ body::-webkit-scrollbar-thumb:hover,
   margin: 0;
 }
 
+.referrals-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.referrals-head h2 {
+  margin: 0;
+}
+
 .jobs-search-row {
   display: flex;
   flex-wrap: nowrap;
@@ -6207,6 +6219,11 @@ body::-webkit-scrollbar-thumb:hover,
   .friends-slot-pill {
     font-size: 0.76rem;
   }
+
+  .referrals-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 
 .table-wrap {
@@ -6853,6 +6870,35 @@ tr:hover td {
 
 .job-role + .job-role {
   margin-top: 2px;
+}
+
+.referrals-table {
+  min-width: 1120px;
+}
+
+.referral-job-main {
+  max-width: none;
+  min-width: 220px;
+}
+
+.referral-job-role {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+
+.referrals-col-name,
+.referrals-col-notes {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  min-width: 140px;
+  max-width: 280px;
+}
+
+.referrals-row-actions {
+  display: flex;
+  gap: 0.5rem;
 }
 
 .job-status-cell {

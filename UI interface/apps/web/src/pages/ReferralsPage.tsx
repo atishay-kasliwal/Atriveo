@@ -25,6 +25,15 @@ const LIMIT = 25;
 const REFERRAL_SHEET_STATUSES = ["Requested"] as const;
 const JOB_STATUSES = ["Yes", "No"] as const;
 const ALL_STATUS_OPTIONS = [...REFERRAL_SHEET_STATUSES, ...JOB_STATUSES] as const;
+const CREATE_REFERRAL_INITIAL = {
+  company: "",
+  request_log: "",
+  request_date: getLocalISODate(),
+  request_link: "",
+  referred_by_name: "",
+  comment: "",
+  keyword_matching: "Medium",
+};
 
 const CHART_COLORS = {
   requestedLine: "#2563eb",
@@ -57,6 +66,11 @@ function formatDayShort(day: string) {
   }
 }
 
+function textOrDash(value: unknown): string {
+  const raw = String(value ?? "").trim();
+  return raw || "—";
+}
+
 export default function ReferralsPage() {
   const [openData, setOpenData] = useState<Array<Record<string, unknown>>>([]);
   const [appliedData, setAppliedData] = useState<Array<Record<string, unknown>>>([]);
@@ -67,6 +81,9 @@ export default function ReferralsPage() {
   const [isLoadingApplied, setIsLoadingApplied] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<number | string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createForm, setCreateForm] = useState(CREATE_REFERRAL_INITIAL);
   const [editing, setEditing] = useState<Record<string, unknown> | null>(null);
   const [editStatus, setEditStatus] = useState("");
   const [editReferredByName, setEditReferredByName] = useState("");
@@ -286,6 +303,48 @@ export default function ReferralsPage() {
     }
   }
 
+  function openCreateReferral() {
+    setError("");
+    setCreateForm({
+      ...CREATE_REFERRAL_INITIAL,
+      request_date: getLocalISODate(),
+    });
+    setShowCreateModal(true);
+  }
+
+  function closeCreateReferral() {
+    if (isCreating) return;
+    setShowCreateModal(false);
+  }
+
+  async function onCreateReferralRequest(e: React.FormEvent) {
+    e.preventDefault();
+    const company = createForm.company.trim();
+    const requestLog = createForm.request_log.trim();
+    if (!company || !requestLog) return;
+    try {
+      setError("");
+      setIsCreating(true);
+      await createReferral({
+        company,
+        request_log: requestLog,
+        request_date: createForm.request_date || getLocalISODate(),
+        request_link: createForm.request_link.trim() || undefined,
+        referral_received: "Requested",
+        referred_by_name: createForm.referred_by_name.trim() || undefined,
+        keyword_matching: createForm.keyword_matching || "Medium",
+        comment: createForm.comment.trim() || undefined,
+      });
+      setShowCreateModal(false);
+      await Promise.all([loadOpen(), loadApplied(), loadTrend()]);
+      window.dispatchEvent(new CustomEvent("dashboard-refresh"));
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setIsCreating(false);
+    }
+  }
+
   return (
     <>
       {error ? <div className="error">{error}</div> : null}
@@ -388,7 +447,12 @@ export default function ReferralsPage() {
       </div>
 
       <div className="card">
-        <h2>Open Referrals</h2>
+        <div className="referrals-head">
+          <h2>Open Referrals</h2>
+          <button type="button" className="action-btn" onClick={openCreateReferral}>
+            + Referral Request
+          </button>
+        </div>
         {isLoadingOpen ? (
           <Spinner />
         ) : openData.length === 0 ? (
@@ -396,7 +460,7 @@ export default function ReferralsPage() {
         ) : (
           <>
             <div className="table-wrap">
-              <table>
+              <table className="referrals-table">
                 <thead>
                   <tr>
                     <th>No.</th>
@@ -415,14 +479,14 @@ export default function ReferralsPage() {
                       <td className="table-col-no">{(page - 1) * LIMIT + idx + 1}</td>
                       <td>{formatTableDate((r as any).updated_date || r.request_date)}</td>
                       <td>
-                        <div className="job-main">
-                          <div className="job-company">{String(r.company ?? "—")}</div>
-                          <div className="job-role">{String(r.request_log ?? "—")}</div>
+                        <div className="job-main referral-job-main">
+                          <div className="job-company" title={textOrDash(r.company)}>{textOrDash(r.company)}</div>
+                          <div className="job-role referral-job-role" title={textOrDash(r.request_log)}>{textOrDash(r.request_log)}</div>
                         </div>
                       </td>
-                      <td>{String(r.referral_received ?? "—")}</td>
-                      <td>{String(r.referred_by_name ?? "—")}</td>
-                      <td>{String(r.comment ?? "—")}</td>
+                      <td>{textOrDash(r.referral_received)}</td>
+                      <td className="referrals-col-name" title={textOrDash(r.referred_by_name)}>{textOrDash(r.referred_by_name)}</td>
+                      <td className="referrals-col-notes" title={textOrDash(r.comment)}>{textOrDash(r.comment)}</td>
                       <td>
                         {r.request_link ? (
                           <a href={String(r.request_link)} target="_blank" rel="noopener noreferrer" className="table-link">
@@ -433,7 +497,7 @@ export default function ReferralsPage() {
                         )}
                       </td>
                       <td>
-                        <div style={{ display: "flex", gap: "0.5rem" }}>
+                        <div className="referrals-row-actions">
                           <button type="button" className="action-btn" onClick={() => openEdit(r)}>
                             Edit
                           </button>
@@ -480,7 +544,7 @@ export default function ReferralsPage() {
         ) : (
           <>
             <div className="table-wrap">
-              <table>
+              <table className="referrals-table">
                 <thead>
                   <tr>
                     <th>No.</th>
@@ -499,14 +563,14 @@ export default function ReferralsPage() {
                       <td className="table-col-no">{(appliedPage - 1) * LIMIT + idx + 1}</td>
                       <td>{formatTableDate((r as any).updated_date || r.request_date)}</td>
                       <td>
-                        <div className="job-main">
-                          <div className="job-company">{String(r.company ?? "—")}</div>
-                          <div className="job-role">{String(r.request_log ?? "—")}</div>
+                        <div className="job-main referral-job-main">
+                          <div className="job-company" title={textOrDash(r.company)}>{textOrDash(r.company)}</div>
+                          <div className="job-role referral-job-role" title={textOrDash(r.request_log)}>{textOrDash(r.request_log)}</div>
                         </div>
                       </td>
-                      <td>{String(r.referral_received ?? "—")}</td>
-                      <td>{String(r.referred_by_name ?? "—")}</td>
-                      <td>{String(r.comment ?? "—")}</td>
+                      <td>{textOrDash(r.referral_received)}</td>
+                      <td className="referrals-col-name" title={textOrDash(r.referred_by_name)}>{textOrDash(r.referred_by_name)}</td>
+                      <td className="referrals-col-notes" title={textOrDash(r.comment)}>{textOrDash(r.comment)}</td>
                       <td>
                         {r.request_link ? (
                           <a href={String(r.request_link)} target="_blank" rel="noopener noreferrer" className="table-link">
@@ -517,7 +581,7 @@ export default function ReferralsPage() {
                         )}
                       </td>
                       <td>
-                        <div style={{ display: "flex", gap: "0.5rem" }}>
+                        <div className="referrals-row-actions">
                           <button type="button" className="action-btn" onClick={() => openEdit(r)}>
                             Edit
                           </button>
@@ -668,6 +732,76 @@ export default function ReferralsPage() {
                 </button>
                 <button type="submit" disabled={isCreatingRecord}>
                   {isCreatingRecord ? "Saving..." : "Add Record"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showCreateModal && (
+        <div className="modal-overlay" onClick={closeCreateReferral}>
+          <div className="modal modal--quickadd" onClick={(e) => e.stopPropagation()}>
+            <h3>New Referral Request</h3>
+            <form className="form form--quickadd" onSubmit={onCreateReferralRequest}>
+              <div className="qa-left">
+                <input
+                  placeholder="Company *"
+                  value={createForm.company}
+                  onChange={(e) => setCreateForm((p) => ({ ...p, company: e.target.value }))}
+                  autoFocus
+                />
+                <input
+                  placeholder="Position / Request log *"
+                  value={createForm.request_log}
+                  onChange={(e) => setCreateForm((p) => ({ ...p, request_log: e.target.value }))}
+                />
+                <div className="form-row">
+                  <label className="form-label">Referral Date</label>
+                  <input
+                    type="date"
+                    value={createForm.request_date}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, request_date: e.target.value }))}
+                  />
+                </div>
+                <input
+                  placeholder="Referred by name (optional)"
+                  value={createForm.referred_by_name}
+                  onChange={(e) => setCreateForm((p) => ({ ...p, referred_by_name: e.target.value }))}
+                />
+              </div>
+              <div className="qa-right">
+                <input
+                  type="url"
+                  placeholder="Referral link (optional)"
+                  value={createForm.request_link}
+                  onChange={(e) => setCreateForm((p) => ({ ...p, request_link: e.target.value }))}
+                />
+                <div className="form-row">
+                  <label className="form-label">Keyword Matching</label>
+                  <select
+                    className="form-select"
+                    value={createForm.keyword_matching}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, keyword_matching: e.target.value }))}
+                  >
+                    <option value="Strong">Strong</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Weak">Weak</option>
+                  </select>
+                </div>
+                <textarea
+                  placeholder="Notes (optional)"
+                  rows={5}
+                  value={createForm.comment}
+                  onChange={(e) => setCreateForm((p) => ({ ...p, comment: e.target.value }))}
+                />
+              </div>
+              <div className="modal-actions">
+                <button type="button" className="action-btn" onClick={closeCreateReferral} disabled={isCreating}>
+                  Cancel
+                </button>
+                <button type="submit" disabled={isCreating || !createForm.company.trim() || !createForm.request_log.trim()}>
+                  {isCreating ? "Saving..." : "Create Request"}
                 </button>
               </div>
             </form>
