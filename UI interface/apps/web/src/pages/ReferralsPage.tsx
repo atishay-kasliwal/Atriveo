@@ -449,7 +449,7 @@ export default function ReferralsPage() {
       <div className="card">
         <div className="referrals-head">
           <h2>Open Referrals</h2>
-          <button type="button" className="action-btn" onClick={openCreateReferral}>
+          <button type="button" className="jobs-search-btn" onClick={openCreateReferral}>
             + Referral Request
           </button>
         </div>
@@ -533,7 +533,7 @@ export default function ReferralsPage() {
       <div className="card" style={{ marginTop: "24px" }}>
         <div className="referral-records-head">
           <h2>Referral Records</h2>
-          <button type="button" className="section-header-btn" onClick={openCreateRecordModal}>
+          <button type="button" className="jobs-search-btn" onClick={openCreateRecordModal}>
             Add Record
           </button>
         </div>

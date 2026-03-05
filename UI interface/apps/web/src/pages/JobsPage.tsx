@@ -1163,6 +1163,11 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                     Ensure this company has an entry on the <Link to="/referrals" className="table-link">Referrals</Link> page.
                   </p>
                 )}
+                <input
+                  placeholder="Referral name (optional)"
+                  value={editForm.referred_by_name}
+                  onChange={(e) => setEditForm((p) => ({ ...p, referred_by_name: e.target.value }))}
+                />
                 <div className="form-row">
                   <label className="form-label">Application Status</label>
                   <select
@@ -1243,41 +1248,6 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                   </p>
                 </div>
               </div>
-              <input
-                placeholder="Referral name (optional)"
-                value={editForm.referred_by_name}
-                onChange={(e) => setEditForm((p) => ({ ...p, referred_by_name: e.target.value }))}
-              />
-              <div className="form-row">
-                <label className="form-label">Application Status</label>
-                <select
-                  value={editForm.application_status}
-                  onChange={(e) => setEditForm((p) => ({ ...p, application_status: e.target.value }))}
-                  className="form-select"
-                >
-                  <option value="Applied">Applied</option>
-                  <option value="Under consideration">Under consideration</option>
-                  <option value="Rejected">Rejected</option>
-                </select>
-              </div>
-              {editForm.referral_status === "Yes" && (
-                <p className="referral-hint form-span-2">
-                  Ensure this company has an entry on the <Link to="/referrals" className="table-link">Referrals</Link> page.
-                </p>
-              )}
-              <input
-                className="form-span-2"
-                placeholder="Response status"
-                value={editForm.response_status}
-                onChange={(e) => setEditForm((p) => ({ ...p, response_status: e.target.value }))}
-              />
-              <textarea
-                className="form-span-2"
-                placeholder="Notes"
-                rows={3}
-                value={editForm.notes}
-                onChange={(e) => setEditForm((p) => ({ ...p, notes: e.target.value }))}
-              />
               <div className="modal-actions">
                 <button type="button" className="action-btn" onClick={() => setEditing(null)} disabled={isSaving}>
                   Cancel
