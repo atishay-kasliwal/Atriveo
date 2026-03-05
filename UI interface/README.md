@@ -69,3 +69,4 @@ You do not need `docker compose` in this Neon mode.
 - `npm run users:reset-passwords` - force-generate new passwords for all seeded users
 - `npm run dev:api` - run Worker API locally
 - `npm run dev:web` - run React app locally
+- `npm run release:master` - merge `origin/main` into `master`, push `master`, then return to your previous branch
