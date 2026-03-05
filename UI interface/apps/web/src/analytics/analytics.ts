@@ -33,7 +33,7 @@ type QueuedEvent =
   | { type: "event"; eventName: string; params: AnalyticsParams }
   | { type: "page_view"; path: string; title: string; location: string };
 
-const GA_MEASUREMENT_ID = "G-8LNKTSL8MF";
+const GA_MEASUREMENT_ID = "G-D1XC74NKPG";
 const DEBUG_MODE_STORAGE_KEY = "atriveo_analytics_debug";
 const MILESTONE_STORAGE_PREFIX = "atriveo_analytics_milestone";
 const EVENT_FLUSH_INTERVAL_MS = 120;
