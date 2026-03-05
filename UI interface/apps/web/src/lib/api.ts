@@ -17,6 +17,11 @@ export type AuthSession = {
   user: AuthUser;
 };
 
+export type AuthResponse = {
+  token: string;
+  user: AuthUser;
+};
+
 let runtimeToken =
   typeof window !== "undefined"
     ? (() => {
@@ -111,7 +116,7 @@ export function setRuntimeAuthToken(token: string) {
 }
 
 export function login(email: string, password: string) {
-  return request<{ token: string; user: AuthUser }>(
+  return request<AuthResponse>(
     "/auth/login",
     { method: "POST", body: JSON.stringify({ email, password }) },
     { skipAuth: true },
@@ -119,9 +124,17 @@ export function login(email: string, password: string) {
 }
 
 export function signup(payload: { email: string; password: string; first_name?: string; last_name?: string }) {
-  return request<{ token: string; user: AuthUser }>(
+  return request<AuthResponse>(
     "/auth/signup",
     { method: "POST", body: JSON.stringify(payload) },
+    { skipAuth: true },
+  );
+}
+
+export function googleAuth(idToken: string) {
+  return request<AuthResponse>(
+    "/auth/google",
+    { method: "POST", body: JSON.stringify({ id_token: idToken }) },
     { skipAuth: true },
   );
 }

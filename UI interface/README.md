@@ -32,10 +32,12 @@ React dashboard + Cloudflare Worker API + Postgres database.
 6. Configure API local env:
    - `cp apps/api/.dev.vars.example apps/api/.dev.vars`
    - In `apps/api/.dev.vars`, set `NEON_DATABASE_URL=$DATABASE_URL` (or paste a Neon URL directly)
+   - Optional for Google auth: set `GOOGLE_CLIENT_ID` (or `GOOGLE_CLIENT_IDS` comma-separated)
 7. Configure web local env:
    - `cp apps/web/.env.example apps/web/.env`
    - Set `VITE_API_URL=http://127.0.0.1:8787`
    - Leave `VITE_API_TOKEN=` empty unless you set `API_SHARED_TOKEN`
+   - Optional for Google auth: set `VITE_GOOGLE_CLIENT_ID` to your Google OAuth Web client ID
   - Analytics uses GA4 Measurement ID `G-8LNKTSL8MF` (configured in web `index.html`)
   - Analytics implementation guide: `docs/analytics.md`
 8. Run apps (two terminals):

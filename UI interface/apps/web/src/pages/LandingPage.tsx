@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent, type MouseEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { GoogleAuthButton } from "../components/GoogleAuthButton";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { login, setStoredSession, signup, type AuthSession } from "../lib/api";
 import { DASHBOARD_BASE_PATH, withDashboardBase } from "../lib/paths";
@@ -245,6 +246,34 @@ export default function LandingPage({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [authOpen, authLoading]);
 
+  function completeAuth(
+    response: { token: string; user: AuthSession["user"] },
+    source: string,
+    authProvider: "password" | "google",
+    mode: "login" | "signup",
+  ) {
+    const session: AuthSession = { token: response.token, user: response.user };
+    setStoredSession(session);
+    onAuthenticated(session);
+    setAuthOpen(false);
+    if (mode === "signup") {
+      trackProductEvent(ANALYTICS_EVENTS.signup_completed, {
+        source,
+        auth_provider: authProvider,
+      });
+      trackFunnelStep(ANALYTICS_EVENTS.signup_completed, {
+        source,
+        auth_provider: authProvider,
+      });
+    } else {
+      trackProductEvent(ANALYTICS_EVENTS.login_completed, {
+        source,
+        auth_provider: authProvider,
+      });
+    }
+    navigate(withDashboardBase(""), { replace: true });
+  }
+
   async function onSubmitAuth(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setAuthError("");
@@ -277,23 +306,7 @@ export default function LandingPage({
               last_name: lastName.trim() || undefined,
             })
           : await login(email.trim(), password);
-      const session: AuthSession = { token: response.token, user: response.user };
-      setStoredSession(session);
-      onAuthenticated(session);
-      setAuthOpen(false);
-      if (authMode === "signup") {
-        trackProductEvent(ANALYTICS_EVENTS.signup_completed, {
-          source: "landing_auth_modal",
-        });
-        trackFunnelStep(ANALYTICS_EVENTS.signup_completed, {
-          source: "landing_auth_modal",
-        });
-      } else {
-        trackProductEvent(ANALYTICS_EVENTS.login_completed, {
-          source: "landing_auth_modal",
-        });
-      }
-      navigate(withDashboardBase(""), { replace: true });
+      completeAuth(response, "landing_auth_modal_email", "password", authMode);
     } catch (err) {
       trackErrorEvent(ANALYTICS_EVENTS.form_submission_error, {
         component_name: "landing_auth_modal",
@@ -785,6 +798,23 @@ export default function LandingPage({
                     ? "Log in"
                     : "Create account"}
               </button>
+              <div className="lp-auth-divider" role="separator" aria-label="or">
+                <span>or</span>
+              </div>
+              <GoogleAuthButton
+                mode={authMode}
+                theme={theme}
+                disabled={authLoading}
+                onSuccess={(response) => completeAuth(response, "landing_auth_modal_google", "google", authMode)}
+                onError={(message) => {
+                  trackErrorEvent(ANALYTICS_EVENTS.form_submission_error, {
+                    component_name: "landing_auth_modal",
+                    error_type: "google_auth_failed",
+                    form_name: authMode,
+                  });
+                  setAuthError(message);
+                }}
+              />
             </form>
             <p className="lp-auth-switch">
               {authMode === "login" ? "No account? " : "Already have access? "}
