@@ -70,3 +70,11 @@ You do not need `docker compose` in this Neon mode.
 - `npm run dev:api` - run Worker API locally
 - `npm run dev:web` - run React app locally
 - `npm run release:master` - merge `origin/main` into `master`, push `master`, then return to your previous branch
+
+## CI deploy trigger
+
+- Frontend: Cloudflare Pages auto-deploys from `master` (Git integration).
+- API: GitHub Action `.github/workflows/deploy-api-production.yml` deploys on every push to `master`.
+- Required GitHub repository secrets:
+  - `CLOUDFLARE_API_TOKEN`
+  - `CLOUDFLARE_ACCOUNT_ID`
