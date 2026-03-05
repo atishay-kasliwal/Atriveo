@@ -336,6 +336,12 @@ export default function NetworkPage() {
     load();
   }, [load]);
 
+  useEffect(() => {
+    const onRefresh = () => load();
+    window.addEventListener("dashboard-refresh", onRefresh);
+    return () => window.removeEventListener("dashboard-refresh", onRefresh);
+  }, [load]);
+
   function openFriendManager() {
     window.dispatchEvent(new CustomEvent("open-friend-manager"));
   }
@@ -411,6 +417,7 @@ export default function NetworkPage() {
       });
       setShowPrefillModal(false);
       setSuccess("Application added from friend suggestion.");
+      window.dispatchEvent(new CustomEvent("dashboard-refresh"));
     } catch (err) {
       setPrefillError((err as Error).message);
     } finally {

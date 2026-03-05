@@ -1,17 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import Layout from "./components/Layout";
 import SiteShell from "./components/SiteShell";
-import DashboardPage from "./pages/DashboardPage";
-import JobsPage from "./pages/JobsPage";
-import ReferralsPage from "./pages/ReferralsPage";
-import PendingPage from "./pages/PendingPage";
-import NotesPage from "./pages/NotesPage";
-import NetworkPage from "./pages/NetworkPage";
-import AuthPage from "./pages/AuthPage";
-import SignupPage from "./pages/SignupPage";
-import LandingPage from "./pages/LandingPage";
-import HeaderTestPage from "./pages/HeaderTestPage";
 import {
   clearStoredSession,
   getMe,
@@ -26,6 +16,16 @@ import { DASHBOARD_BASE_PATH, withDashboardBase } from "./lib/paths";
 
 type AppTheme = "light" | "dark";
 const THEME_STORAGE_KEY = "atriveo_theme";
+const DashboardPage = lazy(() => import("./pages/DashboardPage"));
+const JobsPage = lazy(() => import("./pages/JobsPage"));
+const ReferralsPage = lazy(() => import("./pages/ReferralsPage"));
+const PendingPage = lazy(() => import("./pages/PendingPage"));
+const NotesPage = lazy(() => import("./pages/NotesPage"));
+const NetworkPage = lazy(() => import("./pages/NetworkPage"));
+const AuthPage = lazy(() => import("./pages/AuthPage"));
+const SignupPage = lazy(() => import("./pages/SignupPage"));
+const LandingPage = lazy(() => import("./pages/LandingPage"));
+const HeaderTestPage = lazy(() => import("./pages/HeaderTestPage"));
 
 function getInitialTheme(): AppTheme {
   if (typeof window === "undefined") return "light";
@@ -39,6 +39,14 @@ const BASENAME = (() => {
   if (baseUrl === "/") return "/";
   return baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
 })();
+
+function RouteLoader() {
+  return (
+    <div className="spinner-wrap">
+      <div className="spinner" />
+    </div>
+  );
+}
 
 export default function App() {
   const [session, setSession] = useState<AuthSession | null>(() => getStoredSession());
@@ -118,11 +126,13 @@ export default function App() {
               session ? (
                 <Navigate to={withDashboardBase("")} replace />
               ) : (
-                <LandingPage
-                  isAuthenticated={Boolean(session)}
-                  theme={theme}
-                  onToggleTheme={handleToggleTheme}
-                />
+                <Suspense fallback={<RouteLoader />}>
+                  <LandingPage
+                    isAuthenticated={Boolean(session)}
+                    theme={theme}
+                    onToggleTheme={handleToggleTheme}
+                  />
+                </Suspense>
               )
             }
           />
@@ -132,11 +142,13 @@ export default function App() {
               session ? (
                 <Navigate to={withDashboardBase("")} replace />
               ) : (
-                <AuthPage
-                  onAuthenticated={handleAuthenticated}
-                  theme={theme}
-                  onToggleTheme={handleToggleTheme}
-                />
+                <Suspense fallback={<RouteLoader />}>
+                  <AuthPage
+                    onAuthenticated={handleAuthenticated}
+                    theme={theme}
+                    onToggleTheme={handleToggleTheme}
+                  />
+                </Suspense>
               )
             }
           />
@@ -146,15 +158,24 @@ export default function App() {
               session ? (
                 <Navigate to={withDashboardBase("")} replace />
               ) : (
-                <SignupPage
-                  onAuthenticated={handleAuthenticated}
-                  theme={theme}
-                  onToggleTheme={handleToggleTheme}
-                />
+                <Suspense fallback={<RouteLoader />}>
+                  <SignupPage
+                    onAuthenticated={handleAuthenticated}
+                    theme={theme}
+                    onToggleTheme={handleToggleTheme}
+                  />
+                </Suspense>
               )
             }
           />
-          <Route path="/header-test" element={<HeaderTestPage />} />
+          <Route
+            path="/header-test"
+            element={
+              <Suspense fallback={<RouteLoader />}>
+                <HeaderTestPage />
+              </Suspense>
+            }
+          />
           <Route
             path={`${DASHBOARD_BASE_PATH}/*`}
             element={
@@ -170,13 +191,62 @@ export default function App() {
               )
             }
           >
-            <Route index element={<DashboardPage />} />
-            <Route path="jobs" element={<JobsPage />} />
-            <Route path="archive" element={<JobsPage statusFilter="rejected" />} />
-            <Route path="referrals" element={<ReferralsPage />} />
-            <Route path="pending" element={<PendingPage />} />
-            <Route path="notes" element={<NotesPage />} />
-            <Route path="network" element={<NetworkPage />} />
+            <Route
+              index
+              element={
+                <Suspense fallback={<RouteLoader />}>
+                  <DashboardPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="jobs"
+              element={
+                <Suspense fallback={<RouteLoader />}>
+                  <JobsPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="archive"
+              element={
+                <Suspense fallback={<RouteLoader />}>
+                  <JobsPage statusFilter="rejected" />
+                </Suspense>
+              }
+            />
+            <Route
+              path="referrals"
+              element={
+                <Suspense fallback={<RouteLoader />}>
+                  <ReferralsPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="pending"
+              element={
+                <Suspense fallback={<RouteLoader />}>
+                  <PendingPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="notes"
+              element={
+                <Suspense fallback={<RouteLoader />}>
+                  <NotesPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="network"
+              element={
+                <Suspense fallback={<RouteLoader />}>
+                  <NetworkPage />
+                </Suspense>
+              }
+            />
             <Route path="friends" element={<Navigate to="network" replace />} />
           </Route>
           <Route path="/app/*" element={<Navigate to={withDashboardBase("")} replace />} />
