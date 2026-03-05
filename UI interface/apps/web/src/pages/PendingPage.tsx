@@ -123,27 +123,6 @@ export default function PendingPage() {
     }
   }
 
-  const pendingSummary = useMemo(() => {
-    if (!pendingData.length) return { nextDeadline: "-", oldestPending: "-" };
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const normalize = (value: unknown) => {
-      const raw = String(value ?? "").slice(0, 10);
-      if (!raw) return null;
-      const parsed = new Date(`${raw}T00:00:00`);
-      if (Number.isNaN(parsed.getTime())) return null;
-      return raw;
-    };
-    const startDates = pendingData.map((item) => normalize(item.pending_date)).filter((v): v is string => Boolean(v));
-    const endDates = pendingData.map((item) => normalize(item.end_date)).filter((v): v is string => Boolean(v));
-    const oldestPending = startDates.length ? startDates.sort()[0] : null;
-    const upcomingEnd = endDates.filter((d) => new Date(`${d}T00:00:00`).getTime() >= today.getTime()).sort()[0] ?? endDates.sort()[0] ?? null;
-    return {
-      nextDeadline: upcomingEnd ? formatTableDate(upcomingEnd) : "-",
-      oldestPending: oldestPending ? formatTableDate(oldestPending) : "-",
-    };
-  }, [pendingData]);
-
   const archiveCompanies = useMemo(() => {
     const values = new Set<string>();
     for (const item of archiveData) {
@@ -247,10 +226,13 @@ export default function PendingPage() {
             <div className="pending-header-main">
               <h2>Pending Tasks</h2>
             </div>
-            <div className="pending-header-meta">
-              <span>Next deadline: <strong>{pendingSummary.nextDeadline}</strong></span>
-              <span>Oldest pending: <strong>{pendingSummary.oldestPending}</strong></span>
-            </div>
+            <button
+              type="button"
+              className="section-header-btn"
+              onClick={() => window.dispatchEvent(new CustomEvent("open-create-task-modal"))}
+            >
+              Add Task
+            </button>
           </div>
           {isLoading ? (
             <Spinner />

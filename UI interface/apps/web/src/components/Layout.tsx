@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from "react";
 import { NavLink, Outlet, Link, useLocation } from "react-router-dom";
 import {
   acceptFriendRequest,
@@ -19,6 +19,15 @@ import {
   type OutgoingFriendRequest,
 } from "../lib/api";
 import { getLocalISODate } from "../lib/formatDate";
+import {
+  ANALYTICS_EVENTS,
+  trackErrorEvent,
+  trackFeatureEvent,
+  trackFunnelStep,
+  trackLifecycleMilestone,
+  trackPerformanceEvent,
+  trackProductEvent,
+} from "../analytics/events";
 import NotificationBell from "./layout/NotificationBell";
 import QuickCreateSplitButton from "./layout/QuickCreateSplitButton";
 import HeaderAvatarMenu from "./layout/HeaderAvatarMenu";
@@ -32,15 +41,16 @@ type LayoutProps = {
 };
 
 const emptyJobForm = {
-  role: "Software Engineer",
+  role: "",
   company: "",
-  location_raw: "United States of America",
+  location_raw: "United States",
   job_link: "",
   job_application_id: "",
   oa_deadline_date: "",
   keyword_matching: "Medium",
   oa_status: "No",
   referral_status: "No",
+  referred_by_name: "",
   notes: "",
   date_saved: getLocalISODate(),
 };
@@ -68,6 +78,189 @@ const emptyNoteForm = {
   show_on_dashboard: "Yes",
   note: "",
 };
+
+const COUNTRY_OPTIONS = [
+  "United States",
+  "Canada",
+  "United Kingdom",
+  "India",
+  "Germany",
+  "Australia",
+];
+
+const SLOW_APPLICATION_CREATE_THRESHOLD_MS = 1500;
+
+type SectionHeaderProps = {
+  icon: ReactNode;
+  title: string;
+};
+
+function SectionHeader({ icon, title }: SectionHeaderProps) {
+  return (
+    <div className="new-app-section-header">
+      <span className="new-app-section-icon" aria-hidden="true">
+        {icon}
+      </span>
+      <h4>{title}</h4>
+    </div>
+  );
+}
+
+type InputProps = {
+  label: string;
+  required?: boolean;
+  icon?: ReactNode;
+} & Omit<InputHTMLAttributes<HTMLInputElement>, "required">;
+
+function Input({ label, required, icon, id, className, ...props }: InputProps) {
+  return (
+    <label className="new-app-field" htmlFor={id}>
+      <span className="new-app-label">
+        {icon ? <span className="new-app-label-icon">{icon}</span> : null}
+        {label}
+        {required ? " *" : ""}
+      </span>
+      <input id={id} className={["new-app-input", className].filter(Boolean).join(" ")} {...props} />
+    </label>
+  );
+}
+
+type SelectProps = {
+  label: string;
+  required?: boolean;
+  icon?: ReactNode;
+  options: Array<{ label: string; value: string }>;
+} & Omit<SelectHTMLAttributes<HTMLSelectElement>, "required">;
+
+function Select({ label, required, icon, id, className, options, ...props }: SelectProps) {
+  return (
+    <label className="new-app-field" htmlFor={id}>
+      <span className="new-app-label">
+        {icon ? <span className="new-app-label-icon">{icon}</span> : null}
+        {label}
+        {required ? " *" : ""}
+      </span>
+      <select id={id} className={["new-app-input", "new-app-select", className].filter(Boolean).join(" ")} {...props}>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+type DatePickerProps = {
+  label: string;
+  required?: boolean;
+  showIcon?: boolean;
+} & Omit<InputHTMLAttributes<HTMLInputElement>, "required" | "type">;
+
+function DatePicker({ label, required, showIcon = true, id, className, ...props }: DatePickerProps) {
+  return (
+    <label className="new-app-field" htmlFor={id}>
+      <span className="new-app-label">
+        {showIcon ? (
+          <span className="new-app-label-icon" aria-hidden="true">
+            📅
+          </span>
+        ) : null}
+        {label}
+        {required ? " *" : ""}
+      </span>
+      <input id={id} type="date" className={["new-app-input", className].filter(Boolean).join(" ")} {...props} />
+    </label>
+  );
+}
+
+type YesNoToggleProps = {
+  id: string;
+  label: string;
+  value: "Yes" | "No";
+  onChange: (value: "Yes" | "No") => void;
+};
+
+function YesNoToggle({ id, label, value, onChange }: YesNoToggleProps) {
+  return (
+    <div className="new-app-field new-app-toggle-field">
+      <span className="new-app-label" id={`${id}-label`}>
+        {label}
+      </span>
+      <div className="new-app-toggle" role="radiogroup" aria-labelledby={`${id}-label`}>
+        <button
+          type="button"
+          id={`${id}-yes`}
+          role="radio"
+          aria-checked={value === "Yes"}
+          className={value === "Yes" ? "is-active" : ""}
+          onClick={() => onChange("Yes")}
+        >
+          Yes
+        </button>
+        <button
+          type="button"
+          id={`${id}-no`}
+          role="radio"
+          aria-checked={value === "No"}
+          className={value === "No" ? "is-active" : ""}
+          onClick={() => onChange("No")}
+        >
+          No
+        </button>
+      </div>
+    </div>
+  );
+}
+
+type KeywordMatchRadioProps = {
+  id: string;
+  label: string;
+  value: "Strong" | "Medium" | "Weak";
+  onChange: (value: "Strong" | "Medium" | "Weak") => void;
+};
+
+function KeywordMatchRadio({ id, label, value, onChange }: KeywordMatchRadioProps) {
+  return (
+    <div className="new-app-field new-app-keyword-field">
+      <span className="new-app-label" id={`${id}-label`}>
+        {label}
+      </span>
+      <div className="new-app-keyword-toggle" role="radiogroup" aria-labelledby={`${id}-label`}>
+        <button
+          type="button"
+          id={`${id}-strong`}
+          role="radio"
+          aria-checked={value === "Strong"}
+          className={value === "Strong" ? "is-active" : ""}
+          onClick={() => onChange("Strong")}
+        >
+          High
+        </button>
+        <button
+          type="button"
+          id={`${id}-medium`}
+          role="radio"
+          aria-checked={value === "Medium"}
+          className={value === "Medium" ? "is-active" : ""}
+          onClick={() => onChange("Medium")}
+        >
+          Medium
+        </button>
+        <button
+          type="button"
+          id={`${id}-weak`}
+          role="radio"
+          aria-checked={value === "Weak"}
+          className={value === "Weak" ? "is-active" : ""}
+          onClick={() => onChange("Weak")}
+        >
+          Low
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function Layout({ userEmail, onLogout, theme, onToggleTheme }: LayoutProps) {
   const location = useLocation();
@@ -109,6 +302,21 @@ export default function Layout({ userEmail, onLogout, theme, onToggleTheme }: La
     }
     window.addEventListener("open-friend-manager", onOpenFriendManager);
     return () => window.removeEventListener("open-friend-manager", onOpenFriendManager);
+  }, []);
+
+  useEffect(() => {
+    function onOpenCreateTaskModal() {
+      openCreateTaskModal();
+    }
+    function onOpenLogNoteModal() {
+      openLogNoteModal();
+    }
+    window.addEventListener("open-create-task-modal", onOpenCreateTaskModal);
+    window.addEventListener("open-log-note-modal", onOpenLogNoteModal);
+    return () => {
+      window.removeEventListener("open-create-task-modal", onOpenCreateTaskModal);
+      window.removeEventListener("open-log-note-modal", onOpenLogNoteModal);
+    };
   }, []);
 
   useEffect(() => {
@@ -256,8 +464,8 @@ export default function Layout({ userEmail, onLogout, theme, onToggleTheme }: La
       setCsvError("Please choose a CSV file.");
       return;
     }
-    if (csvFile.size > 1024 * 1024) {
-      setCsvError("CSV file is too large. Maximum allowed size is 1 MB.");
+    if (csvFile.size > 10 * 1024 * 1024) {
+      setCsvError("CSV file is too large. Maximum allowed size is 10 MB.");
       return;
     }
     try {
@@ -265,13 +473,13 @@ export default function Layout({ userEmail, onLogout, theme, onToggleTheme }: La
       const csvText = await csvFile.text();
       const result = await importJobsCsv(csvText);
       const summary = [
-        `Imported ${result.imported} row(s).`,
+        `Imported ${result.imported} of ${result.rowsReceived} row(s).`,
         `Skipped (missing mandatory): ${result.skippedMissingRequired}.`,
         `Skipped (invalid date): ${result.skippedInvalidDate}.`,
         `Defaults applied: ${result.defaultsApplied}.`,
       ].join(" ");
       const warningPreview = result.warnings?.length ? ` ${result.warnings.slice(0, 3).join(" ")}` : "";
-      setCsvSuccess(`${summary}${warningPreview}`);
+      setCsvSuccess(`${summary}${warningPreview} Jobs table is paginated (25 per page).`);
       window.dispatchEvent(new CustomEvent("dashboard-refresh"));
     } catch (err) {
       setCsvError((err as Error).message || "Failed to import CSV.");
@@ -297,6 +505,11 @@ export default function Layout({ userEmail, onLogout, theme, onToggleTheme }: La
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
       setCsvSuccess("CSV export downloaded.");
+      trackFeatureEvent(ANALYTICS_EVENTS.export_data_clicked, {
+        source: "header_menu",
+        export_format: "csv",
+        export_range: csvRange,
+      });
     } catch (err) {
       setCsvError((err as Error).message || "Failed to export CSV.");
     } finally {
@@ -306,51 +519,115 @@ export default function Layout({ userEmail, onLogout, theme, onToggleTheme }: La
 
   async function onCreateJob(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.company.trim()) return;
+    const company = form.company.trim();
+    const role = form.role.trim();
+
+    if (!company) {
+      trackErrorEvent(ANALYTICS_EVENTS.validation_error, {
+        component_name: "new_application_form",
+        error_type: "missing_company",
+      });
+      return;
+    }
+
+    const startedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
+
     if (form.referral_status === "Requested") {
-      if (!form.role.trim()) return;
+      if (!role) {
+        trackErrorEvent(ANALYTICS_EVENTS.validation_error, {
+          component_name: "new_application_form",
+          error_type: "missing_role",
+        });
+        return;
+      }
       try {
         setIsSaving(true);
         setModalError("");
         await createReferral({
-          company: form.company.trim(),
-          request_log: form.role.trim(),
+          company,
+          request_log: role,
           request_date: form.date_saved || getLocalISODate(),
           request_link: form.job_link.trim() || undefined,
           referral_received: form.referral_status,
           keyword_matching: form.keyword_matching,
+          referred_by_name: form.referred_by_name.trim() || undefined,
           comment: form.notes.trim() || undefined,
         });
         setForm({ ...emptyJobForm, date_saved: getLocalISODate() });
         setShowQuickAdd(false);
         window.dispatchEvent(new CustomEvent("dashboard-refresh"));
       } catch (err) {
+        trackErrorEvent(ANALYTICS_EVENTS.form_submission_error, {
+          component_name: "new_application_form",
+          error_type: "referral_submit_failed",
+        });
         setModalError((err as Error).message);
       } finally {
+        const durationMs = (typeof performance !== "undefined" ? performance.now() : Date.now()) - startedAt;
+        if (durationMs >= SLOW_APPLICATION_CREATE_THRESHOLD_MS) {
+          trackPerformanceEvent(ANALYTICS_EVENTS.slow_application_create, durationMs, {
+            source: "new_application_modal",
+            flow: "referral",
+          });
+        }
         setIsSaving(false);
       }
       return;
     }
-    if (!form.role.trim()) return;
+
+    if (!role) {
+      trackErrorEvent(ANALYTICS_EVENTS.validation_error, {
+        component_name: "new_application_form",
+        error_type: "missing_role",
+      });
+      return;
+    }
+
     try {
       setIsSaving(true);
       setModalError("");
       await createJob({
         ...form,
+        company,
+        role,
         date_saved: form.date_saved || getLocalISODate(),
         job_link: form.job_link.trim() || undefined,
         job_application_id: form.job_application_id.trim() || undefined,
         oa_deadline_date: form.oa_deadline_date || undefined,
         oa_status: form.oa_status || "No",
         referral_status: form.referral_status.trim() || undefined,
+        referred_by_name: form.referred_by_name.trim() || undefined,
         notes: form.notes.trim() || undefined,
       });
       setForm({ ...emptyJobForm, date_saved: getLocalISODate() });
       setShowQuickAdd(false);
       window.dispatchEvent(new CustomEvent("dashboard-refresh"));
+      trackProductEvent(ANALYTICS_EVENTS.application_created, {
+        source: "new_application_modal",
+        method: "manual",
+        has_referral: form.referral_status === "Yes",
+        has_online_assessment: form.oa_status === "Yes",
+      });
+      trackFunnelStep(ANALYTICS_EVENTS.application_created, {
+        source: "new_application_modal",
+      });
+      trackLifecycleMilestone(ANALYTICS_EVENTS.first_application_created, {
+        source: "new_application_modal",
+      });
     } catch (err) {
+      trackErrorEvent(ANALYTICS_EVENTS.form_submission_error, {
+        component_name: "new_application_form",
+        error_type: "application_create_failed",
+      });
       setModalError((err as Error).message);
     } finally {
+      const durationMs = (typeof performance !== "undefined" ? performance.now() : Date.now()) - startedAt;
+      if (durationMs >= SLOW_APPLICATION_CREATE_THRESHOLD_MS) {
+        trackPerformanceEvent(ANALYTICS_EVENTS.slow_application_create, durationMs, {
+          source: "new_application_modal",
+          flow: "job",
+        });
+      }
       setIsSaving(false);
     }
   }
@@ -418,7 +695,14 @@ export default function Layout({ userEmail, onLogout, theme, onToggleTheme }: La
   }
 
   function openNewApplicationModal() {
+    trackProductEvent(ANALYTICS_EVENTS.add_application_clicked, {
+      source: "dashboard_header",
+    });
+    trackFunnelStep(ANALYTICS_EVENTS.add_application_clicked, {
+      source: "dashboard_header",
+    });
     setModalError("");
+    setForm({ ...emptyJobForm, date_saved: getLocalISODate() });
     setShowPendingTask(false);
     setShowNoteModal(false);
     setShowQuickAdd(true);
@@ -447,11 +731,7 @@ export default function Layout({ userEmail, onLogout, theme, onToggleTheme }: La
           </Link>
           <div className="app-nav-actions">
             <div className="app-nav-actions-main">
-              <QuickCreateSplitButton
-                onNewApplication={openNewApplicationModal}
-                onCreateTask={openCreateTaskModal}
-                onLogNote={openLogNoteModal}
-              />
+              <ThemeToggle theme={theme} onToggle={onToggleTheme} className="app-nav-theme-toggle app-nav-theme-toggle--top" />
             </div>
             <div className="app-nav-actions-utility">
               <NotificationBell
@@ -489,7 +769,12 @@ export default function Layout({ userEmail, onLogout, theme, onToggleTheme }: La
               Archive
             </NavLink>
           </div>
-          <ThemeToggle theme={theme} onToggle={onToggleTheme} className="app-nav-theme-toggle" />
+          <QuickCreateSplitButton
+            className="app-split-create--nav-bottom"
+            onNewApplication={openNewApplicationModal}
+            onCreateTask={openCreateTaskModal}
+            onLogNote={openLogNoteModal}
+          />
         </div>
       </nav>
       <main className="page-main">
@@ -506,8 +791,10 @@ export default function Layout({ userEmail, onLogout, theme, onToggleTheme }: La
             {csvMode === "import" ? (
               <form className="form" onSubmit={onImportCsv}>
                 <p className="csv-helper">
-                  Upload must be CSV, up to 1 MB.
-                  Mandatory per row: <code>role</code>, <code>company</code>, <code>date_saved</code> (YYYY-MM-DD). Rows missing these are skipped.
+                  Upload must be CSV, up to 10 MB.
+                  Mandatory per row: <code>role</code>, <code>company</code>, and at least one of <code>date_saved</code> (YYYY-MM-DD) or <code>applied_at</code> (ISO timestamp).
+                  Include both when possible to preserve exact application time and stable sorting.
+                  If only <code>date_saved</code> is provided, import defaults time to 12:07 AM.
                   Optional fields auto-default when blank or invalid.
                   Allowed values:
                   <code>keyword_matching</code> = Strong/Medium/Weak,
@@ -734,129 +1021,152 @@ export default function Layout({ userEmail, onLogout, theme, onToggleTheme }: La
       ) : null}
 
       {showQuickAdd && (
-        <div className="modal-overlay" onClick={() => !isSaving && setShowQuickAdd(false)}>
+        <div className="modal-overlay modal-overlay--quickadd" onClick={() => !isSaving && setShowQuickAdd(false)}>
           <div className="modal modal--quickadd" onClick={(e) => e.stopPropagation()}>
-            <h3>New Application</h3>
             {modalError ? <div className="auth-error">{modalError}</div> : null}
-            <form className="form form--quickadd" onSubmit={onCreateJob}>
-              <div className="qa-left">
-                <input
-                  placeholder="Position *"
-                  value={form.role}
-                  onChange={(e) => setForm((p) => ({ ...p, role: e.target.value }))}
-                  autoFocus
-                />
-                <div className="form-row">
-                  <label className="form-label">Date</label>
-                  <input
-                    type="date"
-                    value={form.date_saved}
-                    onChange={(e) => setForm((p) => ({ ...p, date_saved: e.target.value }))}
+            <form className="new-app-form" onSubmit={onCreateJob}>
+              <header className="new-app-header">
+                <h3>New Application</h3>
+                <p>Track a new job application</p>
+              </header>
+
+              <section className="new-app-section">
+                <SectionHeader icon="▦" title="JOB INFORMATION" />
+                <div className="new-app-grid-3">
+                  <Input
+                    id="new-app-role"
+                    label="Job Title"
+                    required
+                    placeholder="e.g. Software Engineer"
+                    value={form.role}
+                    onChange={(e) => setForm((p) => ({ ...p, role: e.target.value }))}
+                    autoFocus
+                  />
+                  <Input
+                    id="new-app-company"
+                    label="Company"
+                    required
+                    icon="🏢"
+                    placeholder="e.g. Google"
+                    value={form.company}
+                    onChange={(e) => setForm((p) => ({ ...p, company: e.target.value }))}
+                  />
+                  <Input
+                    id="new-app-id"
+                    label="Job / Application ID"
+                    icon="#"
+                    placeholder="Optional"
+                    value={form.job_application_id}
+                    onChange={(e) => setForm((p) => ({ ...p, job_application_id: e.target.value }))}
                   />
                 </div>
-                <input
-                  placeholder="Location"
-                  value={form.location_raw}
-                  onChange={(e) => setForm((p) => ({ ...p, location_raw: e.target.value }))}
-                />
-                <div className="form-row">
-                  <label className="form-label">Referral</label>
-                  <select
-                    value={form.referral_status}
-                    onChange={(e) => setForm((p) => ({ ...p, referral_status: e.target.value }))}
-                    className="form-select"
-                  >
-                    <option value="">—</option>
-                    <option value="Requested">Requested</option>
-                    <option value="Yes">Yes</option>
-                    <option value="No">No</option>
-                  </select>
+                <div className="new-app-grid-2">
+                  <Input
+                    id="new-app-link"
+                    label="Job Link"
+                    icon="↗"
+                    type="url"
+                    placeholder="https://..."
+                    value={form.job_link}
+                    onChange={(e) => setForm((p) => ({ ...p, job_link: e.target.value }))}
+                  />
+                  <KeywordMatchRadio
+                    id="new-app-keyword"
+                    label="Keyword Match"
+                    value={form.keyword_matching as "Strong" | "Medium" | "Weak"}
+                    onChange={(next) => setForm((p) => ({ ...p, keyword_matching: next }))}
+                  />
                 </div>
-                {form.referral_status === "Requested" && (
-                  <p className="referral-hint">
-                    This will add an entry on the <Link to="/referrals" className="table-link">Referrals</Link> page. Change its status there to create a job.
-                  </p>
-                )}
-                {form.referral_status === "Yes" && (
-                  <p className="referral-hint">
-                    Add a referral for this company on the <Link to="/referrals" className="table-link">Referrals</Link> page to keep track.
-                  </p>
-                )}
-                <textarea
-                  placeholder="Notes"
-                  rows={2}
-                  value={form.notes}
-                  onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
-                />
-              </div>
-              <div className="qa-right">
-                <input
-                  placeholder="Company *"
-                  value={form.company}
-                  onChange={(e) => setForm((p) => ({ ...p, company: e.target.value }))}
-                />
-                <input
-                  placeholder="Job link (URL)"
-                  type="url"
-                  value={form.job_link}
-                  onChange={(e) => setForm((p) => ({ ...p, job_link: e.target.value }))}
-                />
-                <input
-                  placeholder="Job/Application ID (optional)"
-                  value={form.job_application_id}
-                  onChange={(e) => setForm((p) => ({ ...p, job_application_id: e.target.value }))}
-                />
-                <div className="form-row">
-                  <label className="form-label">OA Deadline (optional)</label>
-                  <input
-                    type="date"
+              </section>
+
+              <section className="new-app-section">
+                <SectionHeader icon="⌁" title="REFERRAL & OA" />
+                <div className="new-app-grid-2 new-app-grid-referral">
+                  <YesNoToggle
+                    id="new-app-referral"
+                    label="Referral"
+                    value={form.referral_status}
+                    onChange={(next) => setForm((p) => ({ ...p, referral_status: next }))}
+                  />
+                  <Input
+                    id="new-app-referral-name"
+                    label="Referral Name"
+                    placeholder="Optional"
+                    value={form.referred_by_name}
+                    onChange={(e) => setForm((p) => ({ ...p, referred_by_name: e.target.value }))}
+                  />
+                  <YesNoToggle
+                    id="new-app-oa"
+                    label="Online Assessment"
+                    value={form.oa_status}
+                    onChange={(next) => setForm((p) => ({ ...p, oa_status: next }))}
+                  />
+                  <DatePicker
+                    id="new-app-oa-deadline"
+                    label="OA Deadline"
+                    showIcon={false}
                     value={form.oa_deadline_date}
                     onChange={(e) => setForm((p) => ({ ...p, oa_deadline_date: e.target.value }))}
                   />
                 </div>
-                <div className="form-row">
-                  <label className="form-label">Online Assessment (OA)</label>
-                  <select
-                    value={form.oa_status}
-                    onChange={(e) => setForm((p) => ({ ...p, oa_status: e.target.value }))}
-                    className="form-select"
-                  >
-                    <option value="Yes">Yes</option>
-                    <option value="No">No</option>
-                  </select>
-                </div>
-                <div className="form-row">
-                  <label className="form-label">Keyword Matching</label>
-                  <select
-                    value={form.keyword_matching}
-                    onChange={(e) => setForm((p) => ({ ...p, keyword_matching: e.target.value }))}
-                    className="form-select"
-                  >
-                    <option value="Strong">Strong</option>
-                    <option value="Medium">Medium</option>
-                    <option value="Weak">Weak</option>
-                  </select>
-                  <p className="form-helper">
-                    {form.keyword_matching === "Strong"
-                      ? "Almost every technical keyword matched"
-                      : form.keyword_matching === "Medium"
-                        ? "Few Keywords are not Present"
-                        : "Few Keywords Matched"}
-                  </p>
-                </div>
-              </div>
-              <div className="modal-actions">
-                <button type="button" className="action-btn" onClick={() => !isSaving && setShowQuickAdd(false)} disabled={isSaving}>
+              </section>
+
+              <section className="new-app-section">
+                <details className="new-app-details">
+                  <summary className="new-app-details-summary">
+                    <span className="new-app-details-title">Additional Information</span>
+                    <span className="new-app-details-toggle" aria-hidden="true">
+                      <span className="new-app-details-icon">▾</span>
+                    </span>
+                  </summary>
+                  <div className="new-app-details-body">
+                    <div className="new-app-grid-2">
+                      <DatePicker
+                        id="new-app-date"
+                        label="Date Applied"
+                        required
+                        value={form.date_saved}
+                        onChange={(e) => setForm((p) => ({ ...p, date_saved: e.target.value }))}
+                      />
+                      <Select
+                        id="new-app-country"
+                        label="Country"
+                        required
+                        icon="◎"
+                        options={COUNTRY_OPTIONS.map((country) => ({ label: country, value: country }))}
+                        value={form.location_raw}
+                        onChange={(e) => setForm((p) => ({ ...p, location_raw: e.target.value }))}
+                      />
+                    </div>
+                    <label className="new-app-field" htmlFor="new-app-notes">
+                      <span className="new-app-label">
+                        <span className="new-app-label-icon" aria-hidden="true">
+                          ☰
+                        </span>
+                        Notes
+                      </span>
+                      <textarea
+                        id="new-app-notes"
+                        className="new-app-input new-app-textarea"
+                        placeholder="Any additional notes about this application..."
+                        rows={3}
+                        value={form.notes}
+                        onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
+                      />
+                    </label>
+                  </div>
+                </details>
+              </section>
+
+              <div className="new-app-actions">
+                <button type="button" className="new-app-btn new-app-btn--secondary" onClick={() => !isSaving && setShowQuickAdd(false)} disabled={isSaving}>
                   Cancel
                 </button>
-                <button type="submit" disabled={isSaving || !form.company.trim() || !form.role.trim()}>
+                <button type="submit" className="new-app-btn new-app-btn--primary" disabled={isSaving || !form.company.trim() || !form.role.trim()}>
                   {isSaving ? "Saving..." : "Create Application"}
                 </button>
               </div>
             </form>
-            <p className="modal-footnote">
-              View and search all jobs on the <Link to="/jobs" className="table-link">Jobs</Link> page.
-            </p>
           </div>
         </div>
       )}

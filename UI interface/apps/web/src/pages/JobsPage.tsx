@@ -24,6 +24,12 @@ import {
   updateOaArchive,
   type JobsTrendData,
 } from "../lib/api";
+import {
+  ANALYTICS_EVENTS,
+  trackErrorEvent,
+  trackFeatureEvent,
+  trackProductEvent,
+} from "../analytics/events";
 
 const LIMIT = 25;
 const REFERRAL_OPTIONS = ["", "Requested", "Yes", "No"];
@@ -139,6 +145,7 @@ function formatDayShort(day: string) {
 
 export default function JobsPage({ statusFilter }: { statusFilter?: string } = {}) {
   const [data, setData] = useState<Array<Record<string, unknown>>>([]);
+  const [totalRows, setTotalRows] = useState(0);
   const [page, setPage] = useState(1);
   const [company, setCompany] = useState("");
   const [searchInput, setSearchInput] = useState("");
@@ -160,6 +167,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     keyword_matching: "Medium",
     oa_status: "No",
     referral_status: "",
+    referred_by_name: "",
     response_status: "",
     application_status: "",
     notes: "",
@@ -205,9 +213,11 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
         status: statusFilter ?? "active",
       });
       setData(res.data ?? []);
+      setTotalRows(Number(res.total ?? 0));
     } catch (e) {
       setError((e as Error).message);
       setData([]);
+      setTotalRows(0);
     } finally {
       setIsLoading(false);
     }
@@ -268,19 +278,53 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     return () => window.removeEventListener("dashboard-refresh", onRefresh);
   }, [load, loadTrend, loadOaArchive, statusFilter]);
 
+  useEffect(() => {
+    trackFeatureEvent(ANALYTICS_EVENTS.filter_used, {
+      source: "jobs_page",
+      filter_type: "status",
+      filter_value: statusFilter ?? "active",
+    });
+  }, [statusFilter]);
+
   function onSearch(e: React.FormEvent) {
     e.preventDefault();
-    setCompany(searchInput.trim());
+    const query = searchInput.trim();
+    trackFeatureEvent(ANALYTICS_EVENTS.search_used, {
+      source: "jobs_page",
+      search_scope: "company",
+      query_length: query.length,
+    });
+    trackFeatureEvent(ANALYTICS_EVENTS.filter_used, {
+      source: "jobs_page",
+      filter_type: "company",
+      value_length: query.length,
+      has_value: query.length > 0,
+    });
+    setCompany(query);
     setPage(1);
   }
 
   function handleSort(field: SortField) {
+    const nextOrder: SortOrder =
+      field === sortBy
+        ? sortOrder === "asc"
+          ? "desc"
+          : "asc"
+        : field === "date_saved" || field === "applied_at"
+          ? "desc"
+          : "asc";
+
     if (field === sortBy) {
-      setSortOrder((o) => (o === "asc" ? "desc" : "asc"));
+      setSortOrder(nextOrder);
     } else {
       setSortBy(field);
-      setSortOrder(field === "date_saved" || field === "applied_at" ? "desc" : "asc"); // datetime: newest first; others: A→Z
+      setSortOrder(nextOrder); // datetime: newest first; others: A→Z
     }
+    trackFeatureEvent(ANALYTICS_EVENTS.sort_changed, {
+      source: "jobs_table",
+      sort_field: field,
+      sort_order: nextOrder,
+    });
     setPage(1);
   }
 
@@ -306,6 +350,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
           : String((job as any).keyword_matching ?? "Medium"),
       oa_status: normalizeOaStatus((job as any).oa_status),
       referral_status: normalizeReferralStatus(job.referral_status),
+      referred_by_name: String((job as any).referred_by_name ?? ""),
       response_status: String(job.response_status ?? ""),
       application_status: String(job.application_status ?? "Applied"),
       notes: String(job.notes ?? ""),
@@ -328,13 +373,22 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
         keyword_matching: editForm.keyword_matching || undefined,
         oa_status: editForm.oa_status || undefined,
         referral_status: editForm.referral_status.trim() || undefined,
+        referred_by_name: editForm.referred_by_name.trim() || undefined,
         response_status: editForm.response_status.trim() || undefined,
         application_status: editForm.application_status.trim() || undefined,
         notes: editForm.notes.trim() || undefined,
       });
       setEditing(null);
       await load();
+      trackProductEvent(ANALYTICS_EVENTS.application_updated, {
+        source: "jobs_edit_modal",
+        update_type: "form_save",
+      });
     } catch (e) {
+      trackErrorEvent(ANALYTICS_EVENTS.form_submission_error, {
+        component_name: "jobs_edit_modal",
+        error_type: "application_update_failed",
+      });
       setError((e as Error).message);
     } finally {
       setIsSaving(false);
@@ -372,8 +426,9 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     };
   }, [trendData]);
 
-  const hasNext = data.length === LIMIT;
+  const hasNext = page * LIMIT < totalRows;
   const hasPrev = page > 1;
+  const totalPages = Math.max(1, Math.ceil(totalRows / LIMIT));
 
   const sortConfig = BASE_SORT_CONFIG;
 
@@ -392,7 +447,14 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
       setDeletingId(id);
       await deleteJob(id);
       await load();
+      trackProductEvent(ANALYTICS_EVENTS.application_deleted, {
+        source: "jobs_table",
+      });
     } catch (e) {
+      trackErrorEvent(ANALYTICS_EVENTS.form_submission_error, {
+        component_name: "jobs_table",
+        error_type: "application_delete_failed",
+      });
       setError((e as Error).message);
     } finally {
       setDeletingId(null);
@@ -414,7 +476,16 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
       setArchivingId(id);
       await updateJob(id, { application_status: "Rejected" });
       await load();
+      trackProductEvent(ANALYTICS_EVENTS.application_updated, {
+        source: "jobs_table",
+        update_type: "status_change",
+        next_status: "rejected",
+      });
     } catch (e) {
+      trackErrorEvent(ANALYTICS_EVENTS.form_submission_error, {
+        component_name: "jobs_table",
+        error_type: "application_archive_failed",
+      });
       setError((e as Error).message);
     } finally {
       setArchivingId(null);
@@ -828,6 +899,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                         ) : null}
                       </button>
                     </th>
+                    <th>Referral Name</th>
                     <th>Keyword Match</th>
                     <th>OA</th>
                     <th>OA Deadline</th>
@@ -879,6 +951,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                         </div>
                       </td>
                       <td>{normalizeReferralStatus(j.referral_status) || "-"}</td>
+                      <td>{String((j as any).referred_by_name ?? "-") || "-"}</td>
                       <td>
                         <span className={getKeywordMeta(String((j as any).keyword_matching ?? "Medium")).cls}>
                           {getKeywordMeta(String((j as any).keyword_matching ?? "Medium")).label}
@@ -943,7 +1016,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
               <button type="button" disabled={!hasPrev} onClick={() => setPage((p) => p - 1)}>
                 Prev
               </button>
-              <span>Page {page}</span>
+              <span>Page {page} of {totalPages} • {totalRows} total</span>
               <button type="button" disabled={!hasNext} onClick={() => setPage((p) => p + 1)}>
                 Next
               </button>
@@ -1170,6 +1243,41 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                   </p>
                 </div>
               </div>
+              <input
+                placeholder="Referral name (optional)"
+                value={editForm.referred_by_name}
+                onChange={(e) => setEditForm((p) => ({ ...p, referred_by_name: e.target.value }))}
+              />
+              <div className="form-row">
+                <label className="form-label">Application Status</label>
+                <select
+                  value={editForm.application_status}
+                  onChange={(e) => setEditForm((p) => ({ ...p, application_status: e.target.value }))}
+                  className="form-select"
+                >
+                  <option value="Applied">Applied</option>
+                  <option value="Under consideration">Under consideration</option>
+                  <option value="Rejected">Rejected</option>
+                </select>
+              </div>
+              {editForm.referral_status === "Yes" && (
+                <p className="referral-hint form-span-2">
+                  Ensure this company has an entry on the <Link to="/referrals" className="table-link">Referrals</Link> page.
+                </p>
+              )}
+              <input
+                className="form-span-2"
+                placeholder="Response status"
+                value={editForm.response_status}
+                onChange={(e) => setEditForm((p) => ({ ...p, response_status: e.target.value }))}
+              />
+              <textarea
+                className="form-span-2"
+                placeholder="Notes"
+                rows={3}
+                value={editForm.notes}
+                onChange={(e) => setEditForm((p) => ({ ...p, notes: e.target.value }))}
+              />
               <div className="modal-actions">
                 <button type="button" className="action-btn" onClick={() => setEditing(null)} disabled={isSaving}>
                   Cancel

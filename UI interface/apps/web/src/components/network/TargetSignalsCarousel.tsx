@@ -11,12 +11,14 @@ type TargetSignalsCarouselProps = {
       company: string | null;
       role: string | null;
       date_saved: string | null;
+      applied_at: string | null;
       job_link: string | null;
       job_application_id: string | null;
       oa_deadline_date: string | null;
       oa_status: string | null;
       referral_status: string | null;
       application_status: string | null;
+      notes: string | null;
     };
   }) => void;
 };
@@ -132,6 +134,7 @@ export default function TargetSignalsCarousel({ todayData, useDemoFallback = fal
       const friendId = Number(friend.friend_id ?? 0);
       const friendLabel = String(friend.friend_name || friend.friend_email || "Friend");
       friend.jobs.forEach((job) => {
+        if (!job.can_view_company || !job.can_view_role || !job.can_view_applied_at) return;
         const companyRaw = String(job.company ?? "").trim();
         if (!companyRaw) return;
         const canonical = canonicalByNormalized.get(normalizeCompanyName(companyRaw));
@@ -141,7 +144,7 @@ export default function TargetSignalsCarousel({ todayData, useDemoFallback = fal
           role: String(job.role || "Not specified"),
           friendLabel,
           friendId,
-          dateIso: String(job.date_saved || new Date().toISOString()),
+          dateIso: String(job.applied_at || job.date_saved || new Date().toISOString()),
           link: String(job.job_link || ""),
         });
       });
@@ -303,31 +306,39 @@ export default function TargetSignalsCarousel({ todayData, useDemoFallback = fal
         <div>
           <h3>Target Company Signals</h3>
         </div>
-        <div className="target-signals-controls">
-          <span className="target-signals-page">{cards.length === 0 ? "0 / 0" : `${page + 1} / ${totalPages}`}</span>
-          <button
-            type="button"
-            className="target-signals-arrow"
-            onClick={() => setPage((p) => Math.max(0, p - 1))}
-            disabled={page === 0}
-            aria-label="Previous companies"
-          >
-            ‹
-          </button>
-          <button
-            type="button"
-            className="target-signals-arrow"
-            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-            disabled={page >= totalPages - 1}
-            aria-label="Next companies"
-          >
-            ›
-          </button>
+        <div className="target-signals-controls" aria-label="Target company pagination">
+          <div className="target-signals-controls-strip">
+            <span className="target-signals-page">{cards.length === 0 ? "0 / 0" : `${page + 1} / ${totalPages}`}</span>
+            <button
+              type="button"
+              className="target-signals-arrow"
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              disabled={page === 0}
+              aria-label="Previous companies"
+            >
+              ‹
+            </button>
+            <button
+              type="button"
+              className="target-signals-arrow"
+              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+              disabled={page >= totalPages - 1}
+              aria-label="Next companies"
+            >
+              ›
+            </button>
+          </div>
         </div>
       </div>
 
       {cards.length === 0 ? (
-        <div className="target-signals-empty">No friend applications in your top target companies today.</div>
+        <div className="target-signals-empty network-empty-state" role="status" aria-live="polite">
+          <div className="network-empty-state-icon" aria-hidden="true">
+            ◎
+          </div>
+          <p className="network-empty-state-title">No target company signals yet</p>
+          <p className="network-empty-state-copy">No friend applications in your top target companies today.</p>
+        </div>
       ) : (
         <div className="target-signals-grid" style={{ "--target-cols": perPage } as CSSProperties}>
           {pageCards.map((card) => (
@@ -431,12 +442,14 @@ export default function TargetSignalsCarousel({ todayData, useDemoFallback = fal
                               company: selectedCard.company,
                               role: app.role,
                               date_saved: app.dateIso,
+                              applied_at: app.dateIso,
                               job_link: app.link || null,
                               job_application_id: null,
                               oa_deadline_date: null,
                               oa_status: null,
                               referral_status: null,
                               application_status: null,
+                              notes: null,
                             },
                           });
                         }}

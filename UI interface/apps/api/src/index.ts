@@ -9,7 +9,7 @@ import {
   revokeSession,
   verifyPassword,
 } from "./auth";
-import { query } from "./db";
+import { query, transaction, type SqlStatement } from "./db";
 import type { AuthUser, Bindings } from "./types";
 
 const app = new Hono<{ Bindings: Bindings; Variables: { authUser: AuthUser } }>();
@@ -45,9 +45,75 @@ const signupInput = z.object({
 
 const MAX_FRIENDS = 10;
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+const NETWORK_REQUIRED_VISIBILITY_FIELDS = ["share_company", "share_role", "share_applied_at"] as const;
 
 function parseAnchorDay(rawAnchor: string | undefined): string | null {
   return rawAnchor && ISO_DATE_REGEX.test(rawAnchor) ? rawAnchor : null;
+}
+
+type UserFieldVisibility = {
+  share_company: boolean;
+  share_role: boolean;
+  share_applied_at: boolean;
+  share_oa_status: boolean;
+  share_oa_deadline: boolean;
+  share_referral_used: boolean;
+  share_notes: boolean;
+};
+
+const DEFAULT_USER_FIELD_VISIBILITY: UserFieldVisibility = {
+  share_company: true,
+  share_role: true,
+  share_applied_at: true,
+  share_oa_status: true,
+  share_oa_deadline: true,
+  share_referral_used: true,
+  share_notes: false,
+};
+
+function toBoolean(value: unknown, fallback: boolean): boolean {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value !== 0;
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (raw === "true" || raw === "t" || raw === "1" || raw === "yes") return true;
+  if (raw === "false" || raw === "f" || raw === "0" || raw === "no") return false;
+  return fallback;
+}
+
+function normalizeUserFieldVisibility(row: Record<string, unknown> | undefined): UserFieldVisibility {
+  return {
+    share_company: toBoolean(row?.share_company, DEFAULT_USER_FIELD_VISIBILITY.share_company),
+    share_role: toBoolean(row?.share_role, DEFAULT_USER_FIELD_VISIBILITY.share_role),
+    share_applied_at: toBoolean(row?.share_applied_at, DEFAULT_USER_FIELD_VISIBILITY.share_applied_at),
+    share_oa_status: toBoolean(row?.share_oa_status, DEFAULT_USER_FIELD_VISIBILITY.share_oa_status),
+    share_oa_deadline: toBoolean(row?.share_oa_deadline, DEFAULT_USER_FIELD_VISIBILITY.share_oa_deadline),
+    share_referral_used: toBoolean(row?.share_referral_used, DEFAULT_USER_FIELD_VISIBILITY.share_referral_used),
+    share_notes: toBoolean(row?.share_notes, DEFAULT_USER_FIELD_VISIBILITY.share_notes),
+  };
+}
+
+function applyRequiredVisibilityFields(visibility: UserFieldVisibility): UserFieldVisibility {
+  return {
+    ...visibility,
+    share_company: true,
+    share_role: true,
+    share_applied_at: true,
+  };
+}
+
+async function ensureUserFieldVisibility(env: Bindings, userId: number): Promise<UserFieldVisibility> {
+  const [row] = await query<Record<string, unknown>>(
+    env,
+    `
+    INSERT INTO user_field_visibility (user_id)
+    VALUES ($1)
+    ON CONFLICT (user_id) DO UPDATE
+      SET user_id = EXCLUDED.user_id
+    RETURNING share_company, share_role, share_applied_at, share_oa_status, share_oa_deadline, share_referral_used, share_notes
+    `,
+    [userId],
+  );
+  return applyRequiredVisibilityFields(normalizeUserFieldVisibility(row));
 }
 
 const friendRequestInput = z.object({
@@ -661,6 +727,67 @@ app.post("/api/friends/:id/block", async (c) => {
   return c.json({ ok: true, friendship: row });
 });
 
+const networkFieldVisibilityUpdateInput = z.object({
+  share_company: z.boolean().optional(),
+  share_role: z.boolean().optional(),
+  share_applied_at: z.boolean().optional(),
+  share_oa_status: z.boolean().optional(),
+  share_oa_deadline: z.boolean().optional(),
+  share_referral_used: z.boolean().optional(),
+  share_notes: z.boolean().optional(),
+});
+
+app.get("/api/network/field-visibility", async (c) => {
+  const userId = c.get("authUser").id;
+  const data = await ensureUserFieldVisibility(c.env, userId);
+  return c.json({ data, required_fields: NETWORK_REQUIRED_VISIBILITY_FIELDS });
+});
+
+app.patch("/api/network/field-visibility", async (c) => {
+  const userId = c.get("authUser").id;
+  const parsed = networkFieldVisibilityUpdateInput.safeParse(await c.req.json());
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
+
+  const current = await ensureUserFieldVisibility(c.env, userId);
+  const next = applyRequiredVisibilityFields({
+    ...current,
+    ...parsed.data,
+  });
+
+  const [row] = await query<Record<string, unknown>>(
+    c.env,
+    `
+    UPDATE user_field_visibility
+    SET
+      share_company = $2,
+      share_role = $3,
+      share_applied_at = $4,
+      share_oa_status = $5,
+      share_oa_deadline = $6,
+      share_referral_used = $7,
+      share_notes = $8,
+      updated_at = NOW()
+    WHERE user_id = $1
+    RETURNING share_company, share_role, share_applied_at, share_oa_status, share_oa_deadline, share_referral_used, share_notes
+    `,
+    [
+      userId,
+      next.share_company,
+      next.share_role,
+      next.share_applied_at,
+      next.share_oa_status,
+      next.share_oa_deadline,
+      next.share_referral_used,
+      next.share_notes,
+    ],
+  );
+
+  return c.json({
+    data: applyRequiredVisibilityFields(normalizeUserFieldVisibility(row)),
+    required_fields: NETWORK_REQUIRED_VISIBILITY_FIELDS,
+  });
+});
+
 app.get("/api/network/trend", async (c) => {
   const userId = c.get("authUser").id;
   const days = Math.max(3, Math.min(30, Number(c.req.query("days") ?? 10)));
@@ -676,7 +803,13 @@ app.get("/api/network/trend", async (c) => {
   }>(
     c.env,
     `
-    WITH network_people AS (
+    WITH viewer_visibility AS (
+      SELECT
+        COALESCE(v.share_applied_at, TRUE) AS share_applied_at
+      FROM (SELECT 1) seed
+      LEFT JOIN user_field_visibility v ON v.user_id = $1
+    ),
+    network_people AS (
       SELECT
         u.id AS friend_id,
         u.email AS friend_email,
@@ -709,7 +842,13 @@ app.get("/api/network/trend", async (c) => {
         DATE(j.date_saved) AS day,
         COUNT(*)::int AS cnt
       FROM jobs j
+      CROSS JOIN viewer_visibility vv
+      LEFT JOIN user_field_visibility ov ON ov.user_id = j.user_id
       WHERE j.date_saved IS NOT NULL
+        AND (
+          j.user_id = $1
+          OR (vv.share_applied_at AND COALESCE(ov.share_applied_at, TRUE))
+        )
       GROUP BY j.user_id, DATE(j.date_saved)
     )
     SELECT
@@ -766,16 +905,37 @@ app.get("/api/network/today", async (c) => {
     company: string | null;
     role: string | null;
     date_saved: string | null;
+    applied_at: string | null;
     application_status: string | null;
     referral_status: string | null;
     oa_status: string | null;
     job_application_id: string | null;
     oa_deadline_date: string | null;
     job_link: string | null;
+    notes: string | null;
+    can_view_company: boolean;
+    can_view_role: boolean;
+    can_view_applied_at: boolean;
+    can_view_oa_status: boolean;
+    can_view_oa_deadline: boolean;
+    can_view_referral_used: boolean;
+    can_view_notes: boolean;
   }>(
     c.env,
     `
-    WITH friends AS (
+    WITH viewer_visibility AS (
+      SELECT
+        COALESCE(v.share_company, TRUE) AS share_company,
+        COALESCE(v.share_role, TRUE) AS share_role,
+        COALESCE(v.share_applied_at, TRUE) AS share_applied_at,
+        COALESCE(v.share_oa_status, TRUE) AS share_oa_status,
+        COALESCE(v.share_oa_deadline, TRUE) AS share_oa_deadline,
+        COALESCE(v.share_referral_used, TRUE) AS share_referral_used,
+        COALESCE(v.share_notes, FALSE) AS share_notes
+      FROM (SELECT 1) seed
+      LEFT JOIN user_field_visibility v ON v.user_id = $1
+    ),
+    friends AS (
       SELECT
         CASE WHEN f.requester_id = $1 THEN f.receiver_id ELSE f.requester_id END AS friend_id,
         u.email AS friend_email,
@@ -791,20 +951,113 @@ app.get("/api/network/today", async (c) => {
       fr.friend_email,
       fr.friend_name,
       j.id AS job_id,
-      j.company,
-      j.role,
-      j.date_saved::text AS date_saved,
-      j.application_status,
-      j.referral_status,
-      j.oa_status,
-      j.job_application_id,
-      j.oa_deadline_date::text AS oa_deadline_date,
-      j.job_link
+      CASE
+        WHEN j.id IS NULL THEN NULL
+        WHEN fr.friend_id = $1 OR (vv.share_company AND COALESCE(ov.share_company, TRUE)) THEN j.company
+        ELSE NULL
+      END AS company,
+      CASE
+        WHEN j.id IS NULL THEN NULL
+        WHEN fr.friend_id = $1 OR (vv.share_role AND COALESCE(ov.share_role, TRUE)) THEN j.role
+        ELSE NULL
+      END AS role,
+      CASE
+        WHEN j.id IS NULL THEN NULL
+        WHEN fr.friend_id = $1 OR (vv.share_applied_at AND COALESCE(ov.share_applied_at, TRUE)) THEN j.date_saved::text
+        ELSE NULL
+      END AS date_saved,
+      CASE
+        WHEN j.id IS NULL THEN NULL
+        WHEN fr.friend_id = $1 OR (vv.share_applied_at AND COALESCE(ov.share_applied_at, TRUE)) THEN j.applied_at::text
+        ELSE NULL
+      END AS applied_at,
+      CASE
+        WHEN j.id IS NULL THEN NULL
+        WHEN fr.friend_id = $1 OR (vv.share_applied_at AND COALESCE(ov.share_applied_at, TRUE)) THEN j.application_status
+        ELSE NULL
+      END AS application_status,
+      CASE
+        WHEN j.id IS NULL THEN NULL
+        WHEN fr.friend_id = $1 OR (vv.share_referral_used AND COALESCE(ov.share_referral_used, TRUE)) THEN j.referral_status
+        ELSE NULL
+      END AS referral_status,
+      CASE
+        WHEN j.id IS NULL THEN NULL
+        WHEN fr.friend_id = $1 OR (vv.share_oa_status AND COALESCE(ov.share_oa_status, TRUE)) THEN j.oa_status
+        ELSE NULL
+      END AS oa_status,
+      CASE
+        WHEN j.id IS NULL THEN NULL
+        WHEN fr.friend_id = $1 OR (
+          (vv.share_company AND COALESCE(ov.share_company, TRUE))
+          AND (vv.share_role AND COALESCE(ov.share_role, TRUE))
+        ) THEN j.job_application_id
+        ELSE NULL
+      END AS job_application_id,
+      CASE
+        WHEN j.id IS NULL THEN NULL
+        WHEN fr.friend_id = $1 OR (vv.share_oa_deadline AND COALESCE(ov.share_oa_deadline, TRUE)) THEN j.oa_deadline_date::text
+        ELSE NULL
+      END AS oa_deadline_date,
+      CASE
+        WHEN j.id IS NULL THEN NULL
+        WHEN fr.friend_id = $1 OR (
+          (vv.share_company AND COALESCE(ov.share_company, TRUE))
+          AND (vv.share_role AND COALESCE(ov.share_role, TRUE))
+        ) THEN j.job_link
+        ELSE NULL
+      END AS job_link,
+      CASE
+        WHEN j.id IS NULL THEN NULL
+        WHEN fr.friend_id = $1 OR (vv.share_notes AND COALESCE(ov.share_notes, FALSE)) THEN j.notes
+        ELSE NULL
+      END AS notes,
+      CASE
+        WHEN j.id IS NULL THEN FALSE
+        WHEN fr.friend_id = $1 THEN TRUE
+        ELSE (vv.share_company AND COALESCE(ov.share_company, TRUE))
+      END AS can_view_company,
+      CASE
+        WHEN j.id IS NULL THEN FALSE
+        WHEN fr.friend_id = $1 THEN TRUE
+        ELSE (vv.share_role AND COALESCE(ov.share_role, TRUE))
+      END AS can_view_role,
+      CASE
+        WHEN j.id IS NULL THEN FALSE
+        WHEN fr.friend_id = $1 THEN TRUE
+        ELSE (vv.share_applied_at AND COALESCE(ov.share_applied_at, TRUE))
+      END AS can_view_applied_at,
+      CASE
+        WHEN j.id IS NULL THEN FALSE
+        WHEN fr.friend_id = $1 THEN TRUE
+        ELSE (vv.share_oa_status AND COALESCE(ov.share_oa_status, TRUE))
+      END AS can_view_oa_status,
+      CASE
+        WHEN j.id IS NULL THEN FALSE
+        WHEN fr.friend_id = $1 THEN TRUE
+        ELSE (vv.share_oa_deadline AND COALESCE(ov.share_oa_deadline, TRUE))
+      END AS can_view_oa_deadline,
+      CASE
+        WHEN j.id IS NULL THEN FALSE
+        WHEN fr.friend_id = $1 THEN TRUE
+        ELSE (vv.share_referral_used AND COALESCE(ov.share_referral_used, TRUE))
+      END AS can_view_referral_used,
+      CASE
+        WHEN j.id IS NULL THEN FALSE
+        WHEN fr.friend_id = $1 THEN TRUE
+        ELSE (vv.share_notes AND COALESCE(ov.share_notes, FALSE))
+      END AS can_view_notes
     FROM friends fr
+    CROSS JOIN viewer_visibility vv
+    LEFT JOIN user_field_visibility ov ON ov.user_id = fr.friend_id
     LEFT JOIN jobs j
       ON j.user_id = fr.friend_id
      AND j.date_saved IS NOT NULL
      AND j.date_saved::date = COALESCE($2::date, CURRENT_DATE)
+     AND (
+       fr.friend_id = $1
+       OR (vv.share_applied_at AND COALESCE(ov.share_applied_at, TRUE))
+     )
     ORDER BY
       COALESCE(j.applied_at, j.date_saved, j.created_at) DESC NULLS LAST,
       j.created_at DESC NULLS LAST,
@@ -824,12 +1077,21 @@ app.get("/api/network/today", async (c) => {
       company: string | null;
       role: string | null;
       date_saved: string | null;
+      applied_at: string | null;
       application_status: string | null;
       referral_status: string | null;
       oa_status: string | null;
       job_application_id: string | null;
       oa_deadline_date: string | null;
       job_link: string | null;
+      notes: string | null;
+      can_view_company: boolean;
+      can_view_role: boolean;
+      can_view_applied_at: boolean;
+      can_view_oa_status: boolean;
+      can_view_oa_deadline: boolean;
+      can_view_referral_used: boolean;
+      can_view_notes: boolean;
     }>;
   }>();
 
@@ -849,12 +1111,21 @@ app.get("/api/network/today", async (c) => {
         company: row.company ?? null,
         role: row.role ?? null,
         date_saved: row.date_saved ?? null,
+        applied_at: row.applied_at ?? null,
         application_status: row.application_status ?? null,
         referral_status: row.referral_status ?? null,
         oa_status: row.oa_status ?? null,
         job_application_id: row.job_application_id ?? null,
         oa_deadline_date: row.oa_deadline_date ?? null,
         job_link: row.job_link ?? null,
+        notes: row.notes ?? null,
+        can_view_company: toBoolean(row.can_view_company, false),
+        can_view_role: toBoolean(row.can_view_role, false),
+        can_view_applied_at: toBoolean(row.can_view_applied_at, false),
+        can_view_oa_status: toBoolean(row.can_view_oa_status, false),
+        can_view_oa_deadline: toBoolean(row.can_view_oa_deadline, false),
+        can_view_referral_used: toBoolean(row.can_view_referral_used, false),
+        can_view_notes: toBoolean(row.can_view_notes, false),
       });
     }
   }
@@ -884,7 +1155,16 @@ app.get("/api/network/deadlines", async (c) => {
   }>(
     c.env,
     `
-    WITH friends AS (
+    WITH viewer_visibility AS (
+      SELECT
+        COALESCE(v.share_company, TRUE) AS share_company,
+        COALESCE(v.share_role, TRUE) AS share_role,
+        COALESCE(v.share_oa_status, TRUE) AS share_oa_status,
+        COALESCE(v.share_oa_deadline, TRUE) AS share_oa_deadline
+      FROM (SELECT 1) seed
+      LEFT JOIN user_field_visibility v ON v.user_id = $1
+    ),
+    friends AS (
       SELECT
         CASE WHEN f.requester_id = $1 THEN f.receiver_id ELSE f.requester_id END AS friend_id,
         u.email AS friend_email,
@@ -911,12 +1191,18 @@ app.get("/api/network/deadlines", async (c) => {
       j.job_link,
       j.job_application_id
     FROM friends fr
+    CROSS JOIN viewer_visibility vv
+    LEFT JOIN user_field_visibility ov ON ov.user_id = fr.friend_id
     JOIN jobs j
       ON j.user_id = fr.friend_id
     WHERE LOWER(TRIM(COALESCE(j.oa_status, ''))) = 'yes'
       AND LOWER(TRIM(COALESCE(j.application_status, 'Applied'))) != 'rejected'
       AND j.oa_deadline_date IS NOT NULL
       AND j.oa_deadline_date <= COALESCE($2::date, CURRENT_DATE)
+      AND (vv.share_oa_status AND COALESCE(ov.share_oa_status, TRUE))
+      AND (vv.share_oa_deadline AND COALESCE(ov.share_oa_deadline, TRUE))
+      AND (vv.share_company AND COALESCE(ov.share_company, TRUE))
+      AND (vv.share_role AND COALESCE(ov.share_role, TRUE))
     ORDER BY
       j.oa_deadline_date ASC,
       LOWER(fr.friend_name) ASC,
@@ -1239,11 +1525,11 @@ app.get("/api/jobs/trend", async (c) => {
       )::date AS day
     ) d
     LEFT JOIN (
-      SELECT DATE(date_saved) AS day, COUNT(*)::int AS cnt
+      SELECT DATE(COALESCE(date_saved, applied_at)) AS day, COUNT(*)::int AS cnt
       FROM jobs
       WHERE user_id = $1 
-        AND date_saved IS NOT NULL
-      GROUP BY DATE(date_saved)
+        AND COALESCE(date_saved, applied_at) IS NOT NULL
+      GROUP BY DATE(COALESCE(date_saved, applied_at))
     ) applied ON applied.day = d.day
     LEFT JOIN (
       SELECT DATE(COALESCE(archive_date, date_saved)) AS day, COUNT(*)::int AS cnt
@@ -1267,9 +1553,14 @@ function isJobsSortColumn(s: string): s is JobsSortColumn {
   return (JOBS_SORT_COLUMNS as readonly string[]).includes(s);
 }
 
-const CSV_MAX_BYTES = 1024 * 1024;
-const IMPORT_REQUIRED_HEADERS = ["role", "company", "date_saved"] as const;
+const CSV_MAX_BYTES = 10 * 1024 * 1024;
+const IMPORT_BATCH_SIZE = 200;
+const IMPORT_DEFAULT_TIME_SUFFIX = "T00:07:00Z";
+const IMPORT_REQUIRED_HEADERS = ["role", "company"] as const;
+const IMPORT_DATE_HEADERS = ["date_saved", "applied_at"] as const;
 const IMPORT_OPTIONAL_HEADERS = [
+  "date_saved",
+  "applied_at",
   "location_raw",
   "job_link",
   "job_application_id",
@@ -1281,10 +1572,12 @@ const IMPORT_OPTIONAL_HEADERS = [
   "application_status",
   "notes",
 ] as const;
+type CsvHeader = (typeof IMPORT_REQUIRED_HEADERS)[number] | (typeof IMPORT_OPTIONAL_HEADERS)[number];
 type CsvImportRow = {
   role: string;
   company: string;
   date_saved: string;
+  applied_at: string;
   location_raw: string;
   job_link: string | null;
   job_application_id: string;
@@ -1295,6 +1588,51 @@ type CsvImportRow = {
   response_status: string;
   application_status: string;
   notes: string;
+};
+const IMPORT_CANONICAL_HEADERS = new Set<CsvHeader>([
+  ...IMPORT_REQUIRED_HEADERS,
+  ...IMPORT_OPTIONAL_HEADERS,
+]);
+const IMPORT_HEADER_ALIASES: Record<string, CsvHeader> = {
+  role: "role",
+  position: "role",
+  job_title: "role",
+  title: "role",
+  company: "company",
+  company_name: "company",
+  date_saved: "date_saved",
+  date: "date_saved",
+  applied_date: "date_saved",
+  applied_day: "date_saved",
+  applied_at: "applied_at",
+  applied_time: "applied_at",
+  application_time: "applied_at",
+  location: "location_raw",
+  location_raw: "location_raw",
+  job_link: "job_link",
+  link: "job_link",
+  url: "job_link",
+  job_application_id: "job_application_id",
+  job_app_id: "job_application_id",
+  application_id: "job_application_id",
+  oa_deadline_date: "oa_deadline_date",
+  oa_deadline: "oa_deadline_date",
+  deadline: "oa_deadline_date",
+  keyword_matching: "keyword_matching",
+  keyword_match: "keyword_matching",
+  match: "keyword_matching",
+  oa_status: "oa_status",
+  oa: "oa_status",
+  referral_status: "referral_status",
+  referral: "referral_status",
+  response_status: "response_status",
+  response: "response_status",
+  application_status: "application_status",
+  status: "application_status",
+  notes: "notes",
+  note: "notes",
+  comment: "notes",
+  comments: "notes",
 };
 
 function parseCsvText(csv: string): string[][] {
@@ -1343,12 +1681,55 @@ function parseCsvText(csv: string): string[][] {
   return rows;
 }
 
+function normalizeImportHeader(raw: string): string {
+  return raw
+    .trim()
+    .replace(/^\ufeff/, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function resolveImportHeader(raw: string): CsvHeader | null {
+  const normalized = normalizeImportHeader(raw);
+  if (!normalized) return null;
+  const aliased = IMPORT_HEADER_ALIASES[normalized];
+  if (aliased) return aliased;
+  return IMPORT_CANONICAL_HEADERS.has(normalized as CsvHeader) ? (normalized as CsvHeader) : null;
+}
+
+function parseImportDateOnly(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toISOString().slice(0, 10);
+}
+
+function parseImportAppliedAt(raw: string, fallbackDate?: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return fallbackDate ? `${fallbackDate}${IMPORT_DEFAULT_TIME_SUFFIX}` : null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return `${trimmed}${IMPORT_DEFAULT_TIME_SUFFIX}`;
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toISOString();
+}
+
+function chunkRows<T>(rows: T[], chunkSize: number): T[][] {
+  if (rows.length === 0) return [];
+  const chunks: T[][] = [];
+  for (let i = 0; i < rows.length; i += chunkSize) chunks.push(rows.slice(i, i + chunkSize));
+  return chunks;
+}
+
 function csvEscape(value: unknown): string {
   const raw = String(value ?? "");
-  if (raw.includes(",") || raw.includes("\"") || raw.includes("\n")) {
-    return `"${raw.replace(/"/g, "\"\"")}"`;
+  const sanitized = /^[\t\r ]*[=+\-@]/.test(raw) ? `'${raw}` : raw;
+  if (sanitized.includes(",") || sanitized.includes("\"") || sanitized.includes("\n")) {
+    return `"${sanitized.replace(/"/g, "\"\"")}"`;
   }
-  return raw;
+  return sanitized;
 }
 
 const KEYWORD_MATCHING_ALLOWED: Record<string, "Strong" | "Medium" | "Weak"> = {
@@ -1443,6 +1824,7 @@ async function syncReferralFromJob(
   env: Bindings,
   userId: number,
   job: Record<string, unknown>,
+  options?: { referredByName?: string | null },
 ): Promise<void> {
   const company = asTrimmedString(job.company);
   const requestLog = asTrimmedString(job.role);
@@ -1453,6 +1835,7 @@ async function syncReferralFromJob(
   const requestDate = toIsoDate((job as any).date_saved) ?? toIsoDate((job as any).applied_at);
   const keywordMatching = normalizeKeywordMatching((job as any).keyword_matching) ?? "Medium";
   const comment = asTrimmedString((job as any).notes);
+  const referredByName = asTrimmedString(options?.referredByName);
 
   let existingId: number | null = null;
 
@@ -1507,6 +1890,7 @@ async function syncReferralFromJob(
         referral_received = $7,
         keyword_matching = COALESCE($8, keyword_matching, 'Medium'),
         comment = $9,
+        referred_by_name = COALESCE($10, referred_by_name),
         updated_at = NOW()
       WHERE id = $1 AND user_id = $2
       `,
@@ -1520,6 +1904,7 @@ async function syncReferralFromJob(
         referralStatus,
         keywordMatching,
         comment,
+        referredByName,
       ],
     );
     return;
@@ -1528,16 +1913,209 @@ async function syncReferralFromJob(
   await query(
     env,
     `
-    INSERT INTO referrals (user_id, source, company, request_log, request_date, updated_date, request_link, referral_received, keyword_matching, comment)
-    VALUES ($1, 'job-sync', $2, $3, $4::date, COALESCE($4::date, CURRENT_DATE), $5, $6, COALESCE($7, 'Medium'), $8)
+    INSERT INTO referrals (user_id, source, company, request_log, request_date, updated_date, request_link, referral_received, keyword_matching, referred_by_name, comment)
+    VALUES ($1, 'job-sync', $2, $3, $4::date, COALESCE($4::date, CURRENT_DATE), $5, $6, COALESCE($7, 'Medium'), $8, $9)
     `,
-    [userId, company, requestLog, requestDate, requestLink, referralStatus, keywordMatching, comment],
+    [userId, company, requestLog, requestDate, requestLink, referralStatus, keywordMatching, referredByName, comment],
   );
+}
+
+function insertJobsImportBatchStatement(userId: number, rows: CsvImportRow[]): SqlStatement {
+  return {
+    text: `
+    INSERT INTO jobs (
+      user_id,
+      source,
+      role,
+      company,
+      location_raw,
+      job_link,
+      job_application_id,
+      oa_deadline_date,
+      keyword_matching,
+      oa_status,
+      referral_status,
+      response_status,
+      application_status,
+      notes,
+      date_saved,
+      applied_at
+    )
+    SELECT
+      $1,
+      'import-csv',
+      NULLIF(TRIM(r.role), ''),
+      NULLIF(TRIM(r.company), ''),
+      NULLIF(TRIM(r.location_raw), ''),
+      NULLIF(TRIM(r.job_link), ''),
+      COALESCE(NULLIF(TRIM(r.job_application_id), ''), '-'),
+      NULLIF(TRIM(r.oa_deadline_date), '')::date,
+      COALESCE(NULLIF(TRIM(r.keyword_matching), ''), 'Medium'),
+      COALESCE(NULLIF(TRIM(r.oa_status), ''), 'No'),
+      COALESCE(NULLIF(TRIM(r.referral_status), ''), 'No'),
+      COALESCE(NULLIF(TRIM(r.response_status), ''), 'Review'),
+      COALESCE(NULLIF(TRIM(r.application_status), ''), 'Applied'),
+      NULLIF(TRIM(r.notes), ''),
+      (r.date_saved::date)::timestamp,
+      COALESCE(r.applied_at::timestamptz, (r.date_saved::date)::timestamp)
+    FROM jsonb_to_recordset($2::jsonb) AS r(
+      role text,
+      company text,
+      date_saved text,
+      applied_at text,
+      location_raw text,
+      job_link text,
+      job_application_id text,
+      oa_deadline_date text,
+      keyword_matching text,
+      oa_status text,
+      referral_status text,
+      response_status text,
+      application_status text,
+      notes text
+    )
+    `,
+    params: [userId, JSON.stringify(rows)],
+  };
+}
+
+function syncReferralsFromImportRowsBatchStatement(userId: number, rows: CsvImportRow[]): SqlStatement {
+  return {
+    text: `
+    WITH payload AS (
+      SELECT
+        NULLIF(TRIM(r.company), '') AS company,
+        NULLIF(TRIM(r.role), '') AS request_log,
+        COALESCE(
+          NULLIF(TRIM(r.date_saved), '')::date,
+          (NULLIF(TRIM(r.applied_at), '')::timestamptz)::date,
+          CURRENT_DATE
+        ) AS request_date,
+        NULLIF(TRIM(r.job_link), '') AS request_link,
+        CASE
+          WHEN LOWER(TRIM(COALESCE(r.referral_status, ''))) = 'requested' THEN 'Requested'
+          WHEN LOWER(TRIM(COALESCE(r.referral_status, ''))) = 'yes' THEN 'Yes'
+          WHEN LOWER(TRIM(COALESCE(r.referral_status, ''))) = 'no' THEN 'No'
+          ELSE 'No'
+        END AS referral_received,
+        COALESCE(NULLIF(TRIM(r.keyword_matching), ''), 'Medium') AS keyword_matching,
+        NULLIF(TRIM(r.notes), '') AS comment
+      FROM jsonb_to_recordset($2::jsonb) AS r(
+        role text,
+        company text,
+        date_saved text,
+        applied_at text,
+        location_raw text,
+        job_link text,
+        job_application_id text,
+        oa_deadline_date text,
+        keyword_matching text,
+        oa_status text,
+        referral_status text,
+        response_status text,
+        application_status text,
+        notes text
+      )
+    ),
+    eligible AS (
+      SELECT *
+      FROM payload
+      WHERE company IS NOT NULL
+        AND request_log IS NOT NULL
+        AND referral_received IN ('Requested', 'Yes')
+    ),
+    dedup AS (
+      SELECT DISTINCT ON (LOWER(company), LOWER(request_log), COALESCE(LOWER(request_link), ''))
+        company,
+        request_log,
+        request_date,
+        request_link,
+        referral_received,
+        keyword_matching,
+        comment
+      FROM eligible
+      ORDER BY
+        LOWER(company),
+        LOWER(request_log),
+        COALESCE(LOWER(request_link), ''),
+        request_date DESC
+    ),
+    resolved AS (
+      SELECT
+        d.*,
+        COALESCE(
+          (
+            SELECT r.id
+            FROM referrals r
+            WHERE r.user_id = $1
+              AND d.request_link IS NOT NULL
+              AND TRIM(COALESCE(r.request_link, '')) = TRIM(d.request_link)
+            ORDER BY COALESCE(r.updated_date, r.request_date) DESC NULLS LAST, r.id DESC
+            LIMIT 1
+          ),
+          (
+            SELECT r.id
+            FROM referrals r
+            WHERE r.user_id = $1
+              AND LOWER(TRIM(r.company)) = LOWER(TRIM(d.company))
+              AND LOWER(TRIM(COALESCE(r.request_log, ''))) = LOWER(TRIM(d.request_log))
+            ORDER BY COALESCE(r.updated_date, r.request_date) DESC NULLS LAST, r.id DESC
+            LIMIT 1
+          )
+        ) AS existing_id
+      FROM dedup d
+    ),
+    updated AS (
+      UPDATE referrals r
+      SET
+        company = src.company,
+        request_log = src.request_log,
+        request_date = COALESCE(src.request_date, r.request_date),
+        updated_date = COALESCE(src.request_date, CURRENT_DATE),
+        request_link = src.request_link,
+        referral_received = src.referral_received,
+        keyword_matching = COALESCE(src.keyword_matching, r.keyword_matching, 'Medium'),
+        comment = src.comment,
+        updated_at = NOW()
+      FROM resolved src
+      WHERE src.existing_id IS NOT NULL
+        AND r.id = src.existing_id
+        AND r.user_id = $1
+      RETURNING r.id
+    )
+    INSERT INTO referrals (
+      user_id,
+      source,
+      company,
+      request_log,
+      request_date,
+      updated_date,
+      request_link,
+      referral_received,
+      keyword_matching,
+      comment
+    )
+    SELECT
+      $1,
+      'job-sync',
+      src.company,
+      src.request_log,
+      src.request_date,
+      COALESCE(src.request_date, CURRENT_DATE),
+      src.request_link,
+      src.referral_received,
+      COALESCE(src.keyword_matching, 'Medium'),
+      src.comment
+    FROM resolved src
+    WHERE src.existing_id IS NULL
+    `,
+    params: [userId, JSON.stringify(rows)],
+  };
 }
 
 app.get("/api/jobs", async (c) => {
   const userId = c.get("authUser").id;
-  const page = Number(c.req.query("page") ?? 1);
+  const page = Math.max(1, Number(c.req.query("page") ?? 1) || 1);
   const limit = Math.min(Number(c.req.query("limit") ?? 25), 100);
   const company = c.req.query("company");
   const statusFilter = String(c.req.query("status") ?? ""); // expected: "active" | "rejected" | "all"(empty means active)
@@ -1547,35 +2125,63 @@ app.get("/api/jobs", async (c) => {
   const order: "ASC" | "DESC" = orderRaw === "asc" ? "ASC" : "DESC";
   const offset = (page - 1) * limit;
 
-  const orderBy = `${sort} ${order} NULLS LAST, COALESCE(applied_at, date_saved, created_at) DESC NULLS LAST, created_at DESC NULLS LAST, id DESC`;
+  const orderBy = `j.${sort} ${order} NULLS LAST, COALESCE(j.applied_at, j.date_saved, j.created_at) DESC NULLS LAST, j.created_at DESC NULLS LAST, j.id DESC`;
   const baseSql = `
-    SELECT *
-    FROM jobs
+    SELECT
+      j.*,
+      COALESCE(
+        (
+          SELECT r.referred_by_name
+          FROM referrals r
+          WHERE r.user_id = j.user_id
+            AND TRIM(COALESCE(r.referred_by_name, '')) <> ''
+            AND TRIM(COALESCE(r.request_link, '')) = TRIM(COALESCE(j.job_link, ''))
+          ORDER BY COALESCE(r.updated_date, r.request_date) DESC NULLS LAST, r.id DESC
+          LIMIT 1
+        ),
+        (
+          SELECT r.referred_by_name
+          FROM referrals r
+          WHERE r.user_id = j.user_id
+            AND TRIM(COALESCE(r.referred_by_name, '')) <> ''
+            AND LOWER(TRIM(COALESCE(r.company, ''))) = LOWER(TRIM(COALESCE(j.company, '')))
+            AND LOWER(TRIM(COALESCE(r.request_log, ''))) = LOWER(TRIM(COALESCE(j.role, '')))
+          ORDER BY COALESCE(r.updated_date, r.request_date) DESC NULLS LAST, r.id DESC
+          LIMIT 1
+        )
+      ) AS referred_by_name
+    FROM jobs j
   `;
 
   // Build where clause dynamically to handle company and status filters
-  const whereParts: string[] = ["user_id = $1"];
+  const whereParts: string[] = ["j.user_id = $1"];
   const params: unknown[] = [userId];
   let paramIdx = 2;
   if (company) {
-    whereParts.push(`company ILIKE $${paramIdx}`);
+    whereParts.push(`j.company ILIKE $${paramIdx}`);
     params.push(`%${company}%`);
     paramIdx += 1;
   }
   // statusFilter semantics: 'rejected' => only Rejected, 'active' or empty => exclude Rejected, 'all' => no filter
   if (!statusFilter || statusFilter === "active") {
-    whereParts.push(`LOWER(TRIM(COALESCE(application_status, 'Applied'))) != 'rejected'`);
+    whereParts.push(`LOWER(TRIM(COALESCE(j.application_status, 'Applied'))) != 'rejected'`);
   } else if (statusFilter === "rejected") {
-    whereParts.push(`LOWER(TRIM(COALESCE(application_status, ''))) = 'rejected'`);
+    whereParts.push(`LOWER(TRIM(COALESCE(j.application_status, ''))) = 'rejected'`);
   }
 
   const whereClause = ` WHERE ${whereParts.join(" AND ")}`;
+  const [countRow] = await query<{ total: number }>(
+    c.env,
+    `SELECT COUNT(*)::int AS total FROM jobs j${whereClause}`,
+    params as unknown[],
+  );
+  const total = Number(countRow?.total ?? 0);
   // add limit/offset params
   params.push(limit, offset);
   const orderLimitOffset = ` ORDER BY ${orderBy} LIMIT $${params.length - 1} OFFSET $${params.length}`;
 
   const rows = await query(c.env, `${baseSql}${whereClause}${orderLimitOffset}`, params as unknown[]);
-  return c.json({ page, limit, data: rows });
+  return c.json({ page, limit, total, data: rows });
 });
 
 const jobInput = z.object({
@@ -1590,6 +2196,7 @@ const jobInput = z.object({
   referral_status: z.string().optional(),
   response_status: z.string().optional(),
   application_status: z.string().optional(),
+  referred_by_name: z.string().optional(),
   notes: z.string().optional(),
   date_saved: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 });
@@ -1624,7 +2231,7 @@ app.post("/api/jobs", async (c) => {
     ],
   );
   if (row) {
-    await syncReferralFromJob(c.env, userId, row as Record<string, unknown>);
+    await syncReferralFromJob(c.env, userId, row as Record<string, unknown>, { referredByName: p.referred_by_name ?? null });
   }
   return c.json(row, 201);
 });
@@ -1640,7 +2247,7 @@ app.post("/api/jobs/import/csv", async (c) => {
   const csv = parsed.data.csv;
   const csvBytes = new TextEncoder().encode(csv).length;
   if (csvBytes > CSV_MAX_BYTES) {
-    return c.json({ error: "CSV file is too large. Maximum allowed size is 1 MB." }, 413);
+    return c.json({ error: "CSV file is too large. Maximum allowed size is 10 MB." }, 413);
   }
 
   const rows = parseCsvText(csv);
@@ -1648,15 +2255,19 @@ app.post("/api/jobs/import/csv", async (c) => {
     return c.json({ error: "CSV must include a header row and at least one data row." }, 400);
   }
 
-  const headerRow = rows[0].map((h) => h.trim().toLowerCase());
-  const headerMap = new Map<string, number>();
-  headerRow.forEach((name, idx) => {
-    if (!headerMap.has(name)) headerMap.set(name, idx);
+  const headerMap = new Map<CsvHeader, number>();
+  rows[0].forEach((rawHeader, idx) => {
+    const resolved = resolveImportHeader(rawHeader);
+    if (resolved && !headerMap.has(resolved)) headerMap.set(resolved, idx);
   });
 
   const missingHeaders = IMPORT_REQUIRED_HEADERS.filter((h) => !headerMap.has(h));
   if (missingHeaders.length > 0) {
     return c.json({ error: `Missing required header(s): ${missingHeaders.join(", ")}` }, 400);
+  }
+  const hasDateHeader = IMPORT_DATE_HEADERS.some((h) => headerMap.has(h));
+  if (!hasDateHeader) {
+    return c.json({ error: "Missing required date header: provide date_saved or applied_at." }, 400);
   }
 
   const imports: CsvImportRow[] = [];
@@ -1669,7 +2280,7 @@ app.post("/api/jobs/import/csv", async (c) => {
   for (let i = 1; i < rows.length; i += 1) {
     const csvRow = rows[i];
     const rowNumber = i + 1;
-    const getCell = (field: string): string => {
+    const getCell = (field: CsvHeader): string => {
       const idx = headerMap.get(field);
       if (idx == null) return "";
       return (csvRow[idx] ?? "").trim();
@@ -1677,24 +2288,40 @@ app.post("/api/jobs/import/csv", async (c) => {
 
     const role = getCell("role");
     const company = getCell("company");
-    const dateSaved = getCell("date_saved");
-    if (!role && !company && !dateSaved) {
+    const dateSavedRaw = getCell("date_saved");
+    const appliedAtRaw = getCell("applied_at");
+    if (!role && !company && !dateSavedRaw && !appliedAtRaw) {
       skippedEmptyRows += 1;
       continue;
     }
-    if (!role || !company || !dateSaved) {
+    if (!role || !company || (!dateSavedRaw && !appliedAtRaw)) {
       skippedMissingRequired += 1;
       if (warnings.length < 12) {
-        warnings.push(`Row ${rowNumber} skipped: role, company and date_saved are mandatory.`);
+        warnings.push(`Row ${rowNumber} skipped: role, company and (date_saved or applied_at) are mandatory.`);
       }
       continue;
     }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateSaved)) {
+
+    const parsedDateSaved = parseImportDateOnly(dateSavedRaw);
+    const parsedAppliedAt = parseImportAppliedAt(appliedAtRaw, parsedDateSaved ?? undefined);
+    const derivedDateSaved = parsedDateSaved ?? (parsedAppliedAt ? parsedAppliedAt.slice(0, 10) : null);
+
+    if (!derivedDateSaved) {
       skippedInvalidDate += 1;
       if (warnings.length < 12) {
-        warnings.push(`Row ${rowNumber} skipped: date_saved must be YYYY-MM-DD.`);
+        warnings.push(`Row ${rowNumber} skipped: date_saved/applied_at is invalid.`);
       }
       continue;
+    }
+
+    if (dateSavedRaw && !parsedDateSaved) {
+      defaultsApplied += 1;
+      if (warnings.length < 12) warnings.push(`Row ${rowNumber}: date_saved normalized from applied_at.`);
+    }
+
+    if (appliedAtRaw && !parsedAppliedAt) {
+      defaultsApplied += 1;
+      if (warnings.length < 12) warnings.push(`Row ${rowNumber}: applied_at ignored (expected ISO timestamp or YYYY-MM-DD).`);
     }
 
     const jobLink = getCell("job_link");
@@ -1765,7 +2392,8 @@ app.post("/api/jobs/import/csv", async (c) => {
     imports.push({
       role,
       company,
-      date_saved: dateSaved,
+      date_saved: derivedDateSaved,
+      applied_at: parsedAppliedAt ?? `${derivedDateSaved}${IMPORT_DEFAULT_TIME_SUFFIX}`,
       location_raw: locationRaw,
       job_link: normalizedJobLink,
       job_application_id: jobApplicationId,
@@ -1780,34 +2408,16 @@ app.post("/api/jobs/import/csv", async (c) => {
   }
 
   if (imports.length === 0) {
-    return c.json({ error: "No valid CSV rows found. Ensure role, company and date_saved are present." }, 400);
+    return c.json({ error: "No valid CSV rows found. Ensure role, company and date_saved or applied_at are present." }, 400);
   }
 
-  for (const row of imports) {
-    await query(
-      c.env,
-      `
-      INSERT INTO jobs (user_id, source, role, company, location_raw, job_link, job_application_id, oa_deadline_date, keyword_matching, oa_status, referral_status, response_status, application_status, notes, date_saved)
-      VALUES ($1, 'import-csv', $2, $3, $4, $5, COALESCE($6, '-'), $7::date, COALESCE($8, 'Medium'), COALESCE($9, 'No'), $10, $11, COALESCE($12, 'Applied'), $13, ($14::date)::timestamp)
-      `,
-      [
-        userId,
-        row.role,
-        row.company,
-        row.location_raw,
-        row.job_link,
-        row.job_application_id,
-        row.oa_deadline_date,
-        row.keyword_matching,
-        row.oa_status,
-        row.referral_status,
-        row.response_status,
-        row.application_status,
-        row.notes,
-        row.date_saved,
-      ],
-    );
+  const batches = chunkRows(imports, IMPORT_BATCH_SIZE);
+  const statements: SqlStatement[] = [];
+  for (const batch of batches) {
+    statements.push(insertJobsImportBatchStatement(userId, batch));
+    statements.push(syncReferralsFromImportRowsBatchStatement(userId, batch));
   }
+  await transaction(c.env, statements);
 
   return c.json({
     imported: imports.length,
@@ -1816,7 +2426,7 @@ app.post("/api/jobs/import/csv", async (c) => {
     skippedInvalidDate,
     defaultsApplied,
     rowsReceived: rows.length - 1,
-    requiredHeaders: IMPORT_REQUIRED_HEADERS,
+    requiredHeaders: [...IMPORT_REQUIRED_HEADERS, "date_saved|applied_at"],
     optionalHeaders: IMPORT_OPTIONAL_HEADERS,
     warnings,
   });
@@ -1838,6 +2448,7 @@ app.get("/api/jobs/export/csv", async (c) => {
     `
     SELECT
       TO_CHAR(COALESCE(date_saved, NOW())::date, 'YYYY-MM-DD') AS date_saved,
+      TO_CHAR(COALESCE(applied_at, date_saved, created_at) AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS applied_at,
       role,
       company,
       location_raw,
@@ -1859,6 +2470,7 @@ app.get("/api/jobs/export/csv", async (c) => {
 
   const headers = [
     "date_saved",
+    "applied_at",
     "role",
     "company",
     "location_raw",
@@ -1909,6 +2521,7 @@ const jobUpdateInput = z.object({
   referral_status: z.string().optional().nullable(),
   response_status: z.string().optional().nullable(),
   application_status: z.string().optional().nullable(),
+  referred_by_name: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
   date_saved: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
 });
@@ -1963,7 +2576,7 @@ app.patch("/api/jobs/:id", async (c) => {
     ],
   );
   if (!row) return c.json({ error: "Not found" }, 404);
-  await syncReferralFromJob(c.env, userId, row as Record<string, unknown>);
+  await syncReferralFromJob(c.env, userId, row as Record<string, unknown>, { referredByName: p.referred_by_name ?? null });
   return c.json(row);
 });
 

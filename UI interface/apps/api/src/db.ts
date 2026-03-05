@@ -17,3 +17,18 @@ export async function query<T = unknown>(
   const rows = await sql.query(text, params);
   return rows as T[];
 }
+
+export type SqlStatement = {
+  text: string;
+  params?: unknown[];
+};
+
+export async function transaction(
+  env: Bindings,
+  statements: SqlStatement[],
+): Promise<unknown[][]> {
+  if (!statements.length) return [];
+  const sql = getSql(env);
+  const queries = statements.map((stmt) => sql.query(stmt.text, stmt.params ?? []));
+  return sql.transaction(queries);
+}

@@ -3,6 +3,7 @@ const API_TOKEN = import.meta.env.VITE_API_TOKEN || "";
 const DASHBOARD_SESSION_KEY = "dashboard_auth_session";
 
 import { getLocalISODate } from "./formatDate";
+import { ANALYTICS_EVENTS, trackErrorEvent } from "../analytics/events";
 
 export type AuthUser = {
   id: number;
@@ -30,16 +31,34 @@ let runtimeToken =
       })()
     : "";
 
+function trackApiFailure(path: string, method: string, statusCode: number | null, errorType: string) {
+  trackErrorEvent(ANALYTICS_EVENTS.api_request_failed, {
+    component_name: "api_client",
+    error_type: errorType,
+    endpoint: path.split("?")[0] || path,
+    http_method: method,
+    status_code: statusCode ?? -1,
+  });
+}
+
 async function request<T>(path: string, init?: RequestInit, options?: { skipAuth?: boolean }): Promise<T> {
   const authToken = runtimeToken || API_TOKEN;
+  const method = String(init?.method || "GET").toUpperCase();
   const headers: HeadersInit = {
     "Content-Type": "application/json",
     ...(!options?.skipAuth && authToken ? { Authorization: `Bearer ${authToken}` } : {}),
     ...(init?.headers || {}),
   };
-  const res = await fetch(`${API_URL}${path}`, { ...init, headers });
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, { ...init, headers });
+  } catch (err) {
+    trackApiFailure(path, method, null, "network_error");
+    throw err;
+  }
   if (!res.ok) {
     const text = await res.text();
+    trackApiFailure(path, method, res.status, res.status === 401 ? "unauthorized" : "http_error");
     if (res.status === 401) {
       throw new Error(
         "Unauthorized. Please login again to continue."
@@ -162,7 +181,7 @@ export function getJobs(params: GetJobsParams = {}) {
   search.set("sort", sort);
   search.set("order", order);
   if ((params as any).status) search.set("status", String((params as any).status));
-  return request<{ page: number; limit: number; data: Array<Record<string, unknown>> }>(
+  return request<{ page: number; limit: number; total: number; data: Array<Record<string, unknown>> }>(
     `/api/jobs?${search.toString()}`,
     { cache: "no-store" }
   );
@@ -192,12 +211,19 @@ export async function exportJobsCsv(range: JobsCsvExportRange): Promise<Blob> {
   const headers: HeadersInit = {
     ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
   };
-  const res = await fetch(`${API_URL}/api/jobs/export/csv?range=${encodeURIComponent(range)}`, {
-    method: "GET",
-    headers,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/api/jobs/export/csv?range=${encodeURIComponent(range)}`, {
+      method: "GET",
+      headers,
+    });
+  } catch (err) {
+    trackApiFailure("/api/jobs/export/csv", "GET", null, "network_error");
+    throw err;
+  }
   if (!res.ok) {
     const text = await res.text();
+    trackApiFailure("/api/jobs/export/csv", "GET", res.status, res.status === 401 ? "unauthorized" : "http_error");
     if (res.status === 401) throw new Error("Unauthorized. Please login again to continue.");
     let msg = text;
     try {
@@ -461,12 +487,21 @@ export type NetworkTodayJob = {
   company: string | null;
   role: string | null;
   date_saved: string | null;
+  applied_at: string | null;
   application_status: string | null;
   referral_status: string | null;
   oa_status: string | null;
   job_application_id: string | null;
   oa_deadline_date: string | null;
   job_link: string | null;
+  notes: string | null;
+  can_view_company: boolean;
+  can_view_role: boolean;
+  can_view_applied_at: boolean;
+  can_view_oa_status: boolean;
+  can_view_oa_deadline: boolean;
+  can_view_referral_used: boolean;
+  can_view_notes: boolean;
 };
 
 export type NetworkTodayFriend = {
@@ -481,6 +516,29 @@ export function getNetworkToday() {
   search.set("anchorDay", getLocalISODate());
   return request<{ anchorDay: string | null; data: NetworkTodayFriend[] }>(
     `/api/network/today?${search.toString()}`
+  );
+}
+
+export type NetworkFieldVisibility = {
+  share_company: boolean;
+  share_role: boolean;
+  share_applied_at: boolean;
+  share_oa_status: boolean;
+  share_oa_deadline: boolean;
+  share_referral_used: boolean;
+  share_notes: boolean;
+};
+
+export function getNetworkFieldVisibility() {
+  return request<{ data: NetworkFieldVisibility; required_fields: Array<keyof NetworkFieldVisibility> }>(
+    "/api/network/field-visibility",
+  );
+}
+
+export function updateNetworkFieldVisibility(payload: Partial<NetworkFieldVisibility>) {
+  return request<{ data: NetworkFieldVisibility; required_fields: Array<keyof NetworkFieldVisibility> }>(
+    "/api/network/field-visibility",
+    { method: "PATCH", body: JSON.stringify(payload) },
   );
 }
 

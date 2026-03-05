@@ -32,6 +32,13 @@ import {
   type DashboardSummary,
   type TargetProgress,
 } from "../lib/api";
+import {
+  ANALYTICS_EVENTS,
+  trackFunnelStep,
+  trackLifecycleMilestone,
+  trackPerformanceEvent,
+  trackProductEvent,
+} from "../analytics/events";
 
 const defaultSummary: DashboardSummary = {
   kpis: {
@@ -101,6 +108,7 @@ const WEEK_COLORS = [
   ENTERPRISE_SERIES_COLORS[0],
 ];
 
+const SLOW_DASHBOARD_LOAD_THRESHOLD_MS = 1500;
 
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -246,6 +254,7 @@ export default function DashboardPage() {
   const [days, setDays] = useState(30); // default 30 days
 
   async function loadSummary() {
+    const startedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
     try {
       setError("");
       const sum = await getDashboardSummary(days);
@@ -253,6 +262,14 @@ export default function DashboardPage() {
     } catch (e) {
       setError((e as Error).message);
     } finally {
+      const durationMs =
+        (typeof performance !== "undefined" ? performance.now() : Date.now()) - startedAt;
+      if (durationMs >= SLOW_DASHBOARD_LOAD_THRESHOLD_MS) {
+        trackPerformanceEvent(ANALYTICS_EVENTS.slow_dashboard_load, durationMs, {
+          source: "dashboard_page",
+          days_window: days,
+        });
+      }
       setIsLoading(false);
     }
   }
@@ -290,6 +307,18 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadTargetSummary();
+  }, []);
+
+  useEffect(() => {
+    trackProductEvent(ANALYTICS_EVENTS.dashboard_opened, {
+      source: "main_dashboard",
+    });
+    trackFunnelStep(ANALYTICS_EVENTS.dashboard_opened, {
+      source: "main_dashboard",
+    });
+    trackLifecycleMilestone(ANALYTICS_EVENTS.first_dashboard_visit, {
+      source: "main_dashboard",
+    });
   }, []);
 
   useEffect(() => {

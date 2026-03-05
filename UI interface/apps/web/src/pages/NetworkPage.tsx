@@ -1,16 +1,28 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Area, Bar, BarChart, CartesianGrid, Cell, LabelList, Line, LineChart, ReferenceDot, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import Spinner from "../components/Spinner";
+import ManageSharedFieldsModal from "../components/network/ManageSharedFieldsModal";
 import TargetSignalsCarousel from "../components/network/TargetSignalsCarousel";
 import {
   createJob,
+  getNetworkFieldVisibility,
   getNetworkToday,
   getNetworkTrend,
+  updateNetworkFieldVisibility,
+  type NetworkFieldVisibility,
   type NetworkTodayFriend,
   type NetworkTrendFriend,
 } from "../lib/api";
 import { formatTableDateTime, getLocalISODate } from "../lib/formatDate";
 import { buildNetworkTickerFacts } from "../lib/networkTicker";
+import {
+  ANALYTICS_EVENTS,
+  trackErrorEvent,
+  trackFeatureEvent,
+  trackFunnelStep,
+  trackLifecycleMilestone,
+  trackProductEvent,
+} from "../analytics/events";
 
 const ENTERPRISE_CHART_COLORS = [
   "#2563EB",
@@ -34,7 +46,7 @@ const NETWORK_TREND_COLORS = [
 ];
 const MAX_NETWORK_TREND_FRIENDS = 5;
 const NETWORK_CHART_THEME = {
-  grid: "var(--chart-grid)",
+  grid: "var(--network-chart-grid, var(--chart-grid))",
   tooltipBg: "var(--chart-tooltip-bg)",
   tooltipBorder: "var(--chart-tooltip-border)",
   tooltipShadow: "var(--chart-tooltip-shadow)",
@@ -49,6 +61,29 @@ const WEEKLY_LINE_PALETTE = [
   ENTERPRISE_CHART_COLORS[2],
   ENTERPRISE_CHART_COLORS[3],
   ENTERPRISE_CHART_COLORS[4],
+];
+
+const REQUIRED_VISIBILITY_KEYS: Array<keyof NetworkFieldVisibility> = [
+  "share_company",
+  "share_role",
+  "share_applied_at",
+];
+
+const NETWORK_VISIBILITY_FIELDS: Array<{ key: keyof NetworkFieldVisibility; label: string }> = [
+  { key: "share_company", label: "Company" },
+  { key: "share_role", label: "Role" },
+  { key: "share_applied_at", label: "Applied Date" },
+  { key: "share_oa_status", label: "OA Status" },
+  { key: "share_oa_deadline", label: "OA Deadline" },
+  { key: "share_referral_used", label: "Referral Used" },
+  { key: "share_notes", label: "Notes" },
+];
+
+const OPTIONAL_SHARE_KEYS: Array<keyof NetworkFieldVisibility> = [
+  "share_oa_status",
+  "share_oa_deadline",
+  "share_referral_used",
+  "share_notes",
 ];
 
 function rgbaFromHex(hex: string, alpha: number): string {
@@ -268,12 +303,21 @@ function augmentDemoNetworkData(
         company,
         role,
         date_saved: ts,
+        applied_at: ts,
         application_status: "Applied",
         referral_status: j % 2 === 0 ? "Requested" : "No",
         oa_status: "No",
         oa_deadline_date: null,
         job_application_id: "-",
         job_link: `https://careers.example.com/${encodeURIComponent(company.toLowerCase())}/${(idx + j + 100).toString(36)}`,
+        notes: null,
+        can_view_company: true,
+        can_view_role: true,
+        can_view_applied_at: true,
+        can_view_oa_status: true,
+        can_view_oa_deadline: true,
+        can_view_referral_used: true,
+        can_view_notes: false,
       };
     });
     return {
@@ -295,11 +339,25 @@ export default function NetworkPage() {
   const [success, setSuccess] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [insightsOpen, setInsightsOpen] = useState(true);
-  const [todayOpen, setTodayOpen] = useState(false);
   const [showPrefillModal, setShowPrefillModal] = useState(false);
   const [isPrefillSaving, setIsPrefillSaving] = useState(false);
   const [prefillError, setPrefillError] = useState("");
   const [prefillFromName, setPrefillFromName] = useState("");
+  const [showFieldVisibilityModal, setShowFieldVisibilityModal] = useState(false);
+  const [isSavingFieldVisibility, setIsSavingFieldVisibility] = useState(false);
+  const [fieldVisibilityError, setFieldVisibilityError] = useState("");
+  const [fieldVisibility, setFieldVisibility] = useState<NetworkFieldVisibility>({
+    share_company: true,
+    share_role: true,
+    share_applied_at: true,
+    share_oa_status: true,
+    share_oa_deadline: true,
+    share_referral_used: true,
+    share_notes: false,
+  });
+  const [requiredVisibilityFields, setRequiredVisibilityFields] = useState<Array<keyof NetworkFieldVisibility>>(
+    REQUIRED_VISIBILITY_KEYS,
+  );
   const [prefillForm, setPrefillForm] = useState({
     company: "",
     role: "",
@@ -317,12 +375,26 @@ export default function NetworkPage() {
     try {
       setError("");
       setIsLoading(true);
-      const [trendRes, todayRes] = await Promise.all([getNetworkTrend(10), getNetworkToday()]);
+      const [trendRes, todayRes, visibilityRes] = await Promise.all([
+        getNetworkTrend(10),
+        getNetworkToday(),
+        getNetworkFieldVisibility(),
+      ]);
       const augmented = useNetworkDemoAugment
         ? augmentDemoNetworkData(trendRes.data ?? [], todayRes.data ?? [])
         : { trend: trendRes.data ?? [], today: todayRes.data ?? [] };
       setTrendData(augmented.trend);
       setTodayData(augmented.today);
+      if (visibilityRes?.data) {
+        setFieldVisibility(visibilityRes.data);
+      }
+      if (visibilityRes?.required_fields?.length) {
+        setRequiredVisibilityFields(
+          visibilityRes.required_fields.filter((field): field is keyof NetworkFieldVisibility =>
+            NETWORK_VISIBILITY_FIELDS.some((item) => item.key === field),
+          ),
+        );
+      }
     } catch (e) {
       setError((e as Error).message);
       setTrendData([]);
@@ -346,18 +418,86 @@ export default function NetworkPage() {
     window.dispatchEvent(new CustomEvent("open-friend-manager"));
   }
 
+  function openFieldVisibilityManager() {
+    trackProductEvent(ANALYTICS_EVENTS.privacy_settings_opened, {
+      source: "network_page",
+    });
+    setFieldVisibilityError("");
+    setShowFieldVisibilityModal(true);
+  }
+
+  function setVisibilityValue(key: keyof NetworkFieldVisibility, value: boolean) {
+    if (requiredVisibilityFields.includes(key)) return;
+    setFieldVisibility((prev) => ({ ...prev, [key]: value }));
+  }
+
+  async function saveFieldVisibility() {
+    const enabledBefore = OPTIONAL_SHARE_KEYS.filter((key) => Boolean(fieldVisibility[key])).length;
+    try {
+      setIsSavingFieldVisibility(true);
+      setFieldVisibilityError("");
+      const res = await updateNetworkFieldVisibility(fieldVisibility);
+      const nextVisibility = res?.data ?? fieldVisibility;
+      if (res?.data) setFieldVisibility(res.data);
+      if (res?.required_fields?.length) {
+        setRequiredVisibilityFields(
+          res.required_fields.filter((field): field is keyof NetworkFieldVisibility =>
+            NETWORK_VISIBILITY_FIELDS.some((item) => item.key === field),
+          ),
+        );
+      }
+      const enabledAfter = OPTIONAL_SHARE_KEYS.filter((key) => Boolean(nextVisibility[key])).length;
+      if (enabledAfter > enabledBefore) {
+        trackProductEvent(ANALYTICS_EVENTS.share_data_enabled, {
+          source: "network_privacy_settings",
+          optional_fields_enabled: enabledAfter,
+        });
+        trackFunnelStep(ANALYTICS_EVENTS.share_data_enabled, {
+          source: "network_privacy_settings",
+        });
+        trackLifecycleMilestone(ANALYTICS_EVENTS.first_share_enabled, {
+          source: "network_privacy_settings",
+          optional_fields_enabled: enabledAfter,
+        });
+      } else if (enabledAfter < enabledBefore) {
+        trackProductEvent(ANALYTICS_EVENTS.share_data_disabled, {
+          source: "network_privacy_settings",
+          optional_fields_enabled: enabledAfter,
+        });
+      }
+      trackFeatureEvent(ANALYTICS_EVENTS.filter_used, {
+        source: "network_privacy_settings",
+        filter_type: "shared_fields",
+        enabled_count: enabledAfter,
+      });
+      setShowFieldVisibilityModal(false);
+      await load();
+      setSuccess("Shared fields updated.");
+    } catch (e) {
+      trackErrorEvent(ANALYTICS_EVENTS.form_submission_error, {
+        component_name: "network_shared_fields_modal",
+        error_type: "save_failed",
+      });
+      setFieldVisibilityError((e as Error).message);
+    } finally {
+      setIsSavingFieldVisibility(false);
+    }
+  }
+
   function openPrefillFromFriend(
     friendName: string,
     job: {
       company: string | null;
       role: string | null;
       date_saved: string | null;
+      applied_at: string | null;
       job_link: string | null;
       job_application_id: string | null;
       oa_deadline_date: string | null;
       oa_status: string | null;
       referral_status: string | null;
       application_status: string | null;
+      notes?: string | null;
     },
   ) {
     setPrefillFromName(friendName);
@@ -365,7 +505,7 @@ export default function NetworkPage() {
     setPrefillForm({
       company: String(job.company ?? ""),
       role: String(job.role ?? ""),
-      date_saved: toDateInput(job.date_saved),
+      date_saved: toDateInput(job.applied_at ?? job.date_saved),
       job_link: String(job.job_link ?? ""),
       job_application_id: String(job.job_application_id ?? "-"),
       oa_deadline_date: toDateInput(job.oa_deadline_date),
@@ -373,7 +513,7 @@ export default function NetworkPage() {
       oa_status: normalizeOaStatus(job.oa_status),
       referral_status: String(job.referral_status ?? ""),
       keyword_matching: "Medium",
-      notes: `Copied from ${friendName}${job.application_status ? ` (${job.application_status})` : ""}`.trim(),
+      notes: String(job.notes ?? `Copied from ${friendName}${job.application_status ? ` (${job.application_status})` : ""}`).trim(),
     });
     setShowPrefillModal(true);
   }
@@ -384,12 +524,14 @@ export default function NetworkPage() {
       company: string | null;
       role: string | null;
       date_saved: string | null;
+      applied_at: string | null;
       job_link: string | null;
       job_application_id: string | null;
       oa_deadline_date: string | null;
       oa_status: string | null;
       referral_status: string | null;
       application_status: string | null;
+      notes?: string | null;
     },
   ) {
     openPrefillFromFriend(friendDisplayName, job);
@@ -397,7 +539,13 @@ export default function NetworkPage() {
 
   async function onCreateFromPrefill(e: React.FormEvent) {
     e.preventDefault();
-    if (!prefillForm.company.trim() || !prefillForm.role.trim()) return;
+    if (!prefillForm.company.trim() || !prefillForm.role.trim()) {
+      trackErrorEvent(ANALYTICS_EVENTS.validation_error, {
+        component_name: "network_prefill_form",
+        error_type: "missing_required_field",
+      });
+      return;
+    }
     try {
       setIsPrefillSaving(true);
       setPrefillError("");
@@ -417,8 +565,19 @@ export default function NetworkPage() {
       });
       setShowPrefillModal(false);
       setSuccess("Application added from friend suggestion.");
+      trackProductEvent(ANALYTICS_EVENTS.application_created, {
+        source: "network_prefill_modal",
+        method: "friend_prefill",
+      });
+      trackLifecycleMilestone(ANALYTICS_EVENTS.first_application_created, {
+        source: "network_prefill_modal",
+      });
       window.dispatchEvent(new CustomEvent("dashboard-refresh"));
     } catch (err) {
+      trackErrorEvent(ANALYTICS_EVENTS.form_submission_error, {
+        component_name: "network_prefill_form",
+        error_type: "prefill_submit_failed",
+      });
       setPrefillError((err as Error).message);
     } finally {
       setIsPrefillSaving(false);
@@ -572,19 +731,33 @@ export default function NetworkPage() {
         })),
       );
     const weeklyEndLabels = (() => {
-      if (!weeklyDailyRows.length) return [] as Array<{ key: string; label: string; shortLabel: string; lineColor: string; y: number; dy: number; isLeader: boolean; dayValue: number }>;
-      const last = weeklyDailyRows[weeklyDailyRows.length - 1] as Record<string, string | number>;
+      if (!weeklyDailyRows.length) return [] as Array<{ key: string; label: string; shortLabel: string; lineColor: string; y: number; dy: number; isLeader: boolean; dayValue: number; dayLabel: string }>;
       const rows = weeklyLeaderboard
-        .map((friend) => ({
-          key: friend.key,
-          label: friend.label,
-          shortLabel: formatFirstNameLastInitial(String(friend.label || "")),
-          lineColor: friend.lineColor,
-          isLeader: friend.isLeader,
-          dayValue: Number(last[friend.key] ?? 0),
-          y: Number(last[friend.key] ?? 0),
-          dy: -10,
-        }))
+        .map((friend) => {
+          let lastPositiveIndex = -1;
+          for (let idx = weeklyDailyRows.length - 1; idx >= 0; idx -= 1) {
+            const value = Number((weeklyDailyRows[idx] as Record<string, string | number>)[friend.key] ?? 0);
+            if (value > 0) {
+              lastPositiveIndex = idx;
+              break;
+            }
+          }
+          if (lastPositiveIndex < 0) return null;
+          const sourceRow = weeklyDailyRows[lastPositiveIndex] as Record<string, string | number>;
+          const dayValue = Number(sourceRow[friend.key] ?? 0);
+          return {
+            key: friend.key,
+            label: friend.label,
+            shortLabel: formatFirstNameLastInitial(String(friend.label || "")),
+            lineColor: friend.lineColor,
+            isLeader: friend.isLeader,
+            dayValue,
+            y: dayValue,
+            dayLabel: String(sourceRow.label ?? ""),
+            dy: -10,
+          };
+        })
+        .filter((row): row is { key: string; label: string; shortLabel: string; lineColor: string; y: number; dy: number; isLeader: boolean; dayValue: number; dayLabel: string } => Boolean(row))
         .sort((a, b) => b.y - a.y);
       const closeThreshold = 7;
       for (let i = 1; i < rows.length; i += 1) {
@@ -596,7 +769,7 @@ export default function NetworkPage() {
           curr.dy = -5;
         }
       }
-      return rows.filter((row) => row.dayValue > 0);
+      return rows;
     })();
 
     return {
@@ -647,10 +820,10 @@ export default function NetworkPage() {
   const todayWithJobs = useMemo(() => {
     const rows = todayData.filter((f) => (f.jobs?.length ?? 0) > 0);
     const latestTs = (friend: {
-      jobs: Array<{ date_saved: string | null; id: number }>;
+      jobs: Array<{ date_saved: string | null; applied_at: string | null; id: number }>;
     }) => {
       return friend.jobs.reduce((max, job) => {
-        const ts = Date.parse(String(job.date_saved ?? ""));
+        const ts = Date.parse(String(job.applied_at ?? job.date_saved ?? ""));
         if (Number.isNaN(ts)) return max;
         return Math.max(max, ts);
       }, 0);
@@ -704,9 +877,14 @@ export default function NetworkPage() {
             </div>
           </div>
         </div>
-        <button type="button" className="network-add-friends-btn" onClick={openFriendManager}>
-          + Add Friends
-        </button>
+        <div className="network-ticker-actions">
+          <button type="button" className="network-add-friends-btn" onClick={openFriendManager}>
+            + Add Friends
+          </button>
+          <button type="button" className="network-field-visibility-btn" onClick={openFieldVisibilityManager}>
+            Shared Fields
+          </button>
+        </div>
       </div>
       <section>
         <div className={`card network-shell-card ${insightsOpen ? "is-open" : "is-closed"}`}>
@@ -945,40 +1123,36 @@ export default function NetworkPage() {
                                   strokeWidth={1}
                                 />
                               ))}
-                              {insightCharts.weeklyDailyRows.length > 0
-                                ? (() => {
-                                    const last = insightCharts.weeklyDailyRows[insightCharts.weeklyDailyRows.length - 1] as Record<string, string | number>;
-                                    const lastLabel = String(last.label ?? "");
-                                    return insightCharts.weeklyEndLabels.map((row) => (
-                                      <ReferenceDot
-                                        key={`end-${row.key}`}
-                                        x={lastLabel}
-                                        y={row.y}
-                                        r={0}
-                                        ifOverflow="extendDomain"
-                                        label={(props: { x?: number; y?: number; viewBox?: { x?: number; y?: number } }) => {
-                                          const px = Number(props.viewBox?.x ?? props.x ?? 0);
-                                          const py = Number(props.viewBox?.y ?? props.y ?? 0) + row.dy;
-                                          const text = `${row.shortLabel} ${row.dayValue}`;
-                                          const x = px - 10;
-                                          return (
-                                            <g>
-                                              <text
-                                                x={x}
-                                                y={py + 3}
-                                                textAnchor="end"
-                                                fill={row.lineColor}
-                                                fontSize={10}
-                                                fontWeight={row.isLeader ? 700 : 600}
-                                              >
-                                                {text}
-                                              </text>
-                                            </g>
-                                          );
-                                        }}
-                                      />
-                                    ));
-                                  })()
+                              {insightCharts.weeklyEndLabels.length > 0
+                                ? insightCharts.weeklyEndLabels.map((row) => (
+                                    <ReferenceDot
+                                      key={`end-${row.key}`}
+                                      x={row.dayLabel}
+                                      y={row.y}
+                                      r={0}
+                                      ifOverflow="extendDomain"
+                                      label={(props: { x?: number; y?: number; viewBox?: { x?: number; y?: number } }) => {
+                                        const px = Number(props.viewBox?.x ?? props.x ?? 0);
+                                        const py = Number(props.viewBox?.y ?? props.y ?? 0) + row.dy;
+                                        const text = `${row.shortLabel} ${row.dayValue}`;
+                                        const x = px - 10;
+                                        return (
+                                          <g>
+                                            <text
+                                              x={x}
+                                              y={py + 3}
+                                              textAnchor="end"
+                                              fill={row.lineColor}
+                                              fontSize={10}
+                                              fontWeight={row.isLeader ? 700 : 600}
+                                            >
+                                              {text}
+                                            </text>
+                                          </g>
+                                        );
+                                      }}
+                                    />
+                                  ))
                                 : null}
                             </LineChart>
                           </ResponsiveContainer>
@@ -1029,21 +1203,26 @@ export default function NetworkPage() {
       </section>
 
       <section>
-        <div className={`card network-shell-card ${todayOpen ? "is-open" : "is-closed"}`}>
-          <button type="button" className="network-main-head" onClick={() => setTodayOpen((p) => !p)}>
+        <div className="card network-shell-card is-open">
+          <div className="network-main-head network-main-head--static">
             <h2>Today&apos;s Applications</h2>
             <div className="network-main-right">
               <span className="pending-meta">Friends with activity today</span>
-                <span className={`network-section-arrow ${todayOpen ? "open" : ""}`}>▴</span>
             </div>
-          </button>
+          </div>
 
-          {!todayOpen ? null : isLoading ? (
+          {isLoading ? (
             <Spinner />
           ) : (
             <div className="network-card-content">
               {todayWithJobs.length === 0 ? (
-                <div className="empty-state">No friend applications recorded today.</div>
+                <div className="network-empty-state network-empty-state--today" role="status" aria-live="polite">
+                  <div className="network-empty-state-icon" aria-hidden="true">
+                    ◌
+                  </div>
+                  <p className="network-empty-state-title">No applications logged today</p>
+                  <p className="network-empty-state-copy">When friends add applications, they appear here automatically.</p>
+                </div>
               ) : (
                 <div className="network-today-grid">
                   {todayWithJobs.map((friend) => (
@@ -1069,78 +1248,103 @@ export default function NetworkPage() {
                             </tr>
                           </thead>
                           <tbody>
-                            {friend.jobs.map((job, idx) => (
-                              <tr
-                                key={String(job.id)}
-                                className="network-job-row"
-                                onClick={() =>
-                                  onSelectFriendJob(String(friend.friend_name || friend.friend_email), {
-                                    company: job.company ?? null,
-                                    role: job.role ?? null,
-                                    date_saved: job.date_saved ?? null,
-                                    job_link: job.job_link ?? null,
-                                    job_application_id: job.job_application_id ?? null,
-                                    oa_deadline_date: job.oa_deadline_date ?? null,
-                                    oa_status: job.oa_status ?? null,
-                                    referral_status: job.referral_status ?? null,
-                                    application_status: job.application_status ?? null,
-                                  })
-                                }
-                              >
-                                <td className="network-cell-index">{idx + 1}</td>
-                                <td className="network-cell-company-role">
-                                  <div className="job-main">
-                                    <div className="job-company" title={String(job.company ?? "—")}>
-                                      {String(job.company ?? "—")}
-                                    </div>
-                                    <div className="job-role" title={String(job.role ?? "—")}>
-                                      {String(job.role ?? "—")}
-                                    </div>
-                                  </div>
-                                </td>
-                                <td className="network-cell-date">{formatTableDateTime(job.date_saved)}</td>
-                                <td>{normalizeOaStatus(job.oa_status)}</td>
-                                <td>{String(job.oa_deadline_date ?? "-") || "-"}</td>
-                                <td>{String(job.job_application_id ?? "-") || "-"}</td>
-                                <td>
-                                  {job.job_link ? (
-                                    <a
-                                      href={String(job.job_link)}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="network-link-chip"
-                                      onClick={(e) => e.stopPropagation()}
+                            {friend.jobs.map((job, idx) => {
+                              const canViewIdentity = Boolean(job.can_view_company && job.can_view_role);
+                              const canOpenLink = canViewIdentity && Boolean(job.job_link);
+                              const canPrefill = canViewIdentity;
+                              return (
+                                <tr
+                                  key={String(job.id)}
+                                  className="network-job-row"
+                                  onClick={() => {
+                                    if (!canPrefill) return;
+                                    onSelectFriendJob(String(friend.friend_name || friend.friend_email), {
+                                      company: job.company ?? null,
+                                      role: job.role ?? null,
+                                      date_saved: job.date_saved ?? null,
+                                      applied_at: job.applied_at ?? null,
+                                      job_link: job.job_link ?? null,
+                                      job_application_id: job.job_application_id ?? null,
+                                      oa_deadline_date: job.oa_deadline_date ?? null,
+                                      oa_status: job.oa_status ?? null,
+                                      referral_status: job.referral_status ?? null,
+                                      application_status: job.application_status ?? null,
+                                      notes: job.notes ?? null,
+                                    });
+                                  }}
+                                >
+                                  <td className="network-cell-index">{idx + 1}</td>
+                                  <td className="network-cell-company-role">
+                                    {canViewIdentity ? (
+                                      <div className="job-main">
+                                        <div className="job-company" title={String(job.company ?? "—")}>
+                                          {String(job.company ?? "—")}
+                                        </div>
+                                        <div className="job-role" title={String(job.role ?? "—")}>
+                                          {String(job.role ?? "—")}
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <span className="network-not-shared">Not shared</span>
+                                    )}
+                                  </td>
+                                  <td className="network-cell-date">
+                                    {job.can_view_applied_at ? (
+                                      formatTableDateTime(job.applied_at ?? job.date_saved)
+                                    ) : (
+                                      <span className="network-not-shared">Not shared</span>
+                                    )}
+                                  </td>
+                                  <td>{job.can_view_oa_status ? normalizeOaStatus(job.oa_status) : <span className="network-not-shared">Not shared</span>}</td>
+                                  <td>{job.can_view_oa_deadline ? (String(job.oa_deadline_date ?? "-") || "-") : <span className="network-not-shared">Not shared</span>}</td>
+                                  <td>{canViewIdentity ? (String(job.job_application_id ?? "-") || "-") : <span className="network-not-shared">Not shared</span>}</td>
+                                  <td>
+                                    {canOpenLink ? (
+                                      <a
+                                        href={String(job.job_link)}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="network-link-chip"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        Open
+                                      </a>
+                                    ) : canViewIdentity ? (
+                                      "—"
+                                    ) : (
+                                      <span className="network-not-shared">Not shared</span>
+                                    )}
+                                  </td>
+                                  <td>
+                                    <button
+                                      type="button"
+                                      className="action-btn network-add-btn"
+                                      disabled={!canPrefill}
+                                      title={canPrefill ? "Add this application to your list" : "Friend has not shared enough fields for prefill"}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (!canPrefill) return;
+                                        onSelectFriendJob(String(friend.friend_name || friend.friend_email), {
+                                          company: job.company ?? null,
+                                          role: job.role ?? null,
+                                          date_saved: job.date_saved ?? null,
+                                          applied_at: job.applied_at ?? null,
+                                          job_link: job.job_link ?? null,
+                                          job_application_id: job.job_application_id ?? null,
+                                          oa_deadline_date: job.oa_deadline_date ?? null,
+                                          oa_status: job.oa_status ?? null,
+                                          referral_status: job.referral_status ?? null,
+                                          application_status: job.application_status ?? null,
+                                          notes: job.notes ?? null,
+                                        });
+                                      }}
                                     >
-                                      Open
-                                    </a>
-                                  ) : (
-                                    "—"
-                                  )}
-                                </td>
-                                <td>
-                                  <button
-                                    type="button"
-                                    className="action-btn network-add-btn"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      onSelectFriendJob(String(friend.friend_name || friend.friend_email), {
-                                        company: job.company ?? null,
-                                        role: job.role ?? null,
-                                        date_saved: job.date_saved ?? null,
-                                        job_link: job.job_link ?? null,
-                                        job_application_id: job.job_application_id ?? null,
-                                        oa_deadline_date: job.oa_deadline_date ?? null,
-                                        oa_status: job.oa_status ?? null,
-                                        referral_status: job.referral_status ?? null,
-                                        application_status: job.application_status ?? null,
-                                      });
-                                    }}
-                                  >
-                                    Add Application
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
+                                      Add Application
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>
@@ -1154,6 +1358,17 @@ export default function NetworkPage() {
       </section>
 
       </div>
+
+      <ManageSharedFieldsModal
+        open={showFieldVisibilityModal}
+        saving={isSavingFieldVisibility}
+        error={fieldVisibilityError}
+        visibility={fieldVisibility}
+        requiredFields={requiredVisibilityFields}
+        onClose={() => setShowFieldVisibilityModal(false)}
+        onSave={saveFieldVisibility}
+        onToggle={setVisibilityValue}
+      />
 
       {showPrefillModal ? (
         <div className="modal-overlay" onClick={() => !isPrefillSaving && setShowPrefillModal(false)}>

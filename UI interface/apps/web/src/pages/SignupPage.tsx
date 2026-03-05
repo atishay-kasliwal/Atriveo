@@ -1,9 +1,10 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { signup, setStoredSession, type AuthSession } from "../lib/api";
 import { AuthHero } from "../components/AuthHero";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { withDashboardBase } from "../lib/paths";
+import { ANALYTICS_EVENTS, trackErrorEvent, trackFunnelStep, trackProductEvent } from "../analytics/events";
 
 type SignupPageProps = {
   onAuthenticated: (session: AuthSession) => void;
@@ -20,10 +21,23 @@ export default function SignupPage({ onAuthenticated, theme, onToggleTheme }: Si
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    trackProductEvent(ANALYTICS_EVENTS.signup_started, {
+      source: "signup_page",
+    });
+    trackFunnelStep(ANALYTICS_EVENTS.signup_started, {
+      source: "signup_page",
+    });
+  }, []);
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError("");
     if (!email.trim() || !password.trim()) {
+      trackErrorEvent(ANALYTICS_EVENTS.validation_error, {
+        component_name: "signup_form",
+        error_type: "missing_required_field",
+      });
       setError("Email and password are required.");
       return;
     }
@@ -42,8 +56,18 @@ export default function SignupPage({ onAuthenticated, theme, onToggleTheme }: Si
       };
       setStoredSession(session);
       onAuthenticated(session);
+      trackProductEvent(ANALYTICS_EVENTS.signup_completed, {
+        source: "signup_page",
+      });
+      trackFunnelStep(ANALYTICS_EVENTS.signup_completed, {
+        source: "signup_page",
+      });
       navigate(withDashboardBase(""), { replace: true });
     } catch (err) {
+      trackErrorEvent(ANALYTICS_EVENTS.form_submission_error, {
+        component_name: "signup_form",
+        error_type: "signup_submit_failed",
+      });
       setError((err as Error).message || "Signup failed.");
     } finally {
       setIsLoading(false);
