@@ -32,6 +32,7 @@ import NotificationBell from "./layout/NotificationBell";
 import QuickCreateSplitButton from "./layout/QuickCreateSplitButton";
 import HeaderAvatarMenu from "./layout/HeaderAvatarMenu";
 import { ThemeToggle } from "./ThemeToggle";
+import useConfirmDialog from "./ui/useConfirmDialog";
 
 type LayoutProps = {
   userEmail: string;
@@ -291,6 +292,7 @@ export default function Layout({ userEmail, onLogout, theme, onToggleTheme }: La
   const [form, setForm] = useState(emptyJobForm);
   const [pendingForm, setPendingForm] = useState(emptyPendingForm);
   const [noteForm, setNoteForm] = useState(emptyNoteForm);
+  const { confirm, confirmDialog } = useConfirmDialog();
 
   useEffect(() => {
     if (!showQuickAdd && !showPendingTask && !showNoteModal) setModalError("");
@@ -439,7 +441,12 @@ export default function Layout({ userEmail, onLogout, theme, onToggleTheme }: La
   }
 
   async function onRemoveFriend(id: number | string) {
-    const confirmed = window.confirm("Remove this friend? You can send a new friend request later.");
+    const confirmed = await confirm({
+      title: "Remove Friend",
+      message: "You're going to remove this friend. You can send a new friend request later.",
+      confirmText: "Confirm Remove",
+      cancelText: "No, Keep it",
+    });
     if (!confirmed) return;
     try {
       setFriendBusyId(id);
@@ -1305,6 +1312,7 @@ export default function Layout({ userEmail, onLogout, theme, onToggleTheme }: La
           </div>
         </div>
       )}
+      {confirmDialog}
     </div>
   );
 }

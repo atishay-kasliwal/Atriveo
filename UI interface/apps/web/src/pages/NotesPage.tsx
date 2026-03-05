@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Spinner from "../components/Spinner";
+import useConfirmDialog from "../components/ui/useConfirmDialog";
 import { deleteNote, getNotes, updateNote } from "../lib/api";
 import { formatTableDate } from "../lib/formatDate";
 
@@ -8,7 +9,7 @@ type NotesTab = "All" | NotePriority;
 
 type NoteRow = Record<string, any>;
 const NOTE_TABS: NotesTab[] = ["All", "High", "Medium", "Low", "Archive"];
-const NOTE_PAGE_SIZE = 3;
+const NOTE_PAGE_SIZE = 4;
 
 function normalizePriority(note: NoteRow): NotePriority {
   const raw = String(note.priority ?? "").trim();
@@ -57,6 +58,7 @@ export default function NotesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [editId, setEditId] = useState<number | string | null>(null);
+  const [selectedNote, setSelectedNote] = useState<NoteRow | null>(null);
   const [editForm, setEditForm] = useState<{ note_date: string; title: string; body: string; priority: NotePriority; show_on_dashboard: boolean }>({
     note_date: "",
     title: "",
@@ -66,6 +68,7 @@ export default function NotesPage() {
   });
   const [activeTab, setActiveTab] = useState<NotesTab>("All");
   const [notesPageIndex, setNotesPageIndex] = useState(0);
+  const { confirm, confirmDialog } = useConfirmDialog();
 
   async function load() {
     try {
@@ -231,7 +234,13 @@ export default function NotesPage() {
   }
 
   async function handleDelete(id: number | string) {
-    if (!window.confirm("Delete this note? This cannot be undone.")) return;
+    const confirmed = await confirm({
+      title: "Delete Note",
+      message: "You're going to delete this note. This cannot be undone.",
+      confirmText: "Confirm Delete",
+      cancelText: "No, Keep it",
+    });
+    if (!confirmed) return;
     try {
       setIsSaving(true);
       await deleteNote(id);
@@ -317,7 +326,20 @@ export default function NotesPage() {
                       const { title, body } = splitNote(full);
                       const isArchive = priority === "Archive";
                       return (
-                        <article key={String(note.id)} className={`notes-card notes-card--${priority.toLowerCase()}`}>
+                        <article
+                          key={String(note.id)}
+                          className={`notes-card notes-card--${priority.toLowerCase()} notes-card--clickable`}
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`Open note: ${title}`}
+                          onClick={() => setSelectedNote(note)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setSelectedNote(note);
+                            }
+                          }}
+                        >
                           <div className="notes-card-head">
                             <span className={`status-chip notes-priority-chip notes-priority-chip--${priority.toLowerCase()}`}>{priority}</span>
                             {note.note_date ? <span className="notes-card-date">{formatTableDate(note.note_date)}</span> : null}
@@ -328,19 +350,47 @@ export default function NotesPage() {
                           </p>
                           <div className="notes-card-footer">
                             <div className="row-actions row-actions--notes">
-                              <button type="button" className="action-btn" onClick={() => startEdit(note)}>
+                              <button
+                                type="button"
+                                className="action-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  startEdit(note);
+                                }}
+                              >
                                 Edit
                               </button>
                               {isArchive ? (
-                                <button type="button" className="action-btn" onClick={() => restoreNote(note.id)}>
+                                <button
+                                  type="button"
+                                  className="action-btn"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    void restoreNote(note.id);
+                                  }}
+                                >
                                   Restore
                                 </button>
                               ) : (
-                                <button type="button" className="action-btn" onClick={() => markDone(note.id)}>
+                                <button
+                                  type="button"
+                                  className="action-btn"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    void markDone(note.id);
+                                  }}
+                                >
                                   Archive
                                 </button>
                               )}
-                              <button type="button" className="action-btn" onClick={() => handleDelete(note.id)}>
+                              <button
+                                type="button"
+                                className="action-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  void handleDelete(note.id);
+                                }}
+                              >
                                 Delete
                               </button>
                             </div>
@@ -355,6 +405,23 @@ export default function NotesPage() {
           </div>
         </div>
       </section>
+
+      {selectedNote ? (
+        <div className="modal-overlay" onClick={() => setSelectedNote(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>{splitNote(String(selectedNote.comments ?? "")).title}</h3>
+            {selectedNote.note_date ? <div className="pending-meta">{formatTableDate(selectedNote.note_date)}</div> : null}
+            <div className="notes-preview-modal-body">
+              {splitNote(String(selectedNote.comments ?? "")).body || "No additional details yet."}
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="action-btn" onClick={() => setSelectedNote(null)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {editId !== null ? (
         <div className="modal-overlay" onClick={() => !isSaving && cancelEdit()}>
@@ -430,6 +497,7 @@ export default function NotesPage() {
           </div>
         </div>
       ) : null}
+      {confirmDialog}
     </>
   );
 }

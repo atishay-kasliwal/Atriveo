@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
+  Area,
   Bar,
-  BarChart,
   CartesianGrid,
   Cell,
   ComposedChart,
+  LabelList,
   Line,
   ResponsiveContainer,
   Tooltip,
@@ -13,6 +14,7 @@ import {
   YAxis,
 } from "recharts";
 import Spinner from "../components/Spinner";
+import useConfirmDialog from "../components/ui/useConfirmDialog";
 import { formatTableDateTime } from "../lib/formatDate";
 import {
   deleteJob,
@@ -114,7 +116,7 @@ function compareJobs(
 // Theme-aware chart tokens used only on Jobs page charts.
 const CHART_COLORS = {
   applied: "#2563eb",
-  rejected: "#f59e0b",
+  rejected: "#0ea5e9",
   grid: "var(--chart-grid)",
   tooltipBg: "var(--chart-tooltip-bg)",
   tooltipBorder: "var(--chart-tooltip-border)",
@@ -199,6 +201,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
   });
   const [isOaSaving, setIsOaSaving] = useState(false);
   const [oaDeletingId, setOaDeletingId] = useState<number | string | null>(null);
+  const { confirm, confirmDialog } = useConfirmDialog();
 
   const load = useCallback(async () => {
     try {
@@ -438,9 +441,12 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     const company = String(job.company ?? "").trim();
     const role = String(job.role ?? "").trim();
     const label = [company, role].filter(Boolean).join(" — ");
-    const confirmed = window.confirm(
-      `Delete this job${label ? ` (${label})` : ""}? This action cannot be undone.`,
-    );
+    const confirmed = await confirm({
+      title: "Delete Application",
+      message: `You're going to delete this application${label ? ` (${label})` : ""}. This cannot be undone.`,
+      confirmText: "Confirm Delete",
+      cancelText: "No, Keep it",
+    });
     if (!confirmed) return;
     try {
       setError("");
@@ -467,9 +473,12 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     const company = String(job.company ?? "").trim();
     const role = String(job.role ?? "").trim();
     const label = [company, role].filter(Boolean).join(" — ");
-    const confirmed = window.confirm(
-      `Archive this application${label ? ` (${label})` : ""}? It will move to Archive.`,
-    );
+    const confirmed = await confirm({
+      title: "Archive Application",
+      message: `Move this application${label ? ` (${label})` : ""} to Archive?`,
+      confirmText: "Confirm Archive",
+      cancelText: "No, Keep it",
+    });
     if (!confirmed) return;
     try {
       setError("");
@@ -578,9 +587,12 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     const company = String(row.company ?? "").trim();
     const role = String(row.role ?? "").trim();
     const label = [company, role].filter(Boolean).join(" — ");
-    const confirmed = window.confirm(
-      `Delete OA archive record${label ? ` (${label})` : ""}? This action cannot be undone.`,
-    );
+    const confirmed = await confirm({
+      title: "Delete OA Record",
+      message: `You're going to delete this OA archive record${label ? ` (${label})` : ""}. This cannot be undone.`,
+      confirmText: "Confirm Delete",
+      cancelText: "No, Keep it",
+    });
     if (!confirmed) return;
     try {
       setOaDeletingId(id);
@@ -619,6 +631,16 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                   margin={{ top: 20, right: 24, left: 8, bottom: 24 }}
                   barCategoryGap="14%"
                 >
+                  <defs>
+                    <linearGradient id="areaGradient_applicationMomentum" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={CHART_COLORS.applied} stopOpacity={0.58} />
+                      <stop offset="55%" stopColor={CHART_COLORS.applied} stopOpacity={0.28} />
+                      <stop offset="95%" stopColor={CHART_COLORS.applied} stopOpacity={0} />
+                    </linearGradient>
+                    <filter id="lineGlow_applicationMomentum" x="-20%" y="-20%" width="140%" height="140%">
+                      <feDropShadow dx="0" dy="0" stdDeviation="2.2" floodColor={CHART_COLORS.applied} floodOpacity={0.42} />
+                    </filter>
+                  </defs>
                   <CartesianGrid
                     strokeDasharray="3 3"
                     stroke={CHART_COLORS.grid}
@@ -664,6 +686,28 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                     itemStyle={{ fontSize: 13, fontWeight: 600 }}
                     labelFormatter={(label) => `Date: ${label}`}
                   />
+                  <Area
+                    type="monotone"
+                    dataKey="applied"
+                    stroke="none"
+                    fill={CHART_COLORS.applied}
+                    fillOpacity={0.12}
+                    baseValue={0}
+                    tooltipType="none"
+                    isAnimationActive={false}
+                    connectNulls={false}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="applied"
+                    stroke="none"
+                    fill="url(#areaGradient_applicationMomentum)"
+                    fillOpacity={1}
+                    baseValue={0}
+                    tooltipType="none"
+                    isAnimationActive={false}
+                    connectNulls={false}
+                  />
                   <Bar
                     dataKey="rejected"
                     fill={CHART_COLORS.rejected}
@@ -692,17 +736,29 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                     type="monotone"
                     dataKey="applied"
                     stroke={CHART_COLORS.applied}
-                    strokeWidth={2}
+                    strokeWidth={2.6}
                     dot={{
-                      r: 2,
+                      r: 3,
                       fill: CHART_COLORS.applied,
-                      strokeWidth: 0,
-                      opacity: 0.85,
+                      stroke: "var(--bg-card)",
+                      strokeWidth: 1.2,
+                      opacity: 1,
                     }}
                     activeDot={false}
                     connectNulls={false}
                     strokeDasharray="0"
-                  />
+                    filter="url(#lineGlow_applicationMomentum)"
+                  >
+                    <LabelList
+                      dataKey="applied"
+                      position="top"
+                      offset={8}
+                      fill={CHART_COLORS.applied}
+                      fontSize={10}
+                      fontWeight={700}
+                      formatter={(value: number) => (value > 0 ? String(value) : "")}
+                    />
+                  </Line>
                 </ComposedChart>
               </ResponsiveContainer>
             )}
@@ -724,7 +780,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
       {statusFilter === "rejected" && (
         <div className="card card-chart-trend trend-uniform-card" style={{ marginBottom: "24px" }}>
           <div className="trend-uniform-head">
-            <h2>Rejected Jobs Trend</h2>
+            <h2>Archive Trend</h2>
             <p>Last 30 days • Daily rejected applications</p>
           </div>
           <div className="trend-uniform-body">
@@ -736,11 +792,21 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
               <div className="chart-empty">No data available</div>
             ) : (
               <ResponsiveContainer width="100%" height={360}>
-                <BarChart
+                <ComposedChart
                   data={chartData.data}
                   margin={{ top: 20, right: 24, left: 8, bottom: 24 }}
                   barCategoryGap="14%"
                 >
+                  <defs>
+                    <linearGradient id="areaGradient_rejectedJobsTrend" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={CHART_COLORS.rejected} stopOpacity={0.56} />
+                      <stop offset="55%" stopColor={CHART_COLORS.rejected} stopOpacity={0.25} />
+                      <stop offset="95%" stopColor={CHART_COLORS.rejected} stopOpacity={0} />
+                    </linearGradient>
+                    <filter id="lineGlow_rejectedJobsTrend" x="-20%" y="-20%" width="140%" height="140%">
+                      <feDropShadow dx="0" dy="0" stdDeviation="2.2" floodColor={CHART_COLORS.rejected} floodOpacity={0.4} />
+                    </filter>
+                  </defs>
                   <CartesianGrid
                     strokeDasharray="3 3"
                     stroke={CHART_COLORS.grid}
@@ -778,18 +844,33 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                     labelFormatter={(label) => `Date: ${label}`}
                     formatter={(value: number) => [`${value}`, "Rejected"]}
                   />
+                  <Area
+                    type="monotone"
+                    dataKey="rejected"
+                    stroke="none"
+                    fill={CHART_COLORS.rejected}
+                    fillOpacity={0.1}
+                    baseValue={0}
+                    tooltipType="none"
+                    isAnimationActive={false}
+                    connectNulls={false}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="rejected"
+                    stroke="none"
+                    fill="url(#areaGradient_rejectedJobsTrend)"
+                    fillOpacity={1}
+                    baseValue={0}
+                    tooltipType="none"
+                    isAnimationActive={false}
+                    connectNulls={false}
+                  />
                   <Bar
                     dataKey="rejected"
                     fill={CHART_COLORS.rejected}
                     radius={[4, 4, 0, 0]}
                     minPointSize={2}
-                    label={{
-                      position: "top",
-                      fill: CHART_COLORS.textSecondary,
-                      fontSize: 9,
-                      fontWeight: 400,
-                      formatter: (value: number) => (value > 0 ? String(value) : ""),
-                    }}
                   >
                     {chartData.data.map((entry, index) => {
                       const hasRejection = entry.rejected > 0;
@@ -802,7 +883,35 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
                       );
                     })}
                   </Bar>
-                </BarChart>
+                  <Line
+                    type="monotone"
+                    dataKey="rejected"
+                    stroke={CHART_COLORS.rejected}
+                    strokeWidth={2.6}
+                    dot={{
+                      r: 3,
+                      fill: CHART_COLORS.rejected,
+                      stroke: "var(--bg-card)",
+                      strokeWidth: 1.2,
+                      opacity: 1,
+                    }}
+                    activeDot={false}
+                    connectNulls={false}
+                    strokeDasharray="0"
+                    filter="url(#lineGlow_rejectedJobsTrend)"
+                    tooltipType="none"
+                  >
+                    <LabelList
+                      dataKey="rejected"
+                      position="top"
+                      offset={8}
+                      fill={CHART_COLORS.rejected}
+                      fontSize={10}
+                      fontWeight={700}
+                      formatter={(value: number) => (value > 0 ? String(value) : "")}
+                    />
+                  </Line>
+                </ComposedChart>
               </ResponsiveContainer>
             )}
           </div>
@@ -1109,7 +1218,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
 
       {editing && (
         <div className="modal-overlay" onClick={() => !isSaving && setEditing(null)}>
-          <div className="modal modal--quickadd" onClick={(e) => e.stopPropagation()}>
+          <div className="modal modal--new-app" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
               className="modal-close-x"
@@ -1119,140 +1228,209 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
             >
               ×
             </button>
-            <h3>Edit Job</h3>
-            <form className="form form--quickadd" onSubmit={onSaveEdit}>
-              <div className="qa-left">
-                <input
-                  placeholder="Position *"
-                  value={editForm.role}
-                  onChange={(e) => setEditForm((p) => ({ ...p, role: e.target.value }))}
-                  autoFocus
-                />
-                <div className="form-row">
-                  <label className="form-label">Date</label>
-                  <input
-                    type="date"
-                    value={editForm.date_saved}
-                    onChange={(e) => setEditForm((p) => ({ ...p, date_saved: e.target.value }))}
-                  />
+            <form className="new-app-form" onSubmit={onSaveEdit}>
+              <header className="new-app-header">
+                <h3>Edit Application</h3>
+                <p>Update this application using the same structure as Add Application.</p>
+              </header>
+
+              <section className="new-app-section">
+                <div className="new-app-section-header">
+                  <span className="new-app-section-icon">⌁</span>
+                  <h4>CORE DETAILS</h4>
                 </div>
-                <input
-                  placeholder="Location"
-                  value={editForm.location_raw}
-                  onChange={(e) => setEditForm((p) => ({ ...p, location_raw: e.target.value }))}
-                />
-                <div className="form-row">
-                  <label className="form-label">Referral</label>
-                  <select
-                    value={editForm.referral_status}
-                    onChange={(e) => setEditForm((p) => ({ ...p, referral_status: e.target.value }))}
-                    className="form-select"
-                  >
-                    {REFERRAL_OPTIONS.map((opt) => (
-                      <option key={opt || "empty"} value={opt}>{opt || "—"}</option>
+                <div className="new-app-grid-2">
+                  <label className="new-app-field">
+                    <span className="new-app-label">Company</span>
+                    <input
+                      className="new-app-input"
+                      placeholder="e.g. Stripe"
+                      value={editForm.company}
+                      onChange={(e) => setEditForm((p) => ({ ...p, company: e.target.value }))}
+                      autoFocus
+                    />
+                  </label>
+                  <label className="new-app-field">
+                    <span className="new-app-label">Position</span>
+                    <input
+                      className="new-app-input"
+                      placeholder="e.g. Software Engineer"
+                      value={editForm.role}
+                      onChange={(e) => setEditForm((p) => ({ ...p, role: e.target.value }))}
+                    />
+                  </label>
+                  <label className="new-app-field">
+                    <span className="new-app-label">Application Link</span>
+                    <input
+                      className="new-app-input"
+                      type="url"
+                      placeholder="https://..."
+                      value={editForm.job_link}
+                      onChange={(e) => setEditForm((p) => ({ ...p, job_link: e.target.value }))}
+                    />
+                  </label>
+                  <label className="new-app-field">
+                    <span className="new-app-label">Application ID</span>
+                    <input
+                      className="new-app-input"
+                      placeholder="Optional"
+                      value={editForm.job_application_id}
+                      onChange={(e) => setEditForm((p) => ({ ...p, job_application_id: e.target.value }))}
+                    />
+                  </label>
+                </div>
+              </section>
+
+              <section className="new-app-section">
+                <div className="new-app-section-header">
+                  <span className="new-app-section-icon">⌁</span>
+                  <h4>REFERRAL & OA</h4>
+                </div>
+                <div className="new-app-grid-2 new-app-grid-referral">
+                  <label className="new-app-field">
+                    <span className="new-app-label">Referral</span>
+                    <select
+                      className="new-app-input new-app-select"
+                      value={editForm.referral_status}
+                      onChange={(e) => setEditForm((p) => ({ ...p, referral_status: e.target.value }))}
+                    >
+                      {REFERRAL_OPTIONS.map((opt) => (
+                        <option key={opt || "empty"} value={opt}>
+                          {opt || "—"}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="new-app-field">
+                    <span className="new-app-label">Referral Name</span>
+                    <input
+                      className="new-app-input"
+                      placeholder="Optional"
+                      value={editForm.referred_by_name}
+                      onChange={(e) => setEditForm((p) => ({ ...p, referred_by_name: e.target.value }))}
+                    />
+                  </label>
+                  <label className="new-app-field">
+                    <span className="new-app-label">Online Assessment</span>
+                    <select
+                      className="new-app-input new-app-select"
+                      value={editForm.oa_status}
+                      onChange={(e) => setEditForm((p) => ({ ...p, oa_status: e.target.value }))}
+                    >
+                      <option value="Yes">Yes</option>
+                      <option value="No">No</option>
+                    </select>
+                  </label>
+                  <label className="new-app-field">
+                    <span className="new-app-label">OA Deadline</span>
+                    <input
+                      className="new-app-input"
+                      type="date"
+                      value={editForm.oa_deadline_date}
+                      onChange={(e) => setEditForm((p) => ({ ...p, oa_deadline_date: e.target.value }))}
+                    />
+                  </label>
+                </div>
+                <label className="new-app-field new-app-keyword-field">
+                  <span className="new-app-label">Keyword Matching</span>
+                  <div className="new-app-keyword-toggle">
+                    {(["Strong", "Medium", "Weak"] as const).map((level) => (
+                      <button
+                        key={level}
+                        type="button"
+                        className={editForm.keyword_matching === level ? "is-active" : ""}
+                        onClick={() => setEditForm((p) => ({ ...p, keyword_matching: level }))}
+                      >
+                        {level}
+                      </button>
                     ))}
-                  </select>
-                </div>
+                  </div>
+                </label>
                 {editForm.referral_status === "Requested" && (
-                  <p className="referral-hint">
+                  <p className="new-app-alert">
                     Track requested referrals on the <Link to="/referrals" className="table-link">Referrals</Link> page.
                   </p>
                 )}
                 {editForm.referral_status === "Yes" && (
-                  <p className="referral-hint">
+                  <p className="new-app-alert">
                     Ensure this company has an entry on the <Link to="/referrals" className="table-link">Referrals</Link> page.
                   </p>
                 )}
-                <input
-                  placeholder="Referral name (optional)"
-                  value={editForm.referred_by_name}
-                  onChange={(e) => setEditForm((p) => ({ ...p, referred_by_name: e.target.value }))}
-                />
-                <div className="form-row">
-                  <label className="form-label">Application Status</label>
-                  <select
-                    value={editForm.application_status}
-                    onChange={(e) => setEditForm((p) => ({ ...p, application_status: e.target.value }))}
-                    className="form-select"
-                  >
-                    <option value="Applied">Applied</option>
-                    <option value="Under consideration">Under consideration</option>
-                    <option value="Rejected">Rejected</option>
-                  </select>
-                </div>
-                <input
-                  placeholder="Response status"
-                  value={editForm.response_status}
-                  onChange={(e) => setEditForm((p) => ({ ...p, response_status: e.target.value }))}
-                />
-                <textarea
-                  placeholder="Notes"
-                  rows={3}
-                  value={editForm.notes}
-                  onChange={(e) => setEditForm((p) => ({ ...p, notes: e.target.value }))}
-                />
-              </div>
-              <div className="qa-right">
-                <input
-                  placeholder="Company *"
-                  value={editForm.company}
-                  onChange={(e) => setEditForm((p) => ({ ...p, company: e.target.value }))}
-                />
-                <input
-                  placeholder="Job link (URL)"
-                  type="url"
-                  value={editForm.job_link}
-                  onChange={(e) => setEditForm((p) => ({ ...p, job_link: e.target.value }))}
-                />
-                <input
-                  placeholder="Job/Application ID (optional)"
-                  value={editForm.job_application_id}
-                  onChange={(e) => setEditForm((p) => ({ ...p, job_application_id: e.target.value }))}
-                />
-                <div className="form-row">
-                  <label className="form-label">OA Deadline (optional)</label>
-                  <input
-                    type="date"
-                    value={editForm.oa_deadline_date}
-                    onChange={(e) => setEditForm((p) => ({ ...p, oa_deadline_date: e.target.value }))}
-                  />
-                </div>
-                <div className="form-row">
-                  <label className="form-label">Online Assessment (OA)</label>
-                  <select
-                    value={editForm.oa_status}
-                    onChange={(e) => setEditForm((p) => ({ ...p, oa_status: e.target.value }))}
-                    className="form-select"
-                  >
-                    <option value="Yes">Yes</option>
-                    <option value="No">No</option>
-                  </select>
-                </div>
-                <div className="form-row">
-                  <label className="form-label">Keyword Matching</label>
-                  <select
-                    value={editForm.keyword_matching}
-                    onChange={(e) => setEditForm((p) => ({ ...p, keyword_matching: e.target.value }))}
-                    className="form-select"
-                  >
-                    <option value="Strong">Strong</option>
-                    <option value="Medium">Medium</option>
-                    <option value="Weak">Weak</option>
-                  </select>
-                  <p className="form-helper">
-                    {editForm.keyword_matching === "Strong"
-                      ? "Almost every technical keyword matched"
-                      : editForm.keyword_matching === "Medium"
-                        ? "Few Keywords are not Present"
-                        : "Few Keywords Matched"}
-                  </p>
-                </div>
-              </div>
-              <div className="modal-actions">
-                <button type="button" className="action-btn" onClick={() => setEditing(null)} disabled={isSaving}>
+              </section>
+
+              <section className="new-app-section">
+                <details className="new-app-details">
+                  <summary className="new-app-details-summary">
+                    <span className="new-app-details-title">Additional Information</span>
+                    <span className="new-app-details-toggle" aria-hidden="true">
+                      <span className="new-app-details-icon">▾</span>
+                    </span>
+                  </summary>
+                  <div className="new-app-details-body">
+                    <div className="new-app-grid-2">
+                      <label className="new-app-field">
+                        <span className="new-app-label">Date Applied</span>
+                        <input
+                          className="new-app-input"
+                          type="date"
+                          value={editForm.date_saved}
+                          onChange={(e) => setEditForm((p) => ({ ...p, date_saved: e.target.value }))}
+                        />
+                      </label>
+                      <label className="new-app-field">
+                        <span className="new-app-label">Country / Location</span>
+                        <input
+                          className="new-app-input"
+                          placeholder="e.g. United States"
+                          value={editForm.location_raw}
+                          onChange={(e) => setEditForm((p) => ({ ...p, location_raw: e.target.value }))}
+                        />
+                      </label>
+                      <label className="new-app-field">
+                        <span className="new-app-label">Application Status</span>
+                        <select
+                          className="new-app-input new-app-select"
+                          value={editForm.application_status}
+                          onChange={(e) => setEditForm((p) => ({ ...p, application_status: e.target.value }))}
+                        >
+                          <option value="Applied">Applied</option>
+                          <option value="Under consideration">Under consideration</option>
+                          <option value="Rejected">Rejected</option>
+                        </select>
+                      </label>
+                      <label className="new-app-field">
+                        <span className="new-app-label">Response Status</span>
+                        <input
+                          className="new-app-input"
+                          placeholder="e.g. Interview"
+                          value={editForm.response_status}
+                          onChange={(e) => setEditForm((p) => ({ ...p, response_status: e.target.value }))}
+                        />
+                      </label>
+                    </div>
+                    <label className="new-app-field">
+                      <span className="new-app-label">Notes</span>
+                      <textarea
+                        className="new-app-input new-app-textarea"
+                        rows={3}
+                        placeholder="Any additional notes..."
+                        value={editForm.notes}
+                        onChange={(e) => setEditForm((p) => ({ ...p, notes: e.target.value }))}
+                      />
+                    </label>
+                  </div>
+                </details>
+              </section>
+
+              <div className="new-app-actions">
+                <button type="button" className="new-app-btn new-app-btn--secondary" onClick={() => setEditing(null)} disabled={isSaving}>
                   Cancel
                 </button>
-                <button type="submit" disabled={isSaving || !editForm.role.trim() || !editForm.company.trim()}>
+                <button
+                  type="submit"
+                  className="new-app-btn new-app-btn--primary"
+                  disabled={isSaving || !editForm.role.trim() || !editForm.company.trim()}
+                >
                   {isSaving ? "Saving..." : "Save"}
                 </button>
               </div>
@@ -1433,6 +1611,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
           </div>
         </div>
       )}
+      {confirmDialog}
     </>
   );
 }
