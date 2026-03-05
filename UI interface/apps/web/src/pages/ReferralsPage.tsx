@@ -286,13 +286,13 @@ export default function ReferralsPage() {
       setIsCreatingRecord(true);
       await createReferral({
         company,
-        request_log: createRecordForm.request_log.trim() || null,
-        request_date: createRecordForm.request_date || null,
-        request_link: createRecordForm.request_link.trim() || null,
+        request_log: createRecordForm.request_log.trim() || undefined,
+        request_date: createRecordForm.request_date || undefined,
+        request_link: createRecordForm.request_link.trim() || undefined,
         referral_received: "Yes",
         keyword_matching: "Medium",
-        referred_by_name: createRecordForm.referred_by_name.trim() || null,
-        comment: createRecordForm.comment.trim() || null,
+        referred_by_name: createRecordForm.referred_by_name.trim() || undefined,
+        comment: createRecordForm.comment.trim() || undefined,
       });
       setShowCreateRecordModal(false);
       await Promise.all([loadOpen(), loadApplied()]);
