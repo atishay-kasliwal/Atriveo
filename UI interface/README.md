@@ -73,8 +73,14 @@ You do not need `docker compose` in this Neon mode.
 
 ## CI deploy trigger
 
-- Frontend: Cloudflare Pages auto-deploys from `master` (Git integration).
-- API: GitHub Action `.github/workflows/deploy-api-production.yml` deploys on every push to `master`.
+- GitHub Action `.github/workflows/deploy-api-production.yml` now deploys the full production stack on every push to `master`:
+  - DB migrations
+  - API (Cloudflare Workers)
+  - Frontend (Cloudflare Pages)
 - Required GitHub repository secrets:
   - `CLOUDFLARE_API_TOKEN`
   - `CLOUDFLARE_ACCOUNT_ID`
+  - `PRODUCTION_DATABASE_URL`
+- Optional GitHub repository secrets:
+  - `PRODUCTION_API_URL` (defaults to `https://job-tracker-api.katishay.workers.dev`)
+  - `CLOUDFLARE_PAGES_PROJECT_NAME` (defaults to `noobly`)
