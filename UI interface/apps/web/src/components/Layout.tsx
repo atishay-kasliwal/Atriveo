@@ -19,6 +19,15 @@ import {
   type OutgoingFriendRequest,
 } from "../lib/api";
 import { getLocalISODate } from "../lib/formatDate";
+import {
+  ANALYTICS_EVENTS,
+  trackErrorEvent,
+  trackFeatureEvent,
+  trackFunnelStep,
+  trackLifecycleMilestone,
+  trackPerformanceEvent,
+  trackProductEvent,
+} from "../analytics/events";
 import NotificationBell from "./layout/NotificationBell";
 import QuickCreateSplitButton from "./layout/QuickCreateSplitButton";
 import HeaderAvatarMenu from "./layout/HeaderAvatarMenu";
@@ -78,6 +87,8 @@ const COUNTRY_OPTIONS = [
   "Germany",
   "Australia",
 ];
+
+const SLOW_APPLICATION_CREATE_THRESHOLD_MS = 1500;
 
 type SectionHeaderProps = {
   icon: ReactNode;
@@ -494,6 +505,11 @@ export default function Layout({ userEmail, onLogout, theme, onToggleTheme }: La
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
       setCsvSuccess("CSV export downloaded.");
+      trackFeatureEvent(ANALYTICS_EVENTS.export_data_clicked, {
+        source: "header_menu",
+        export_format: "csv",
+        export_range: csvRange,
+      });
     } catch (err) {
       setCsvError((err as Error).message || "Failed to export CSV.");
     } finally {
@@ -503,15 +519,33 @@ export default function Layout({ userEmail, onLogout, theme, onToggleTheme }: La
 
   async function onCreateJob(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.company.trim()) return;
+    const company = form.company.trim();
+    const role = form.role.trim();
+
+    if (!company) {
+      trackErrorEvent(ANALYTICS_EVENTS.validation_error, {
+        component_name: "new_application_form",
+        error_type: "missing_company",
+      });
+      return;
+    }
+
+    const startedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
+
     if (form.referral_status === "Requested") {
-      if (!form.role.trim()) return;
+      if (!role) {
+        trackErrorEvent(ANALYTICS_EVENTS.validation_error, {
+          component_name: "new_application_form",
+          error_type: "missing_role",
+        });
+        return;
+      }
       try {
         setIsSaving(true);
         setModalError("");
         await createReferral({
-          company: form.company.trim(),
-          request_log: form.role.trim(),
+          company,
+          request_log: role,
           request_date: form.date_saved || getLocalISODate(),
           request_link: form.job_link.trim() || undefined,
           referral_received: form.referral_status,
@@ -523,18 +557,39 @@ export default function Layout({ userEmail, onLogout, theme, onToggleTheme }: La
         setShowQuickAdd(false);
         window.dispatchEvent(new CustomEvent("dashboard-refresh"));
       } catch (err) {
+        trackErrorEvent(ANALYTICS_EVENTS.form_submission_error, {
+          component_name: "new_application_form",
+          error_type: "referral_submit_failed",
+        });
         setModalError((err as Error).message);
       } finally {
+        const durationMs = (typeof performance !== "undefined" ? performance.now() : Date.now()) - startedAt;
+        if (durationMs >= SLOW_APPLICATION_CREATE_THRESHOLD_MS) {
+          trackPerformanceEvent(ANALYTICS_EVENTS.slow_application_create, durationMs, {
+            source: "new_application_modal",
+            flow: "referral",
+          });
+        }
         setIsSaving(false);
       }
       return;
     }
-    if (!form.role.trim()) return;
+
+    if (!role) {
+      trackErrorEvent(ANALYTICS_EVENTS.validation_error, {
+        component_name: "new_application_form",
+        error_type: "missing_role",
+      });
+      return;
+    }
+
     try {
       setIsSaving(true);
       setModalError("");
       await createJob({
         ...form,
+        company,
+        role,
         date_saved: form.date_saved || getLocalISODate(),
         job_link: form.job_link.trim() || undefined,
         job_application_id: form.job_application_id.trim() || undefined,
@@ -547,9 +602,32 @@ export default function Layout({ userEmail, onLogout, theme, onToggleTheme }: La
       setForm({ ...emptyJobForm, date_saved: getLocalISODate() });
       setShowQuickAdd(false);
       window.dispatchEvent(new CustomEvent("dashboard-refresh"));
+      trackProductEvent(ANALYTICS_EVENTS.application_created, {
+        source: "new_application_modal",
+        method: "manual",
+        has_referral: form.referral_status === "Yes",
+        has_online_assessment: form.oa_status === "Yes",
+      });
+      trackFunnelStep(ANALYTICS_EVENTS.application_created, {
+        source: "new_application_modal",
+      });
+      trackLifecycleMilestone(ANALYTICS_EVENTS.first_application_created, {
+        source: "new_application_modal",
+      });
     } catch (err) {
+      trackErrorEvent(ANALYTICS_EVENTS.form_submission_error, {
+        component_name: "new_application_form",
+        error_type: "application_create_failed",
+      });
       setModalError((err as Error).message);
     } finally {
+      const durationMs = (typeof performance !== "undefined" ? performance.now() : Date.now()) - startedAt;
+      if (durationMs >= SLOW_APPLICATION_CREATE_THRESHOLD_MS) {
+        trackPerformanceEvent(ANALYTICS_EVENTS.slow_application_create, durationMs, {
+          source: "new_application_modal",
+          flow: "job",
+        });
+      }
       setIsSaving(false);
     }
   }
@@ -617,6 +695,12 @@ export default function Layout({ userEmail, onLogout, theme, onToggleTheme }: La
   }
 
   function openNewApplicationModal() {
+    trackProductEvent(ANALYTICS_EVENTS.add_application_clicked, {
+      source: "dashboard_header",
+    });
+    trackFunnelStep(ANALYTICS_EVENTS.add_application_clicked, {
+      source: "dashboard_header",
+    });
     setModalError("");
     setForm({ ...emptyJobForm, date_saved: getLocalISODate() });
     setShowPendingTask(false);

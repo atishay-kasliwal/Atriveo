@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { login, setStoredSession, signup, type AuthSession } from "../lib/api";
 import { DASHBOARD_BASE_PATH, withDashboardBase } from "../lib/paths";
+import { ANALYTICS_EVENTS, trackErrorEvent, trackFunnelStep, trackProductEvent } from "../analytics/events";
 
 // Keep extended marketing sections disabled for now; flip to true when content is ready.
 const SHOW_EXTENDED_LANDING = false;
@@ -202,10 +203,18 @@ export default function LandingPage({
     [activeTab]
   );
 
-  function openAuth(mode: "login" | "signup") {
+  function openAuth(mode: "login" | "signup", source = "landing") {
     setAuthMode(mode);
     setAuthError("");
     setAuthOpen(true);
+    if (mode === "signup") {
+      trackProductEvent(ANALYTICS_EVENTS.signup_started, {
+        source,
+      });
+      trackFunnelStep(ANALYTICS_EVENTS.signup_started, {
+        source,
+      });
+    }
   }
 
   function closeAuth() {
@@ -227,14 +236,37 @@ export default function LandingPage({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [authOpen, authLoading]);
 
+  useEffect(() => {
+    trackFunnelStep(ANALYTICS_EVENTS.landing_page_view, {
+      source: "landing_page",
+    });
+  }, []);
+
+  function handleChromeExtensionClick() {
+    trackProductEvent(ANALYTICS_EVENTS.chrome_extension_install_clicked, {
+      source: "landing_section",
+    });
+    openAuth("signup", "chrome_extension_cta");
+  }
+
   async function onSubmitAuth(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setAuthError("");
     if (!email.trim() || !password.trim()) {
+      trackErrorEvent(ANALYTICS_EVENTS.validation_error, {
+        component_name: "landing_auth_modal",
+        error_type: "missing_required_field",
+        form_name: authMode,
+      });
       setAuthError("Email and password are required.");
       return;
     }
     if (authMode === "signup" && password.trim().length < 8) {
+      trackErrorEvent(ANALYTICS_EVENTS.validation_error, {
+        component_name: "landing_auth_modal",
+        error_type: "password_too_short",
+        form_name: authMode,
+      });
       setAuthError("Password must be at least 8 characters.");
       return;
     }
@@ -253,8 +285,25 @@ export default function LandingPage({
       setStoredSession(session);
       onAuthenticated(session);
       setAuthOpen(false);
+      if (authMode === "signup") {
+        trackProductEvent(ANALYTICS_EVENTS.signup_completed, {
+          source: "landing_auth_modal",
+        });
+        trackFunnelStep(ANALYTICS_EVENTS.signup_completed, {
+          source: "landing_auth_modal",
+        });
+      } else {
+        trackProductEvent(ANALYTICS_EVENTS.login_completed, {
+          source: "landing_auth_modal",
+        });
+      }
       navigate(withDashboardBase(""), { replace: true });
     } catch (err) {
+      trackErrorEvent(ANALYTICS_EVENTS.form_submission_error, {
+        component_name: "landing_auth_modal",
+        error_type: "auth_submit_failed",
+        form_name: authMode,
+      });
       setAuthError((err as Error).message || "Authentication failed.");
     } finally {
       setAuthLoading(false);
@@ -445,7 +494,7 @@ export default function LandingPage({
                     faster submission workflow.
                   </p>
                   <div className="lp-inline-actions">
-                    <button type="button" className="lp-btn lp-btn-primary" onClick={() => openAuth("signup")}>
+                    <button type="button" className="lp-btn lp-btn-primary" onClick={handleChromeExtensionClick}>
                       Add to Chrome
                     </button>
                     <button type="button" className="lp-btn lp-btn-outline" onClick={() => openAuth("signup")}>

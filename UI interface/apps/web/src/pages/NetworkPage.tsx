@@ -15,6 +15,14 @@ import {
 } from "../lib/api";
 import { formatTableDateTime, getLocalISODate } from "../lib/formatDate";
 import { buildNetworkTickerFacts } from "../lib/networkTicker";
+import {
+  ANALYTICS_EVENTS,
+  trackErrorEvent,
+  trackFeatureEvent,
+  trackFunnelStep,
+  trackLifecycleMilestone,
+  trackProductEvent,
+} from "../analytics/events";
 
 const ENTERPRISE_CHART_COLORS = [
   "#2563EB",
@@ -69,6 +77,13 @@ const NETWORK_VISIBILITY_FIELDS: Array<{ key: keyof NetworkFieldVisibility; labe
   { key: "share_oa_deadline", label: "OA Deadline" },
   { key: "share_referral_used", label: "Referral Used" },
   { key: "share_notes", label: "Notes" },
+];
+
+const OPTIONAL_SHARE_KEYS: Array<keyof NetworkFieldVisibility> = [
+  "share_oa_status",
+  "share_oa_deadline",
+  "share_referral_used",
+  "share_notes",
 ];
 
 function rgbaFromHex(hex: string, alpha: number): string {
@@ -398,6 +413,9 @@ export default function NetworkPage() {
   }
 
   function openFieldVisibilityManager() {
+    trackProductEvent(ANALYTICS_EVENTS.privacy_settings_opened, {
+      source: "network_page",
+    });
     setFieldVisibilityError("");
     setShowFieldVisibilityModal(true);
   }
@@ -408,10 +426,12 @@ export default function NetworkPage() {
   }
 
   async function saveFieldVisibility() {
+    const enabledBefore = OPTIONAL_SHARE_KEYS.filter((key) => Boolean(fieldVisibility[key])).length;
     try {
       setIsSavingFieldVisibility(true);
       setFieldVisibilityError("");
       const res = await updateNetworkFieldVisibility(fieldVisibility);
+      const nextVisibility = res?.data ?? fieldVisibility;
       if (res?.data) setFieldVisibility(res.data);
       if (res?.required_fields?.length) {
         setRequiredVisibilityFields(
@@ -420,10 +440,38 @@ export default function NetworkPage() {
           ),
         );
       }
+      const enabledAfter = OPTIONAL_SHARE_KEYS.filter((key) => Boolean(nextVisibility[key])).length;
+      if (enabledAfter > enabledBefore) {
+        trackProductEvent(ANALYTICS_EVENTS.share_data_enabled, {
+          source: "network_privacy_settings",
+          optional_fields_enabled: enabledAfter,
+        });
+        trackFunnelStep(ANALYTICS_EVENTS.share_data_enabled, {
+          source: "network_privacy_settings",
+        });
+        trackLifecycleMilestone(ANALYTICS_EVENTS.first_share_enabled, {
+          source: "network_privacy_settings",
+          optional_fields_enabled: enabledAfter,
+        });
+      } else if (enabledAfter < enabledBefore) {
+        trackProductEvent(ANALYTICS_EVENTS.share_data_disabled, {
+          source: "network_privacy_settings",
+          optional_fields_enabled: enabledAfter,
+        });
+      }
+      trackFeatureEvent(ANALYTICS_EVENTS.filter_used, {
+        source: "network_privacy_settings",
+        filter_type: "shared_fields",
+        enabled_count: enabledAfter,
+      });
       setShowFieldVisibilityModal(false);
       await load();
       setSuccess("Shared fields updated.");
     } catch (e) {
+      trackErrorEvent(ANALYTICS_EVENTS.form_submission_error, {
+        component_name: "network_shared_fields_modal",
+        error_type: "save_failed",
+      });
       setFieldVisibilityError((e as Error).message);
     } finally {
       setIsSavingFieldVisibility(false);
@@ -485,7 +533,13 @@ export default function NetworkPage() {
 
   async function onCreateFromPrefill(e: React.FormEvent) {
     e.preventDefault();
-    if (!prefillForm.company.trim() || !prefillForm.role.trim()) return;
+    if (!prefillForm.company.trim() || !prefillForm.role.trim()) {
+      trackErrorEvent(ANALYTICS_EVENTS.validation_error, {
+        component_name: "network_prefill_form",
+        error_type: "missing_required_field",
+      });
+      return;
+    }
     try {
       setIsPrefillSaving(true);
       setPrefillError("");
@@ -505,7 +559,18 @@ export default function NetworkPage() {
       });
       setShowPrefillModal(false);
       setSuccess("Application added from friend suggestion.");
+      trackProductEvent(ANALYTICS_EVENTS.application_created, {
+        source: "network_prefill_modal",
+        method: "friend_prefill",
+      });
+      trackLifecycleMilestone(ANALYTICS_EVENTS.first_application_created, {
+        source: "network_prefill_modal",
+      });
     } catch (err) {
+      trackErrorEvent(ANALYTICS_EVENTS.form_submission_error, {
+        component_name: "network_prefill_form",
+        error_type: "prefill_submit_failed",
+      });
       setPrefillError((err as Error).message);
     } finally {
       setIsPrefillSaving(false);

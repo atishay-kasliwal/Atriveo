@@ -3,6 +3,7 @@ const API_TOKEN = import.meta.env.VITE_API_TOKEN || "";
 const DASHBOARD_SESSION_KEY = "dashboard_auth_session";
 
 import { getLocalISODate } from "./formatDate";
+import { ANALYTICS_EVENTS, trackErrorEvent } from "../analytics/events";
 
 export type AuthUser = {
   id: number;
@@ -30,16 +31,34 @@ let runtimeToken =
       })()
     : "";
 
+function trackApiFailure(path: string, method: string, statusCode: number | null, errorType: string) {
+  trackErrorEvent(ANALYTICS_EVENTS.api_request_failed, {
+    component_name: "api_client",
+    error_type: errorType,
+    endpoint: path.split("?")[0] || path,
+    http_method: method,
+    status_code: statusCode ?? -1,
+  });
+}
+
 async function request<T>(path: string, init?: RequestInit, options?: { skipAuth?: boolean }): Promise<T> {
   const authToken = runtimeToken || API_TOKEN;
+  const method = String(init?.method || "GET").toUpperCase();
   const headers: HeadersInit = {
     "Content-Type": "application/json",
     ...(!options?.skipAuth && authToken ? { Authorization: `Bearer ${authToken}` } : {}),
     ...(init?.headers || {}),
   };
-  const res = await fetch(`${API_URL}${path}`, { ...init, headers });
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, { ...init, headers });
+  } catch (err) {
+    trackApiFailure(path, method, null, "network_error");
+    throw err;
+  }
   if (!res.ok) {
     const text = await res.text();
+    trackApiFailure(path, method, res.status, res.status === 401 ? "unauthorized" : "http_error");
     if (res.status === 401) {
       throw new Error(
         "Unauthorized. Please login again to continue."
@@ -192,12 +211,19 @@ export async function exportJobsCsv(range: JobsCsvExportRange): Promise<Blob> {
   const headers: HeadersInit = {
     ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
   };
-  const res = await fetch(`${API_URL}/api/jobs/export/csv?range=${encodeURIComponent(range)}`, {
-    method: "GET",
-    headers,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/api/jobs/export/csv?range=${encodeURIComponent(range)}`, {
+      method: "GET",
+      headers,
+    });
+  } catch (err) {
+    trackApiFailure("/api/jobs/export/csv", "GET", null, "network_error");
+    throw err;
+  }
   if (!res.ok) {
     const text = await res.text();
+    trackApiFailure("/api/jobs/export/csv", "GET", res.status, res.status === 401 ? "unauthorized" : "http_error");
     if (res.status === 401) throw new Error("Unauthorized. Please login again to continue.");
     let msg = text;
     try {

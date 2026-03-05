@@ -19,7 +19,7 @@ import {
   setStoredSession,
   type AuthSession,
 } from "./lib/api";
-import { initAnalytics, trackPageView } from "./lib/analytics";
+import { initAnalytics, setSessionContext, trackPageView } from "./analytics/analytics";
 import { DASHBOARD_BASE_PATH, withDashboardBase } from "./lib/paths";
 
 type AppTheme = "light" | "dark";
@@ -72,6 +72,13 @@ export default function App() {
       })
       .finally(() => setCheckingSession(false));
   }, []);
+
+  useEffect(() => {
+    setSessionContext({
+      user_type: session ? "logged_in" : "guest",
+      plan_type: "free",
+    });
+  }, [session]);
 
   async function handleLogout() {
     try {

@@ -4,6 +4,7 @@ import { login, setStoredSession, type AuthSession } from "../lib/api";
 import { AuthHero } from "../components/AuthHero";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { withDashboardBase } from "../lib/paths";
+import { ANALYTICS_EVENTS, trackErrorEvent, trackProductEvent } from "../analytics/events";
 
 type AuthPageProps = {
   onAuthenticated: (session: AuthSession) => void;
@@ -22,6 +23,10 @@ export default function AuthPage({ onAuthenticated, theme, onToggleTheme }: Auth
     e.preventDefault();
     setError("");
     if (!email.trim() || !password.trim()) {
+      trackErrorEvent(ANALYTICS_EVENTS.validation_error, {
+        component_name: "login_form",
+        error_type: "missing_required_field",
+      });
       setError("Email and password are required.");
       return;
     }
@@ -35,8 +40,15 @@ export default function AuthPage({ onAuthenticated, theme, onToggleTheme }: Auth
       };
       setStoredSession(session);
       onAuthenticated(session);
+      trackProductEvent(ANALYTICS_EVENTS.login_completed, {
+        source: "login_page",
+      });
       navigate(withDashboardBase(""), { replace: true });
     } catch (err) {
+      trackErrorEvent(ANALYTICS_EVENTS.form_submission_error, {
+        component_name: "login_form",
+        error_type: "auth_submit_failed",
+      });
       setError((err as Error).message || "Authentication failed.");
     } finally {
       setIsLoading(false);

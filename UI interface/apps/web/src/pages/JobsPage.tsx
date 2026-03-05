@@ -24,6 +24,12 @@ import {
   updateOaArchive,
   type JobsTrendData,
 } from "../lib/api";
+import {
+  ANALYTICS_EVENTS,
+  trackErrorEvent,
+  trackFeatureEvent,
+  trackProductEvent,
+} from "../analytics/events";
 
 const LIMIT = 25;
 const REFERRAL_OPTIONS = ["", "Requested", "Yes", "No"];
@@ -272,19 +278,53 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     return () => window.removeEventListener("dashboard-refresh", onRefresh);
   }, [load, loadTrend, loadOaArchive, statusFilter]);
 
+  useEffect(() => {
+    trackFeatureEvent(ANALYTICS_EVENTS.filter_used, {
+      source: "jobs_page",
+      filter_type: "status",
+      filter_value: statusFilter ?? "active",
+    });
+  }, [statusFilter]);
+
   function onSearch(e: React.FormEvent) {
     e.preventDefault();
-    setCompany(searchInput.trim());
+    const query = searchInput.trim();
+    trackFeatureEvent(ANALYTICS_EVENTS.search_used, {
+      source: "jobs_page",
+      search_scope: "company",
+      query_length: query.length,
+    });
+    trackFeatureEvent(ANALYTICS_EVENTS.filter_used, {
+      source: "jobs_page",
+      filter_type: "company",
+      value_length: query.length,
+      has_value: query.length > 0,
+    });
+    setCompany(query);
     setPage(1);
   }
 
   function handleSort(field: SortField) {
+    const nextOrder: SortOrder =
+      field === sortBy
+        ? sortOrder === "asc"
+          ? "desc"
+          : "asc"
+        : field === "date_saved" || field === "applied_at"
+          ? "desc"
+          : "asc";
+
     if (field === sortBy) {
-      setSortOrder((o) => (o === "asc" ? "desc" : "asc"));
+      setSortOrder(nextOrder);
     } else {
       setSortBy(field);
-      setSortOrder(field === "date_saved" || field === "applied_at" ? "desc" : "asc"); // datetime: newest first; others: A→Z
+      setSortOrder(nextOrder); // datetime: newest first; others: A→Z
     }
+    trackFeatureEvent(ANALYTICS_EVENTS.sort_changed, {
+      source: "jobs_table",
+      sort_field: field,
+      sort_order: nextOrder,
+    });
     setPage(1);
   }
 
@@ -340,7 +380,15 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
       });
       setEditing(null);
       await load();
+      trackProductEvent(ANALYTICS_EVENTS.application_updated, {
+        source: "jobs_edit_modal",
+        update_type: "form_save",
+      });
     } catch (e) {
+      trackErrorEvent(ANALYTICS_EVENTS.form_submission_error, {
+        component_name: "jobs_edit_modal",
+        error_type: "application_update_failed",
+      });
       setError((e as Error).message);
     } finally {
       setIsSaving(false);
@@ -399,7 +447,14 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
       setDeletingId(id);
       await deleteJob(id);
       await load();
+      trackProductEvent(ANALYTICS_EVENTS.application_deleted, {
+        source: "jobs_table",
+      });
     } catch (e) {
+      trackErrorEvent(ANALYTICS_EVENTS.form_submission_error, {
+        component_name: "jobs_table",
+        error_type: "application_delete_failed",
+      });
       setError((e as Error).message);
     } finally {
       setDeletingId(null);
@@ -421,7 +476,16 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
       setArchivingId(id);
       await updateJob(id, { application_status: "Rejected" });
       await load();
+      trackProductEvent(ANALYTICS_EVENTS.application_updated, {
+        source: "jobs_table",
+        update_type: "status_change",
+        next_status: "rejected",
+      });
     } catch (e) {
+      trackErrorEvent(ANALYTICS_EVENTS.form_submission_error, {
+        component_name: "jobs_table",
+        error_type: "application_archive_failed",
+      });
       setError((e as Error).message);
     } finally {
       setArchivingId(null);
