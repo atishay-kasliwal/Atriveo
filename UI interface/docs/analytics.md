@@ -1,6 +1,6 @@
 # Atriveo Analytics
 
-This app uses Google Analytics 4 with Measurement ID `G-D1XC74NKPG`.
+This app uses Google Analytics 4 with Measurement ID `G-8LNKTSL8MF`.
 
 ## Architecture
 
