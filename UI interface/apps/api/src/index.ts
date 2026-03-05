@@ -1890,7 +1890,7 @@ async function syncReferralFromJob(
         referral_received = $7,
         keyword_matching = COALESCE($8, keyword_matching, 'Medium'),
         comment = $9,
-        referred_by_name = COALESCE($10, referred_by_name),
+        referred_by_name = $10,
         updated_at = NOW()
       WHERE id = $1 AND user_id = $2
       `,
@@ -2129,27 +2129,31 @@ app.get("/api/jobs", async (c) => {
   const baseSql = `
     SELECT
       j.*,
-      COALESCE(
-        (
-          SELECT r.referred_by_name
-          FROM referrals r
-          WHERE r.user_id = j.user_id
-            AND TRIM(COALESCE(r.referred_by_name, '')) <> ''
-            AND TRIM(COALESCE(r.request_link, '')) = TRIM(COALESCE(j.job_link, ''))
-          ORDER BY COALESCE(r.updated_date, r.request_date) DESC NULLS LAST, r.id DESC
-          LIMIT 1
-        ),
-        (
-          SELECT r.referred_by_name
-          FROM referrals r
-          WHERE r.user_id = j.user_id
-            AND TRIM(COALESCE(r.referred_by_name, '')) <> ''
-            AND LOWER(TRIM(COALESCE(r.company, ''))) = LOWER(TRIM(COALESCE(j.company, '')))
-            AND LOWER(TRIM(COALESCE(r.request_log, ''))) = LOWER(TRIM(COALESCE(j.role, '')))
-          ORDER BY COALESCE(r.updated_date, r.request_date) DESC NULLS LAST, r.id DESC
-          LIMIT 1
-        )
-      ) AS referred_by_name
+      CASE
+        WHEN LOWER(TRIM(COALESCE(j.referral_status, ''))) IN ('requested', 'yes') THEN
+          COALESCE(
+            (
+              SELECT r.referred_by_name
+              FROM referrals r
+              WHERE r.user_id = j.user_id
+                AND TRIM(COALESCE(r.referred_by_name, '')) <> ''
+                AND TRIM(COALESCE(r.request_link, '')) = TRIM(COALESCE(j.job_link, ''))
+              ORDER BY COALESCE(r.updated_date, r.request_date) DESC NULLS LAST, r.id DESC
+              LIMIT 1
+            ),
+            (
+              SELECT r.referred_by_name
+              FROM referrals r
+              WHERE r.user_id = j.user_id
+                AND TRIM(COALESCE(r.referred_by_name, '')) <> ''
+                AND LOWER(TRIM(COALESCE(r.company, ''))) = LOWER(TRIM(COALESCE(j.company, '')))
+                AND LOWER(TRIM(COALESCE(r.request_log, ''))) = LOWER(TRIM(COALESCE(j.role, '')))
+              ORDER BY COALESCE(r.updated_date, r.request_date) DESC NULLS LAST, r.id DESC
+              LIMIT 1
+            )
+          )
+        ELSE NULL
+      END AS referred_by_name
     FROM jobs j
   `;
 
