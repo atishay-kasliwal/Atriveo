@@ -1219,8 +1219,8 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
       ) : null}
 
       {editing && (
-        <div className="modal-overlay" onClick={() => !isSaving && setEditing(null)}>
-          <div className="modal modal--new-app" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay modal-overlay--quickadd" onClick={() => !isSaving && setEditing(null)}>
+          <div className="modal modal--quickadd" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
               className="modal-close-x"
