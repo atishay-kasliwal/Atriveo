@@ -8,6 +8,8 @@ export type Bindings = {
   APP_ENV?: string;
   SIGNUPS_ENABLED?: string;
   ALLOW_SIGNUPS?: string;
+  GOOGLE_CLIENT_ID?: string;
+  GOOGLE_CLIENT_IDS?: string;
 };
 
 export type DbRow = Record<string, unknown>;

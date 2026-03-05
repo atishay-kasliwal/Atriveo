@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { signup, setStoredSession, type AuthSession } from "../lib/api";
 import { AuthHero } from "../components/AuthHero";
+import { GoogleAuthButton } from "../components/GoogleAuthButton";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { withDashboardBase } from "../lib/paths";
 import { ANALYTICS_EVENTS, trackErrorEvent, trackFunnelStep, trackProductEvent } from "../analytics/events";
@@ -20,6 +21,28 @@ export default function SignupPage({ onAuthenticated, theme, onToggleTheme }: Si
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+
+  function completeSignup(
+    response: { token: string; user: AuthSession["user"] },
+    source: string,
+    authProvider: "password" | "google",
+  ) {
+    const session: AuthSession = {
+      token: response.token,
+      user: response.user,
+    };
+    setStoredSession(session);
+    onAuthenticated(session);
+    trackProductEvent(ANALYTICS_EVENTS.signup_completed, {
+      source,
+      auth_provider: authProvider,
+    });
+    trackFunnelStep(ANALYTICS_EVENTS.signup_completed, {
+      source,
+      auth_provider: authProvider,
+    });
+    navigate(withDashboardBase(""), { replace: true });
+  }
 
   useEffect(() => {
     trackProductEvent(ANALYTICS_EVENTS.signup_started, {
@@ -50,19 +73,7 @@ export default function SignupPage({ onAuthenticated, theme, onToggleTheme }: Si
         first_name: firstName || undefined,
         last_name: lastName || undefined,
       });
-      const session: AuthSession = {
-        token: response.token,
-        user: response.user,
-      };
-      setStoredSession(session);
-      onAuthenticated(session);
-      trackProductEvent(ANALYTICS_EVENTS.signup_completed, {
-        source: "signup_page",
-      });
-      trackFunnelStep(ANALYTICS_EVENTS.signup_completed, {
-        source: "signup_page",
-      });
-      navigate(withDashboardBase(""), { replace: true });
+      completeSignup(response, "signup_page_email", "password");
     } catch (err) {
       trackErrorEvent(ANALYTICS_EVENTS.form_submission_error, {
         component_name: "signup_form",
@@ -177,6 +188,22 @@ export default function SignupPage({ onAuthenticated, theme, onToggleTheme }: Si
                   "Create account"
                 )}
               </button>
+              <div className="auth-divider" role="separator" aria-label="or">
+                <span>or</span>
+              </div>
+              <GoogleAuthButton
+                mode="signup"
+                theme={theme}
+                disabled={isLoading}
+                onSuccess={(response) => completeSignup(response, "signup_page_google", "google")}
+                onError={(message) => {
+                  trackErrorEvent(ANALYTICS_EVENTS.form_submission_error, {
+                    component_name: "signup_form",
+                    error_type: "google_auth_failed",
+                  });
+                  setError(message);
+                }}
+              />
             </form>
             <p className="auth-switch">
               Already have access? <Link to="/login">Log in</Link>

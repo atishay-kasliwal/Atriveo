@@ -36,12 +36,18 @@ const loginInput = z.object({
   password: z.string().min(1).max(128),
 });
 
+const googleAuthInput = z.object({
+  id_token: z.string().min(20).max(4096),
+});
+
 const signupInput = z.object({
   email: z.string().email(),
   password: z.string().min(8).max(128),
   first_name: z.string().trim().max(80).optional(),
   last_name: z.string().trim().max(80).optional(),
 });
+
+const GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo";
 
 const MAX_FRIENDS = 10;
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
@@ -126,6 +132,84 @@ function areSignupsEnabled(env: Bindings): boolean {
   if (raw == null) return true; // default to enabled for launch; allow opt-out via env
   const normalized = String(raw).trim().toLowerCase();
   return normalized === "true" || normalized === "1" || normalized === "yes";
+}
+
+type GoogleTokenInfoResponse = {
+  aud?: string;
+  email?: string;
+  email_verified?: string | boolean;
+  exp?: string;
+  iss?: string;
+  given_name?: string;
+  family_name?: string;
+};
+
+function getAllowedGoogleClientIds(env: Bindings): Set<string> {
+  const rawIds = [env.GOOGLE_CLIENT_ID, env.GOOGLE_CLIENT_IDS]
+    .filter((value): value is string => Boolean(value))
+    .flatMap((value) => value.split(","))
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return new Set(rawIds);
+}
+
+function isGoogleEmailVerified(value: unknown): boolean {
+  if (value === true) return true;
+  const normalized = String(value ?? "").trim().toLowerCase();
+  return normalized === "true" || normalized === "1";
+}
+
+async function verifyGoogleIdToken(
+  env: Bindings,
+  idToken: string,
+): Promise<
+  | { email: string; givenName: string | null; familyName: string | null }
+  | { error: string; status: 401 | 503 }
+> {
+  const allowedClientIds = getAllowedGoogleClientIds(env);
+  if (allowedClientIds.size === 0) {
+    return { error: "Google sign-in is not configured for this environment.", status: 503 };
+  }
+
+  let payload: GoogleTokenInfoResponse;
+  try {
+    const response = await fetch(`${GOOGLE_TOKENINFO_URL}?id_token=${encodeURIComponent(idToken)}`);
+    if (!response.ok) {
+      return { error: "Invalid Google credential. Please try again.", status: 401 };
+    }
+    payload = (await response.json()) as GoogleTokenInfoResponse;
+  } catch {
+    return { error: "Unable to verify Google credential right now. Please try again.", status: 503 };
+  }
+
+  const audience = String(payload.aud ?? "").trim();
+  if (!audience || !allowedClientIds.has(audience)) {
+    return { error: "Google credential does not match this app.", status: 401 };
+  }
+
+  const issuer = String(payload.iss ?? "").trim();
+  if (issuer !== "accounts.google.com" && issuer !== "https://accounts.google.com") {
+    return { error: "Invalid Google token issuer.", status: 401 };
+  }
+
+  const expirationUnix = Number(payload.exp ?? 0);
+  const nowUnix = Math.floor(Date.now() / 1000);
+  if (!Number.isFinite(expirationUnix) || expirationUnix <= nowUnix) {
+    return { error: "Google credential has expired. Please sign in again.", status: 401 };
+  }
+
+  if (!isGoogleEmailVerified(payload.email_verified)) {
+    return { error: "Google account email must be verified.", status: 401 };
+  }
+
+  const email = normalizeEmail(String(payload.email ?? ""));
+  if (!email) {
+    return { error: "Google account email was not provided.", status: 401 };
+  }
+
+  const givenName = String(payload.given_name ?? "").trim() || null;
+  const familyName = String(payload.family_name ?? "").trim() || null;
+  return { email, givenName, familyName };
 }
 
 const targetsUpsertInput = z.object({
@@ -243,6 +327,80 @@ app.post("/auth/login", async (c) => {
       last_name: user.last_name ?? null,
     },
   });
+});
+
+app.post("/auth/google", async (c) => {
+  const parsed = googleAuthInput.safeParse(await c.req.json());
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
+
+  const verified = await verifyGoogleIdToken(c.env, parsed.data.id_token);
+  if ("error" in verified) {
+    return c.json({ error: verified.error }, verified.status);
+  }
+
+  const [existingUser] = await query<{ id: number; email: string; first_name: string | null; last_name: string | null }>(
+    c.env,
+    `
+    SELECT id, email, first_name, last_name
+    FROM dashboard_users
+    WHERE LOWER(email) = $1
+    LIMIT 1
+    `,
+    [verified.email],
+  );
+
+  if (!existingUser && !areSignupsEnabled(c.env)) {
+    return c.json({ error: "Signup is disabled for this environment." }, 403);
+  }
+
+  let user = existingUser;
+  let created = false;
+  if (!user) {
+    created = true;
+    const [insertedUser] = await query<{ id: number; email: string; first_name: string | null; last_name: string | null }>(
+      c.env,
+      `
+      INSERT INTO dashboard_users (email, first_name, last_name)
+      VALUES ($1, NULLIF($2, ''), NULLIF($3, ''))
+      RETURNING id, email, first_name, last_name
+      `,
+      [verified.email, verified.givenName ?? "", verified.familyName ?? ""],
+    );
+    user = insertedUser;
+  } else if ((!user.first_name && verified.givenName) || (!user.last_name && verified.familyName)) {
+    const [updatedUser] = await query<{ id: number; email: string; first_name: string | null; last_name: string | null }>(
+      c.env,
+      `
+      UPDATE dashboard_users
+      SET
+        first_name = COALESCE(NULLIF(first_name, ''), NULLIF($2, '')),
+        last_name = COALESCE(NULLIF(last_name, ''), NULLIF($3, '')),
+        updated_at = NOW()
+      WHERE id = $1
+      RETURNING id, email, first_name, last_name
+      `,
+      [Number(user.id), verified.givenName ?? "", verified.familyName ?? ""],
+    );
+    user = updatedUser ?? user;
+  }
+
+  if (!user) {
+    return c.json({ error: "Unable to complete Google sign-in right now." }, 500);
+  }
+
+  const token = await createSession(c.env, Number(user.id));
+  return c.json(
+    {
+      token,
+      user: {
+        id: Number(user.id),
+        email: String(user.email),
+        first_name: user.first_name ?? null,
+        last_name: user.last_name ?? null,
+      },
+    },
+    created ? 201 : 200,
+  );
 });
 
 app.use("/api/*", authMiddleware);

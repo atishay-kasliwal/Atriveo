@@ -11,3 +11,9 @@ OWNER_EMAIL=you@example.com
 
 # Optional: disable public signups (default is enabled when unset).
 SIGNUPS_ENABLED=true
+
+# Optional: enable Google auth. Use the OAuth Web client ID(s) from Google Cloud.
+# Set at least one of these.
+GOOGLE_CLIENT_ID=
+# Comma-separated allowlist (useful for multiple envs/domains).
+GOOGLE_CLIENT_IDS=

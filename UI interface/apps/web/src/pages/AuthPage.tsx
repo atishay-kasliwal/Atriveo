@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { login, setStoredSession, type AuthSession } from "../lib/api";
 import { AuthHero } from "../components/AuthHero";
+import { GoogleAuthButton } from "../components/GoogleAuthButton";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { withDashboardBase } from "../lib/paths";
 import { ANALYTICS_EVENTS, trackErrorEvent, trackProductEvent } from "../analytics/events";
@@ -19,6 +20,24 @@ export default function AuthPage({ onAuthenticated, theme, onToggleTheme }: Auth
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
+  function completeLogin(
+    response: { token: string; user: AuthSession["user"] },
+    source: string,
+    authProvider: "password" | "google",
+  ) {
+    const session: AuthSession = {
+      token: response.token,
+      user: response.user,
+    };
+    setStoredSession(session);
+    onAuthenticated(session);
+    trackProductEvent(ANALYTICS_EVENTS.login_completed, {
+      source,
+      auth_provider: authProvider,
+    });
+    navigate(withDashboardBase(""), { replace: true });
+  }
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError("");
@@ -34,16 +53,7 @@ export default function AuthPage({ onAuthenticated, theme, onToggleTheme }: Auth
     try {
       setIsLoading(true);
       const response = await login(email, password);
-      const session: AuthSession = {
-        token: response.token,
-        user: response.user,
-      };
-      setStoredSession(session);
-      onAuthenticated(session);
-      trackProductEvent(ANALYTICS_EVENTS.login_completed, {
-        source: "login_page",
-      });
-      navigate(withDashboardBase(""), { replace: true });
+      completeLogin(response, "login_page_email", "password");
     } catch (err) {
       trackErrorEvent(ANALYTICS_EVENTS.form_submission_error, {
         component_name: "login_form",
@@ -125,6 +135,22 @@ export default function AuthPage({ onAuthenticated, theme, onToggleTheme }: Auth
                   "Sign in"
                 )}
               </button>
+              <div className="auth-divider" role="separator" aria-label="or">
+                <span>or</span>
+              </div>
+              <GoogleAuthButton
+                mode="login"
+                theme={theme}
+                disabled={isLoading}
+                onSuccess={(response) => completeLogin(response, "login_page_google", "google")}
+                onError={(message) => {
+                  trackErrorEvent(ANALYTICS_EVENTS.form_submission_error, {
+                    component_name: "login_form",
+                    error_type: "google_auth_failed",
+                  });
+                  setError(message);
+                }}
+              />
             </form>
             <p className="auth-switch">
               New to Atriveo? <Link to="/signup">Create an account</Link>
