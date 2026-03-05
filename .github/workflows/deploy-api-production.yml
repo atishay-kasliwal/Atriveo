@@ -1,0 +1,73 @@
+name: Deploy Production Stack
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production-stack
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: "UI interface/package-lock.json"
+
+      - name: Install dependencies
+        working-directory: "UI interface"
+        run: npm ci
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python dependencies
+        working-directory: "UI interface"
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r scripts/requirements.txt
+
+      - name: Run production DB migrations
+        working-directory: "UI interface"
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: npm run db:migrate
+
+      - name: Deploy API to Cloudflare Workers (production)
+        working-directory: "UI interface"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npm run deploy:api:prod
+
+      - name: Build frontend (production)
+        working-directory: "UI interface"
+        env:
+          VITE_API_URL: ${{ secrets.PRODUCTION_API_URL }}
+        run: |
+          VITE_API_URL="${VITE_API_URL:-https://job-tracker-api.katishay.workers.dev}" npm run build:web
+
+      - name: Deploy frontend to Cloudflare Pages (master)
+        working-directory: "UI interface"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_PAGES_PROJECT_NAME: ${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }}
+        run: |
+          PROJECT_NAME="${CLOUDFLARE_PAGES_PROJECT_NAME:-noobly}"
+          npx wrangler pages deploy "apps/web/dist" --project-name "$PROJECT_NAME" --branch master

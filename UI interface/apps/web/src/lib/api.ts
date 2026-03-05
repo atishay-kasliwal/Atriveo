@@ -66,8 +66,10 @@ async function request<T>(path: string, init?: RequestInit, options?: { skipAuth
     }
     let msg = text;
     try {
-      const j = JSON.parse(text) as { error?: string };
-      if (j?.error) msg = j.error;
+      const j = JSON.parse(text) as { error?: unknown; message?: unknown };
+      const err = j?.error ?? j?.message;
+      if (typeof err === "string") msg = err;
+      else if (err !== undefined) msg = JSON.stringify(err);
     } catch {
       /* use text as-is */
     }
