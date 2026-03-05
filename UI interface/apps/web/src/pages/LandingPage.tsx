@@ -1,117 +1,9 @@
-import { useEffect, useMemo, useState, type FormEvent, type MouseEvent } from "react";
+import { useEffect, useState, type FormEvent, type MouseEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { login, setStoredSession, signup, type AuthSession } from "../lib/api";
 import { DASHBOARD_BASE_PATH, withDashboardBase } from "../lib/paths";
 import { ANALYTICS_EVENTS, trackErrorEvent, trackFunnelStep, trackProductEvent } from "../analytics/events";
-
-// Keep extended marketing sections disabled for now; flip to true when content is ready.
-const SHOW_EXTENDED_LANDING = false;
-
-const TAB_ITEMS = [
-  {
-    id: "job-matches",
-    label: "Job Matches",
-    title: "Get matched to relevant jobs with higher signal.",
-  },
-  {
-    id: "copilot-extension",
-    label: "Copilot Extension",
-    title: "Autofill repetitive forms and speed up submissions.",
-  },
-  {
-    id: "ai-resume-builder",
-    label: "AI Resume Builder",
-    title: "Generate targeted resume versions for each role.",
-  },
-  {
-    id: "job-tracker",
-    label: "Job Tracker",
-    title: "Track every application stage without spreadsheets.",
-  },
-];
-
-const CURATED_LISTS = [
-  "Top Summer 2026 Internships",
-  "Senior Software Jobs at Unicorn Startups",
-  "New Grad Jobs in NYC",
-  "Top Entry-Level Remote Jobs",
-  "Internships in the SF Bay Area",
-  "Top Marketing Internships",
-  "Entry Level UI and UX Design Jobs",
-  "Entry Level IT and Cybersecurity Jobs",
-  "Internships at Unicorns",
-];
-
-const TOOLS = [
-  {
-    title: "Resume ATS Score",
-    description:
-      "Analyze keyword coverage and role fit before each application is submitted.",
-  },
-  {
-    title: "Cover Letter Generator",
-    description:
-      "Create role-specific cover letters quickly, then refine tone and examples.",
-  },
-  {
-    title: "Career Journal",
-    description:
-      "Capture wins, interview notes, and follow-up context in one running timeline.",
-  },
-  {
-    title: "Networking Copilot",
-    description:
-      "Track outreach touches, referral paths, and warm intros without losing context.",
-  },
-  {
-    title: "Job Lists",
-    description:
-      "Save high-signal themed lists to focus search effort where outcomes are strongest.",
-  },
-];
-
-const TESTIMONIALS = [
-  {
-    quote:
-      "Atriveo helped me focus on quality opportunities instead of scrolling random listings.",
-    name: "Albert",
-    role: "Software Engineer Intern",
-    company: "Jane Street",
-  },
-  {
-    quote:
-      "The application workflow is clear and actionable. I stopped missing deadlines.",
-    name: "Divya",
-    role: "Summer Associate",
-    company: "Insight Partners",
-  },
-  {
-    quote:
-      "The tracker plus resume workflow saved hours every week during recruiting season.",
-    name: "Rio",
-    role: "Business Analyst",
-    company: "Deloitte",
-  },
-];
-
-const FAQS = [
-  {
-    question: "How does Atriveo work?",
-    answer:
-      "Create an account, define role preferences, and manage your full search pipeline from discovery to follow-up.",
-  },
-  {
-    question: "How do you handle my data?",
-    answer:
-      "Passwords are PBKDF2 hashed and account data is scoped per user so records are isolated and protected.",
-  },
-  {
-    question: "How are jobs sourced?",
-    answer:
-      "Jobs are indexed from public sources and ranked against your role, location, level, and preference constraints.",
-  },
-];
 
 type LandingPageProps = {
   isAuthenticated: boolean;
@@ -120,65 +12,174 @@ type LandingPageProps = {
   onAuthenticated: (session: AuthSession) => void;
 };
 
-type MockupProps = {
-  compact?: boolean;
+type PreviewRow = {
+  company: string;
+  role: string;
+  referral: "Yes" | "No";
+  status: string;
+  applied: string;
+  oa: string;
+  deadline: string;
 };
 
-function ProductMockup({ compact = false }: MockupProps) {
-  return (
-    <div className={`lp-mockup ${compact ? "lp-mockup--compact" : ""}`} aria-hidden>
-      <div className="lp-mockup-top">
-        <span />
-        <span />
-        <span />
-      </div>
-      <div className="lp-mockup-body">
-        <div className="lp-mock-line lp-mock-line--lg" />
-        <div className="lp-mock-line lp-mock-line--md" />
-        <div className="lp-mock-line lp-mock-line--sm" />
-        <div className="lp-mock-grid">
-          <article />
-          <article />
-          <article />
-        </div>
-      </div>
-    </div>
-  );
-}
+const PREVIEW_ROWS: PreviewRow[] = [
+  {
+    company: "Google",
+    role: "Software Engineer",
+    referral: "Yes",
+    status: "Interview",
+    applied: "Mar 1, 2026",
+    oa: "Yes",
+    deadline: "Mar 15",
+  },
+  {
+    company: "Meta",
+    role: "Backend Engineer",
+    referral: "Yes",
+    status: "Applied",
+    applied: "Mar 3, 2026",
+    oa: "Pending",
+    deadline: "Mar 20",
+  },
+  {
+    company: "Apple",
+    role: "iOS Engineer",
+    referral: "No",
+    status: "OA",
+    applied: "Mar 4, 2026",
+    oa: "Yes",
+    deadline: "Mar 18",
+  },
+  {
+    company: "Amazon",
+    role: "SDE Intern",
+    referral: "Yes",
+    status: "Applied",
+    applied: "Mar 5, 2026",
+    oa: "Pending",
+    deadline: "Mar 22",
+  },
+];
 
-type SectionLabelProps = {
-  text: string;
+const FEATURES = [
+  {
+    icon: "◎",
+    title: "Track Applications",
+    description: "Keep every application organized in one place with role, company, date, and status context.",
+  },
+  {
+    icon: "◍",
+    title: "Manage Referrals",
+    description: "Track referral requests and outcomes so warm intros never get lost during busy weeks.",
+  },
+  {
+    icon: "◉",
+    title: "Never Miss Deadlines",
+    description: "Stay ahead of OA deadlines and interviews with clear visibility into what needs action next.",
+  },
+];
+
+const STEP_ITEMS = [
+  {
+    step: "Step 1",
+    title: "Add Applications",
+    description: "Add each application in seconds with company, role, and referral context.",
+  },
+  {
+    step: "Step 2",
+    title: "Track Progress",
+    description: "Move applications through OA, interview, and final outcome states.",
+  },
+  {
+    step: "Step 3",
+    title: "Stay Consistent",
+    description: "Review momentum and keep follow-ups moving every day.",
+  },
+  {
+    step: "Step 4",
+    title: "Compete with Friends",
+    description: "Compare progress with friends to stay accountable and keep momentum high.",
+  },
+];
+
+const LEADERBOARD = [
+  { rank: 1, name: "You", score: 10, leader: true },
+  { rank: 2, name: "Ethan", score: 8, leader: false },
+  { rank: 3, name: "Olivia", score: 7, leader: false },
+  { rank: 4, name: "Mason", score: 6, leader: false },
+];
+
+const COMPANY_SIGNALS = [
+  { company: "Google", role: "Software Engineer", friends: 2, by: "Ethan", status: "Hot" },
+  { company: "Meta", role: "Backend Engineer", friends: 1, by: "Olivia", status: "Warm" },
+  { company: "Stripe", role: "Product Engineer", friends: 1, by: "You", status: "New" },
+  { company: "Amazon", role: "SDE Intern", friends: 2, by: "Mason", status: "Hot" },
+];
+
+const COMPETE_KPIS = [
+  { label: "Your Rank", value: "#1", delta: "+2 this week" },
+  { label: "Apps This Week", value: "10", delta: "2 ahead of avg" },
+  { label: "Gap to #2", value: "2", delta: "Strong lead" },
+  { label: "Streak", value: "6 days", delta: "Best in group" },
+];
+
+const VELOCITY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const VELOCITY_SERIES = {
+  you: [2, 3, 4, 3, 5, 4, 6],
+  friends: [1, 2, 2, 3, 2, 3, 3],
 };
 
-function SectionLabel({ text }: SectionLabelProps) {
-  return (
-    <p className="lp-label">
-      <span className="lp-label-icon" aria-hidden />
-      {text}
-    </p>
-  );
-}
+const FUNNEL_STAGES = [
+  { label: "Applied", value: 28 },
+  { label: "OA", value: 16 },
+  { label: "Interview", value: 9 },
+  { label: "Offer", value: 2 },
+];
 
-type FaqRowProps = {
-  question: string;
-  answer: string;
-  open: boolean;
-  onToggle: () => void;
-};
+const REFERRAL_IMPACT = [
+  { label: "With Referral", value: 38, note: "+14% conversion" },
+  { label: "Direct Apply", value: 24, note: "Baseline conversion" },
+];
 
-function FaqRow({ question, answer, open, onToggle }: FaqRowProps) {
-  return (
-    <article className={`lp-faq-row ${open ? "lp-faq-row--open" : ""}`}>
-      <button type="button" className="lp-faq-trigger" aria-expanded={open} onClick={onToggle}>
-        <span>{question}</span>
-        <span>{open ? "-" : "+"}</span>
-      </button>
-      <div className="lp-faq-answer-wrap" aria-hidden={!open}>
-        <p>{answer}</p>
-      </div>
-    </article>
-  );
-}
+const TRUST_LOGOS = [
+  { name: "Google", src: "/company-logos/google.svg" },
+  { name: "Amazon", src: "/company-logos/amazon.svg", darkSrc: "/company-logos/amazon-dark.svg" },
+  { name: "Meta", src: "/company-logos/meta.svg", darkSrc: "/company-logos/meta-dark.svg" },
+  { name: "NVIDIA", src: "/company-logos/nvidia.svg", darkSrc: "/company-logos/nvidia-dark.svg" },
+  { name: "Apple", src: "/company-logos/apple.svg", darkSrc: "/company-logos/apple-dark.svg" },
+  { name: "Microsoft", src: "/company-logos/microsoft.svg", darkSrc: "/company-logos/microsoft-dark.svg" },
+  { name: "Netflix", src: "/company-logos/netflix.svg" },
+];
+
+const TESTIMONIALS = [
+  {
+    name: "Emma Carter",
+    role: "CS Student",
+    quote: "Atriveo turned my search from random tabs into one clear weekly system.",
+    initials: "EC",
+  },
+  {
+    name: "Olivia Reed",
+    role: "New Grad Applicant",
+    quote: "I finally stopped missing follow-ups. The timeline and reminders keep me consistent.",
+    initials: "OR",
+  },
+  {
+    name: "Ethan Brooks",
+    role: "Software Intern Candidate",
+    quote: "My referrals, deadlines, and interviews are in one place, so I can focus on quality.",
+    initials: "EB",
+  },
+];
+
+const PARTICLES = Array.from({ length: 20 }, (_, i) => ({
+  id: i,
+  left: `${(i * 17) % 100}%`,
+  top: `${(i * 29) % 100}%`,
+  size: `${1 + (i % 3)}px`,
+  duration: `${16 + (i % 7)}s`,
+  delay: `${-(i % 9)}s`,
+}));
 
 export default function LandingPage({
   isAuthenticated,
@@ -187,8 +188,6 @@ export default function LandingPage({
   onAuthenticated,
 }: LandingPageProps) {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState(TAB_ITEMS[0].id);
-  const [openFaq, setOpenFaq] = useState(0);
   const [authOpen, setAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [firstName, setFirstName] = useState("");
@@ -197,11 +196,9 @@ export default function LandingPage({
   const [password, setPassword] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState("");
-
-  const activeTabTitle = useMemo(
-    () => TAB_ITEMS.find((item) => item.id === activeTab)?.title ?? TAB_ITEMS[0].title,
-    [activeTab]
-  );
+  const [scrolled, setScrolled] = useState(false);
+  const featuredTestimonial = TESTIMONIALS[0];
+  const secondaryTestimonials = TESTIMONIALS.slice(1);
 
   function openAuth(mode: "login" | "signup", source = "landing") {
     setAuthMode(mode);
@@ -228,6 +225,18 @@ export default function LandingPage({
   }
 
   useEffect(() => {
+    trackFunnelStep(ANALYTICS_EVENTS.landing_page_view, {
+      source: "landing_page",
+    });
+  }, []);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
     if (!authOpen) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") closeAuth();
@@ -235,19 +244,6 @@ export default function LandingPage({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [authOpen, authLoading]);
-
-  useEffect(() => {
-    trackFunnelStep(ANALYTICS_EVENTS.landing_page_view, {
-      source: "landing_page",
-    });
-  }, []);
-
-  function handleChromeExtensionClick() {
-    trackProductEvent(ANALYTICS_EVENTS.chrome_extension_install_clicked, {
-      source: "landing_section",
-    });
-    openAuth("signup", "chrome_extension_cta");
-  }
 
   async function onSubmitAuth(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -311,307 +307,399 @@ export default function LandingPage({
   }
 
   return (
-    <div className="lp-shell">
-      <header className="lp-navbar">
-        <div className="lp-container lp-navbar-inner">
-          <Link to="/" className="lp-logo" aria-label="Atriveo">
+    <div className="lv-shell">
+      <header className={`lv-nav${scrolled ? " is-scrolled" : ""}`}>
+        <div className="lv-wrap lv-nav-inner">
+          <Link to="/" className="lv-logo" aria-label="Atriveo">
             Atriveo<span>.</span>
           </Link>
-          <div className="lp-nav-right">
+          <div className="lv-nav-actions">
             {isAuthenticated ? (
-              <Link to={DASHBOARD_BASE_PATH} className="lp-dashboard-button">
+              <Link to={DASHBOARD_BASE_PATH} className="lv-btn lv-btn-primary">
                 Dashboard
               </Link>
             ) : (
-              <button
-                type="button"
-                className="lp-dashboard-button lp-dashboard-button--minimal"
-                onClick={() => openAuth("login")}
-              >
-                Log in
-              </button>
+              <button type="button" className="lv-btn lv-btn-ghost" onClick={() => openAuth("login")}>Log in</button>
             )}
           </div>
         </div>
       </header>
 
-      <main className="lp-main">
-        <section className="lp-section lp-hero lp-reveal">
-          <div className="lp-container lp-hero-inner">
+      <main className="lv-main">
+        <section className="lv-hero">
+          <div className="lv-particles" aria-hidden="true">
+            {PARTICLES.map((particle) => (
+              <span
+                key={particle.id}
+                style={{
+                  left: particle.left,
+                  top: particle.top,
+                  width: particle.size,
+                  height: particle.size,
+                  animationDuration: particle.duration,
+                  animationDelay: particle.delay,
+                }}
+              />
+            ))}
+          </div>
+          <div className="lv-wrap lv-hero-inner">
             <h1>
-              <span className="lp-headline-line">Your job search, organized.</span>
-              <span className="lp-headline-line lp-highlight">From first apply to final offer.</span>
+              Your job search, organized.
+              <br />
+              <span>From first application to final offer.</span>
             </h1>
             <p>
-              Run your search with clarity: track applications, manage referrals, and never miss a
-              follow-up.
+              Track applications, manage referrals, and never miss a follow-up. Atriveo gives you one clean operating system for recruiting.
             </p>
-            <div className="lp-hero-actions">
-              <button type="button" className="lp-btn lp-btn-primary" onClick={() => openAuth("signup")}>
-                Get Started Free
-              </button>
-            </div>
-            <div className="lp-hero-proof">
-              <span>No spreadsheets. No missed follow-ups.</span>
-            </div>
-            <div className="lp-hero-preview">
-              <ProductMockup />
+            <div className="lv-hero-actions">
+              <button type="button" className="lv-btn lv-btn-primary" onClick={() => openAuth("signup")}>Get Started Free</button>
             </div>
           </div>
         </section>
-        {SHOW_EXTENDED_LANDING ? (
-          <>
-            <section className="lp-section lp-tabs-section lp-reveal lp-reveal-d1">
-              <div className="lp-container lp-tabs-inner">
-                <div className="lp-tab-strip" role="tablist" aria-label="Feature tabs">
-                  {TAB_ITEMS.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      role="tab"
-                      aria-selected={activeTab === item.id}
-                      className={`lp-tab ${activeTab === item.id ? "lp-tab--active" : ""}`}
-                      onClick={() => setActiveTab(item.id)}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
-                <p className="lp-tab-caption">{activeTabTitle}</p>
-                <div className="lp-tabs-preview">
-                  <ProductMockup />
-                </div>
-              </div>
-            </section>
 
-            <section className="lp-section lp-step-section lp-reveal lp-reveal-d1">
-              <div className="lp-container">
-                <h2 className="lp-center-title">
-                  We are here for <span className="lp-highlight">every step</span> of your search.
-                </h2>
-                <div className="lp-split">
-                  <div className="lp-copy">
-                    <SectionLabel text="Job Matches" />
-                    <h3>Get matched to relevant jobs, personalized to you</h3>
-                    <p>
-                      Tell us your preferences and dealbreakers. Atriveo helps you focus on openings
-                      that align with your target outcomes.
-                    </p>
-                    <button type="button" className="lp-btn lp-btn-primary" onClick={() => openAuth("signup")}>
-                      Get Matched Now
-                    </button>
+        <section id="lv-preview" className="lv-preview">
+          <div className="lv-wrap lv-preview-wrap">
+            <article className="lv-dashboard-card">
+              <div className="lv-dashboard-top">
+                <div className="lv-window-dots" aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                </div>
+                <strong>Atriveo.</strong>
+                <span className="lv-top-pill">Applications All</span>
+              </div>
+              <div className="lv-dashboard-body">
+                <aside className="lv-dashboard-side" aria-label="Navigation preview">
+                  <button type="button" className="is-active">Applications</button>
+                  <button type="button">Referrals</button>
+                  <button type="button">Follow Up</button>
+                  <button type="button">Archive</button>
+                </aside>
+                <div className="lv-dashboard-table-wrap">
+                  <div className="lv-dashboard-table-head">
+                    <span>Company</span>
+                    <span>Referral</span>
+                    <span>Status</span>
+                    <span>Applied</span>
+                    <span>OA</span>
+                    <span>Deadline</span>
                   </div>
-                  <div className="lp-visual-card">
-                    <ProductMockup />
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <section id="curated-lists" className="lp-section lp-curated-section lp-reveal lp-reveal-d2">
-              <div className="lp-container">
-                <h2 className="lp-center-title">Explore our expert-curated job lists.</h2>
-                <p className="lp-center-copy">
-                  High-signal themed lists are updated regularly so you can find better opportunities
-                  with less noise.
-                </p>
-                <div className="lp-curated-grid">
-                  {CURATED_LISTS.map((item) => (
-                    <article key={item} className="lp-curated-card">
-                      <span className="lp-curated-icon" aria-hidden />
-                      <strong>{item}</strong>
-                      <span className="lp-curated-go">Go</span>
-                    </article>
+                  {PREVIEW_ROWS.map((row) => (
+                    <div key={`${row.company}-${row.role}`} className="lv-dashboard-row">
+                      <span className="lv-company-cell">
+                        <i aria-hidden="true">{row.company[0]}</i>
+                        <em>
+                          <strong>{row.company}</strong>
+                          <small>{row.role}</small>
+                        </em>
+                      </span>
+                      <span>{row.referral}</span>
+                      <span>{row.status}</span>
+                      <span>{row.applied}</span>
+                      <span>{row.oa}</span>
+                      <span>{row.deadline}</span>
+                    </div>
                   ))}
                 </div>
               </div>
-            </section>
+            </article>
 
-            <section className="lp-section lp-tools-section lp-reveal lp-reveal-d1">
-              <div className="lp-container">
-                <h2 className="lp-center-title">More tools to help you stand out from the crowd.</h2>
-                <div className="lp-tools-grid">
-                  {TOOLS.map((tool) => (
-                    <article key={tool.title} className="lp-tool-card">
-                      <h3>{tool.title}</h3>
-                      <p>{tool.description}</p>
-                    </article>
-                  ))}
-                </div>
+            <article className="lv-float-card lv-float-card--left">
+              <header>
+                <span aria-hidden="true">◎</span>
+                <strong>Applications till now</strong>
+              </header>
+              <p className="lv-float-value">28</p>
+              <p className="lv-float-meta">Software applications this month</p>
+              <div className="lv-float-bar">
+                <span style={{ width: "78%" }} />
               </div>
-            </section>
+              <div className="lv-float-row">
+                <small>OA completion</small>
+                <strong>78%</strong>
+              </div>
+            </article>
 
-            <section id="tracker" className="lp-section lp-tracker-section lp-reveal">
-              <div className="lp-container lp-split">
-                <div className="lp-visual-card">
-                  <ProductMockup />
-                </div>
-                <div className="lp-copy">
-                  <SectionLabel text="Job Tracker" />
-                  <h3>Bookmark jobs and track your search</h3>
-                  <p>
-                    Keep applications, follow-ups, and outcomes in one timeline so your search stays
-                    organized and visible.
-                  </p>
-                  <button type="button" className="lp-btn lp-btn-primary" onClick={() => openAuth("signup")}>
-                    Track Your Applications
-                  </button>
-                </div>
+            <article className="lv-float-card lv-float-card--right">
+              <header>
+                <span aria-hidden="true">◉</span>
+                <strong>Upcoming Interview</strong>
+              </header>
+              <p className="lv-float-meta">Tomorrow at 2:00 PM</p>
+              <div className="lv-mini-bars" aria-hidden="true">
+                {[26, 38, 44, 51, 35, 48, 58, 64].map((height, index) => (
+                  <span key={`bar-${index}`} style={{ height: `${height}%` }} />
+                ))}
               </div>
-            </section>
+            </article>
 
-            <section className="lp-section lp-testimonial-section lp-reveal lp-reveal-d1">
-              <div className="lp-container">
-                <h2 className="lp-center-title">
-                  Join over 1,000,000 candidates who hear back more with structured search execution.
-                </h2>
-                <div className="lp-testimonial-track">
-                  {TESTIMONIALS.map((item) => (
-                    <article key={`${item.name}-${item.company}`} className="lp-testimonial-card">
-                      <div className="lp-avatar" aria-hidden>
-                        {item.name.slice(0, 1)}
-                      </div>
-                      <p>{item.quote}</p>
-                      <strong>{item.name}</strong>
-                      <span>{item.role}</span>
-                      <em>{item.company}</em>
-                    </article>
-                  ))}
-                </div>
+            <article className="lv-float-card lv-float-card--top-right">
+              <header>
+                <span aria-hidden="true">◎</span>
+                <strong>Follow Up Today</strong>
+              </header>
+              <p className="lv-float-value">3</p>
+              <p className="lv-float-meta">Pending follow-ups today</p>
+              <div className="lv-float-bar">
+                <span style={{ width: "62%" }} />
               </div>
-            </section>
-
-            <section id="autofill" className="lp-section lp-autofill-section lp-reveal lp-reveal-d2">
-              <div className="lp-container lp-split">
-                <div className="lp-visual-card">
-                  <ProductMockup />
-                </div>
-                <div className="lp-copy">
-                  <SectionLabel text="Autofill Applications" />
-                  <h3>Autofill repetitive job application questions</h3>
-                  <p>
-                    Reduce repetitive form typing and keep application quality high with a repeatable,
-                    faster submission workflow.
-                  </p>
-                  <div className="lp-inline-actions">
-                    <button type="button" className="lp-btn lp-btn-primary" onClick={handleChromeExtensionClick}>
-                      Add to Chrome
-                    </button>
-                    <button type="button" className="lp-btn lp-btn-outline" onClick={() => openAuth("signup")}>
-                      Learn More
-                    </button>
-                  </div>
-                  <p className="lp-proof-line">
-                    <span className="lp-stars" aria-hidden>
-                      *****
-                    </span>
-                    200,000,000+ applications submitted
-                  </p>
-                </div>
+              <div className="lv-float-row">
+                <small>Response rate</small>
+                <strong>62%</strong>
               </div>
-            </section>
-
-            <section id="resume-builder" className="lp-section lp-resume-section lp-reveal lp-reveal-d1">
-              <div className="lp-container lp-split lp-split--reverse">
-                <div className="lp-copy">
-                  <SectionLabel text="AI Resume Builder" />
-                  <h3>Craft the perfect tailored resume for every job</h3>
-                  <p>
-                    Generate role-specific resume versions and close keyword gaps before you submit.
-                  </p>
-                  <button type="button" className="lp-btn lp-btn-primary" onClick={() => openAuth("signup")}>
-                    Get a Free Resume
-                  </button>
-                </div>
-                <div className="lp-visual-card">
-                  <ProductMockup />
-                </div>
-              </div>
-            </section>
-
-            <section id="faq" className="lp-section lp-faq-section lp-reveal lp-reveal-d2">
-              <div className="lp-container">
-                <h2 className="lp-center-title">Got questions?</h2>
-                <p className="lp-center-copy">Explore our FAQ section to learn more.</p>
-                <div className="lp-faq-list">
-                  {FAQS.map((item, index) => (
-                    <FaqRow
-                      key={item.question}
-                      question={item.question}
-                      answer={item.answer}
-                      open={openFaq === index}
-                      onToggle={() => setOpenFaq(openFaq === index ? -1 : index)}
-                    />
-                  ))}
-                </div>
-              </div>
-            </section>
-          </>
-        ) : null}
-      </main>
-      <footer className="lp-footer-minimal">
-        <div className="lp-container lp-footer-minimal-inner">
-          <div className="lp-footer-top-grid">
-            <section className="lp-footer-brand">
-              <h3 className="lp-logo lp-logo--footer-minimal">
-                Atriveo<span>.</span>
-              </h3>
-              <p className="lp-footer-tagline">
-                Track applications. Compete with friends. Stay accountable.
-              </p>
-            </section>
-            <section className="lp-footer-columns" aria-label="Footer navigation">
-              <div className="lp-footer-column">
-                <h4>Product</h4>
-                <a href="#features">Features</a>
-                <a href="#how-it-works">How It Works</a>
-                <a href="#pricing">Pricing</a>
-              </div>
-              <div className="lp-footer-column">
-                <h4>Resources</h4>
-                <a href="#help-center">Help Center</a>
-                <a href="#faq">FAQ</a>
-                <a href="#blog">Blog</a>
-                <a href="#contact">Contact</a>
-              </div>
-              <div className="lp-footer-column">
-                <h4>Legal</h4>
-                <a href="#privacy-policy">Privacy Policy</a>
-                <a href="#terms-of-use">Terms of Use</a>
-                <a href="#cookie-policy">Cookie Policy</a>
-              </div>
-            </section>
-            <aside className="lp-footer-cta-card" aria-label="Footer callout">
-              <p className="lp-footer-cta-title">Built for ambitious students.</p>
-              <p className="lp-footer-cta-copy">
-                Designed to help you stay consistent and land better opportunities.
-              </p>
-            </aside>
+            </article>
           </div>
-          <div className="lp-footer-bottom-strip">
-            <p className="lp-footer-bottom-copy">© 2026 Atriveo. Built for ambitious students.</p>
-            <div className="lp-footer-bottom-actions">
-              <nav className="lp-footer-social-row" aria-label="Social links">
-                <a href="https://x.com" target="_blank" rel="noreferrer" aria-label="Twitter">
-                  <svg viewBox="0 0 24 24" fill="none" aria-hidden>
-                    <path d="M18.36 5H21l-5.76 6.58L22 19h-5.31l-4.15-5.42L7.8 19H5.15l6.16-7.05L4 5h5.45l3.75 4.95L18.36 5Z" fill="currentColor" />
-                  </svg>
-                </a>
-                <a href="https://linkedin.com" target="_blank" rel="noreferrer" aria-label="LinkedIn">
-                  <svg viewBox="0 0 24 24" fill="none" aria-hidden>
-                    <path d="M6.75 8.25A1.5 1.5 0 1 0 6.75 5.25A1.5 1.5 0 1 0 6.75 8.25Z" fill="currentColor" />
-                    <path d="M5.5 9.75H8V18.5H5.5V9.75Z" fill="currentColor" />
-                    <path d="M10 9.75H12.4V11H12.45C12.78 10.37 13.58 9.7 14.78 9.7C17.28 9.7 17.75 11.25 17.75 13.28V18.5H15.25V13.88C15.25 12.78 15.23 11.37 13.72 11.37C12.18 11.37 11.94 12.57 11.94 13.8V18.5H10V9.75Z" fill="currentColor" />
-                  </svg>
-                </a>
-                <a href="https://github.com" target="_blank" rel="noreferrer" aria-label="GitHub">
-                  <svg viewBox="0 0 24 24" fill="none" aria-hidden>
-                    <path d="M12 3.75C7.44 3.75 3.75 7.52 3.75 12.17C3.75 15.89 6.11 19.05 9.38 20.16C9.79 20.24 9.94 19.98 9.94 19.76C9.94 19.55 9.93 18.98 9.93 18.26C7.75 18.74 7.29 17.18 7.29 17.18C6.94 16.27 6.44 16.03 6.44 16.03C5.75 15.53 6.5 15.54 6.5 15.54C7.27 15.6 7.67 16.35 7.67 16.35C8.34 17.54 9.43 17.19 9.86 16.98C9.93 16.48 10.12 16.15 10.33 15.96C8.59 15.75 6.76 15.06 6.76 11.95C6.76 11.06 7.07 10.34 7.57 9.77C7.49 9.56 7.21 8.7 7.65 7.53C7.65 7.53 8.34 7.31 9.93 8.42C10.59 8.23 11.3 8.13 12 8.12C12.7 8.13 13.41 8.23 14.07 8.42C15.66 7.31 16.35 7.53 16.35 7.53C16.79 8.7 16.51 9.56 16.43 9.77C16.93 10.34 17.24 11.06 17.24 11.95C17.24 15.07 15.4 15.75 13.66 15.96C13.93 16.2 14.17 16.67 14.17 17.38C14.17 18.39 14.16 19.48 14.16 19.76C14.16 19.98 14.31 20.25 14.73 20.16C17.99 19.05 20.25 15.89 20.25 12.17C20.25 7.52 16.56 3.75 12 3.75Z" fill="currentColor" />
-                  </svg>
-                </a>
-              </nav>
-              <ThemeToggle theme={theme} onToggle={onToggleTheme} className="lp-footer-theme-toggle" />
+        </section>
+
+        <section className="lv-social-proof">
+          <div className="lv-wrap">
+            <p>Built for students applying to top tech companies.</p>
+            <div className="lv-social-proof-logos">
+              {TRUST_LOGOS.map((logo) => (
+                <span key={logo.name} className="lv-social-proof-logo">
+                  <img
+                    src={theme === "dark" ? logo.darkSrc ?? logo.src : logo.src}
+                    alt={logo.name}
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </span>
+              ))}
             </div>
+          </div>
+        </section>
+
+        <section className="lv-features">
+          <div className="lv-wrap">
+            <h2>Everything you need to manage your job search.</h2>
+            <div className="lv-feature-grid">
+              {FEATURES.map((feature) => (
+                <article key={feature.title} className="lv-feature-card">
+                  <span className="lv-feature-icon" aria-hidden="true">{feature.icon}</span>
+                  <h3>{feature.title}</h3>
+                  <p>{feature.description}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="lv-compete">
+          <div className="lv-wrap">
+            <header className="lv-compete-head">
+              <span>LEADERBOARD</span>
+              <h2>Compete with your friends.</h2>
+              <p>Stay motivated by comparing application momentum with your network.</p>
+            </header>
+
+            <div className="lv-compete-board">
+              <div className="lv-compete-kpi-row">
+                {COMPETE_KPIS.map((item) => (
+                  <article key={item.label} className="lv-compete-kpi">
+                    <small>{item.label}</small>
+                    <strong>{item.value}</strong>
+                    <span>{item.delta}</span>
+                  </article>
+                ))}
+              </div>
+
+              <div className="lv-compete-main">
+                <div className="lv-compete-visuals">
+                  <article className="lv-compete-panel">
+                    <h3>Weekly Velocity</h3>
+                    <p className="lv-panel-subtitle">Applications per day: you vs group average</p>
+                    <div className="lv-velocity-series">
+                      <div className="lv-velocity-row">
+                        <small>You</small>
+                        <div className="lv-velocity-bars" aria-hidden="true">
+                          {VELOCITY_SERIES.you.map((value, index) => (
+                            <span key={`you-${VELOCITY_LABELS[index]}`}>
+                              <i style={{ height: `${18 + value * 12}px` }} />
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="lv-velocity-row">
+                        <small>Friends Avg</small>
+                        <div className="lv-velocity-bars lv-velocity-bars--alt" aria-hidden="true">
+                          {VELOCITY_SERIES.friends.map((value, index) => (
+                            <span key={`friends-${VELOCITY_LABELS[index]}`}>
+                              <i style={{ height: `${18 + value * 12}px` }} />
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="lv-velocity-labels" aria-hidden="true">
+                        {VELOCITY_LABELS.map((label) => (
+                          <span key={label}>{label}</span>
+                        ))}
+                      </div>
+                    </div>
+                  </article>
+
+                  <article className="lv-compete-panel">
+                    <h3>Stage Funnel</h3>
+                    <p className="lv-panel-subtitle">See where your pipeline compresses</p>
+                    <div className="lv-funnel-list">
+                      {FUNNEL_STAGES.map((stage, index) => (
+                        <div key={stage.label} className="lv-funnel-row">
+                          <small>{stage.label}</small>
+                          <div className="lv-funnel-bar">
+                            <span
+                              style={{ width: `${Math.max(10, (stage.value / FUNNEL_STAGES[0].value) * 100)}%` }}
+                            />
+                          </div>
+                          <strong>{stage.value}</strong>
+                          {index < FUNNEL_STAGES.length - 1 ? <em>→</em> : null}
+                        </div>
+                      ))}
+                    </div>
+                  </article>
+
+                  <article className="lv-compete-panel">
+                    <h3>Referral Impact</h3>
+                    <p className="lv-panel-subtitle">Conversion rate by channel</p>
+                    <div className="lv-impact-list">
+                      {REFERRAL_IMPACT.map((item) => (
+                        <div key={item.label} className="lv-impact-row">
+                          <div>
+                            <small>{item.label}</small>
+                            <span>{item.note}</span>
+                          </div>
+                          <div className="lv-impact-meter">
+                            <i style={{ width: `${item.value}%` }} />
+                          </div>
+                          <strong>{item.value}%</strong>
+                        </div>
+                      ))}
+                    </div>
+                  </article>
+                </div>
+
+                <aside className="lv-compete-side">
+                  <article className="lv-compete-panel">
+                    <h3>Weekly Board</h3>
+                    <div className="lv-leaderboard-list">
+                      {LEADERBOARD.map((entry) => (
+                        <div key={entry.rank} className={`lv-leaderboard-row${entry.leader ? " is-leader" : ""}`}>
+                          <span>{entry.rank}</span>
+                          <strong>{entry.name}</strong>
+                          <em>{entry.score}</em>
+                        </div>
+                      ))}
+                    </div>
+                  </article>
+
+                  <article className="lv-compete-panel">
+                    <h3>Target Signals</h3>
+                    <div className="lv-signal-list">
+                      {COMPANY_SIGNALS.map((signal) => (
+                        <div key={signal.company} className="lv-signal-row">
+                          <div className="lv-signal-head">
+                            <strong>{signal.company}</strong>
+                            <span className={`lv-signal-badge lv-signal-badge--${signal.status.toLowerCase()}`}>{signal.status}</span>
+                          </div>
+                          <small>{signal.role}</small>
+                          <span>{signal.friends} friend applied</span>
+                          <em>By {signal.by}</em>
+                        </div>
+                      ))}
+                    </div>
+                  </article>
+                </aside>
+              </div>
+
+              <div className="lv-compete-footrow">
+                <div className="lv-compete-strip">
+                  <span>Lead: +2</span>
+                  <span>Today: You 4</span>
+                  <span>Weekly Wins: You 3</span>
+                  <span>Team Total: 36</span>
+                  <span>Referral Lift: +14%</span>
+                  <span>Top Momentum: You</span>
+                </div>
+                <button type="button" className="lv-btn lv-btn-outline" onClick={() => openAuth("signup")}>
+                  View Full Leaderboard
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="lv-how">
+          <div className="lv-wrap">
+            <h2>How it works</h2>
+            <div className="lv-step-grid">
+              {STEP_ITEMS.map((step) => (
+                <article key={step.title} className="lv-step-card">
+                  <span>{step.step}</span>
+                  <h3>{step.title}</h3>
+                  <p>{step.description}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+        <section className="lv-testimonials">
+          <div className="lv-wrap lv-testimonials-grid">
+            <div className="lv-testimonials-copy">
+              <h2>What Students Say</h2>
+              <p>
+                Real feedback from candidates using Atriveo to keep recruiting organized,
+                consistent, and less chaotic.
+              </p>
+            </div>
+            <div className="lv-testimonial-rail">
+              <article className="lv-testimonial-feature">
+                <span className="lv-testimonial-quote lv-testimonial-quote--left" aria-hidden="true">“</span>
+                <span className="lv-testimonial-quote lv-testimonial-quote--right" aria-hidden="true">”</span>
+                <p className="lv-testimonial-feature-copy">{featuredTestimonial.quote}</p>
+                <div className="lv-testimonial-person">
+                  <div className="lv-testimonial-avatar lv-testimonial-avatar--1" aria-hidden="true">
+                    {featuredTestimonial.initials}
+                  </div>
+                  <div className="lv-testimonial-person-meta">
+                    <strong>{featuredTestimonial.name}</strong>
+                    <small>{featuredTestimonial.role}</small>
+                  </div>
+                </div>
+              </article>
+
+              <div className="lv-testimonial-mini-grid">
+                {secondaryTestimonials.map((item, index) => (
+                  <article key={item.name} className="lv-testimonial-mini">
+                    <span className="lv-testimonial-mini-quote" aria-hidden="true">”</span>
+                    <div className={`lv-testimonial-avatar lv-testimonial-avatar--${index + 2}`} aria-hidden="true">
+                      {item.initials}
+                    </div>
+                    <div className="lv-testimonial-person-meta">
+                      <strong>{item.name}</strong>
+                      <small>{item.role}</small>
+                    </div>
+                    <p>{item.quote}</p>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer className="lv-footer-mini">
+        <div className="lv-footer-mini-inner">
+          <p>© 2026 Atriveo. Built for ambitious students.</p>
+          <div className="lv-footer-mini-actions">
+            <nav className="lv-footer-mini-links" aria-label="Social links">
+              <a href="https://x.com" target="_blank" rel="noreferrer" aria-label="X">x</a>
+              <a href="https://linkedin.com" target="_blank" rel="noreferrer" aria-label="LinkedIn">in</a>
+              <a href="https://github.com" target="_blank" rel="noreferrer" aria-label="GitHub">
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.21.68-.48v-1.7c-2.78.61-3.37-1.18-3.37-1.18-.45-1.17-1.1-1.48-1.1-1.48-.9-.63.07-.62.07-.62 1 .07 1.53 1.05 1.53 1.05.88 1.54 2.31 1.1 2.87.85.09-.66.35-1.1.63-1.36-2.22-.26-4.56-1.14-4.56-5.08 0-1.12.39-2.03 1.02-2.75-.1-.26-.44-1.3.1-2.7 0 0 .84-.27 2.75 1.05A9.3 9.3 0 0 1 12 6.8c.83 0 1.67.11 2.45.33 1.91-1.32 2.75-1.05 2.75-1.05.54 1.4.2 2.44.1 2.7.64.72 1.02 1.63 1.02 2.75 0 3.95-2.35 4.82-4.58 5.07.36.32.67.95.67 1.92v2.84c0 .27.18.58.68.48A10 10 0 0 0 12 2Z" />
+                </svg>
+              </a>
+            </nav>
+            <ThemeToggle theme={theme} onToggle={onToggleTheme} className="lv-footer-theme-toggle" />
           </div>
         </div>
       </footer>
