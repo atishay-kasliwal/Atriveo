@@ -1269,15 +1269,6 @@ export default function NetworkPage() {
                         ) : (
                           <p className="network-badge-preview-empty">Apply and compete this week to unlock your first badge.</p>
                         )}
-                        <div className="network-badge-preview-foot">
-                          <button
-                            type="button"
-                            className="network-badge-view-all trend-uniform-foot-item trend-uniform-foot-item--applied"
-                            onClick={() => setShowBadgeGallery(true)}
-                          >
-                            View All →
-                          </button>
-                        </div>
                       </div>
                     </div>
 

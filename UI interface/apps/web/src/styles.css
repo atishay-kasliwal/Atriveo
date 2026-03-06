@@ -2950,7 +2950,7 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .network-badge-preview-label {
-  color: var(--text-secondary);
+  color: var(--text-primary);
   font-size: 0.8rem;
   font-weight: 600;
   line-height: 1.2;
@@ -4735,6 +4735,10 @@ body::-webkit-scrollbar-thumb:hover,
 
 :root[data-theme="light"] .page--network .network-badge-preview-item {
   background: transparent;
+}
+
+:root[data-theme="light"] .page--network .network-badge-preview-label {
+  color: #0f172a;
 }
 
 :root[data-theme="light"] .page--network .network-mini-board-row {
