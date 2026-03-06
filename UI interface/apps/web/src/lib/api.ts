@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8787";
+const API_URL = import.meta.env.VITE_API_URL || "https://job-tracker-api.katishay.workers.dev";
 const API_TOKEN = import.meta.env.VITE_API_TOKEN || "";
 const DASHBOARD_SESSION_KEY = "dashboard_auth_session";
 

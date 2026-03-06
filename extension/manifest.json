@@ -1,19 +1,16 @@
 {
   "manifest_version": 3,
   "name": "Atriveo Job Assistant",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Detects ATS job pages and extracts structured job data.",
   "permissions": ["activeTab", "storage", "scripting", "tabs"],
   "host_permissions": [
-    "*://*.myworkdayjobs.com/*",
-    "*://*.greenhouse.io/*",
-    "*://*.lever.co/*",
-    "http://127.0.0.1:8787/*",
-    "https://*.workers.dev/*",
-    "*://www.atriveo.com/*",
-    "*://atriveo.com/*",
-    "*://*.atriveo.com/*",
-    "*://product.atishaykasliwal.com/*"
+    "https://*.myworkdayjobs.com/*",
+    "https://*.greenhouse.io/*",
+    "https://*.lever.co/*",
+    "https://job-tracker-api.katishay.workers.dev/*",
+    "https://www.atriveo.com/*",
+    "https://atriveo.com/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -25,9 +22,9 @@
   "content_scripts": [
     {
       "matches": [
-        "*://*.myworkdayjobs.com/*",
-        "*://*.greenhouse.io/*",
-        "*://*.lever.co/*"
+        "https://*.myworkdayjobs.com/*",
+        "https://*.greenhouse.io/*",
+        "https://*.lever.co/*"
       ],
       "js": [
         "utils/extractText.js",

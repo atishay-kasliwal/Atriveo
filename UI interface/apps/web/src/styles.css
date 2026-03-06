@@ -6997,6 +6997,364 @@ tr:hover td {
   color: var(--brand-primary);
 }
 
+.legal-page {
+  min-height: 100vh;
+  padding: 86px 20px 32px;
+  background:
+    radial-gradient(circle at 50% -12%, color-mix(in srgb, var(--brand-primary) 18%, transparent), transparent 55%),
+    var(--marketing-bg);
+}
+
+.legal-card {
+  width: min(920px, 100%);
+  margin: 0 auto;
+  border-radius: 20px;
+  padding: clamp(22px, 3vw, 34px);
+  background: color-mix(in srgb, var(--bg-card) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 76%, transparent);
+  box-shadow: 0 18px 42px rgba(2, 8, 23, 0.22);
+}
+
+.legal-kicker {
+  margin: 0 0 8px;
+  color: var(--brand-primary);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.legal-card h1 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: clamp(1.8rem, 3.8vw, 2.45rem);
+  line-height: 1.08;
+}
+
+.legal-meta {
+  margin: 10px 0 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.legal-section {
+  margin-top: 20px;
+}
+
+.legal-section h2 {
+  margin: 0 0 8px;
+  color: var(--text-primary);
+  font-size: 1.04rem;
+  letter-spacing: -0.01em;
+}
+
+.legal-section p,
+.legal-section li {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.legal-section ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 8px;
+}
+
+.legal-section a {
+  color: var(--brand-primary);
+  text-decoration: none;
+}
+
+.legal-section a:hover {
+  text-decoration: underline;
+}
+
+.extension-install-card {
+  width: min(1040px, 100%);
+}
+
+.extension-install-hero {
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 74%, transparent);
+  background:
+    radial-gradient(circle at 84% -20%, color-mix(in srgb, var(--brand-primary) 22%, transparent), transparent 54%),
+    color-mix(in srgb, var(--bg-card-elevated) 84%, transparent);
+  padding: clamp(16px, 2.5vw, 24px);
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 14px;
+  align-items: stretch;
+}
+
+.extension-install-status {
+  margin-top: 14px;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  color: var(--text-secondary);
+  font-size: 0.86rem;
+}
+
+.extension-install-status-badge {
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 0.74rem;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--brand-primary) 88%, #7ab2ff);
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 38%, transparent);
+  background: color-mix(in srgb, var(--brand-primary) 10%, transparent);
+}
+
+.extension-install-actions {
+  margin-top: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.extension-install-preview {
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 74%, transparent);
+  background: color-mix(in srgb, var(--bg-card) 88%, transparent);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.extension-install-preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.extension-install-preview-head strong {
+  color: var(--text-primary);
+  font-size: 0.92rem;
+  letter-spacing: -0.01em;
+}
+
+.extension-install-preview-head span {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #5ea8ff 0%, #2563eb 100%);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand-primary) 16%, transparent);
+}
+
+.extension-install-preview-list {
+  display: grid;
+  gap: 10px;
+}
+
+.extension-install-preview-list div {
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 68%, transparent);
+  background: color-mix(in srgb, var(--bg-card-elevated) 74%, transparent);
+  padding: 10px;
+  display: grid;
+  gap: 4px;
+}
+
+.extension-install-preview-list small {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+
+.extension-install-preview-list strong {
+  color: var(--text-primary);
+  font-size: 0.87rem;
+  line-height: 1.35;
+  font-weight: 600;
+}
+
+.extension-install-grid {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.extension-install-visuals {
+  margin-top: 14px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 72%, transparent);
+  background: color-mix(in srgb, var(--bg-card) 88%, transparent);
+  padding: 16px;
+}
+
+.extension-install-visuals-head {
+  display: grid;
+  gap: 4px;
+}
+
+.extension-install-visuals-head h2 {
+  margin: 0;
+}
+
+.extension-install-visuals-head p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.extension-install-visual-grid {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.extension-install-shot {
+  margin: 0;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 68%, transparent);
+  background: transparent;
+  overflow: hidden;
+}
+
+.extension-install-shot-label {
+  padding: 9px 10px 8px;
+  display: grid;
+  gap: 2px;
+  border-bottom: 1px solid color-mix(in srgb, var(--bg-card-border) 62%, transparent);
+  background: transparent;
+}
+
+.extension-install-shot-label span {
+  color: var(--brand-primary);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.extension-install-shot-label strong {
+  color: var(--text-primary);
+  font-size: 0.86rem;
+  line-height: 1.3;
+}
+
+.extension-install-shot img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+.extension-install-shot-image-link {
+  display: block;
+}
+
+.extension-install-shot-image-link:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--brand-primary) 72%, transparent);
+  outline-offset: -2px;
+}
+
+.extension-install-shot figcaption {
+  margin: 0;
+  padding: 8px 10px 10px;
+  display: grid;
+  gap: 6px;
+  background: transparent;
+}
+
+.extension-install-shot figcaption p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.83rem;
+  line-height: 1.4;
+}
+
+.extension-install-shot-open-link {
+  color: var(--brand-primary);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  width: fit-content;
+}
+
+.extension-install-shot-open-link:hover {
+  text-decoration: underline;
+}
+
+.extension-install-panel {
+  margin-top: 0;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 72%, transparent);
+  background: color-mix(in srgb, var(--bg-card) 88%, transparent);
+  padding: 16px;
+}
+
+.extension-install-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 9px;
+}
+
+.extension-install-list li {
+  border-radius: 11px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 66%, transparent);
+  background: color-mix(in srgb, var(--bg-card-elevated) 70%, transparent);
+  padding: 10px 11px;
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  align-items: start;
+  gap: 10px;
+}
+
+.extension-install-step-number {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--brand-primary) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 44%, transparent);
+  color: var(--brand-primary);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.extension-install-list p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.extension-install-note {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 70%, transparent);
+  background: color-mix(in srgb, var(--bg-card-elevated) 68%, transparent);
+}
+
+.legal-section code {
+  border-radius: 8px;
+  padding: 1px 6px;
+  background: color-mix(in srgb, var(--bg-card-elevated) 78%, transparent);
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 68%, transparent);
+  color: var(--text-primary);
+  font-family: "SFMono-Regular", ui-monospace, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.86em;
+}
+
 /* Jobs table polish */
 .table-wrap {
   overflow-x: auto;
@@ -9697,6 +10055,44 @@ tr:hover td {
     right: 10px;
   }
 
+  .legal-page {
+    padding-top: 70px;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .legal-card {
+    border-radius: 14px;
+    padding: 18px 14px;
+  }
+
+  .extension-install-actions {
+    width: 100%;
+  }
+
+  .extension-install-actions .lv-btn {
+    width: 100%;
+  }
+
+  .extension-install-hero {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .extension-install-visual-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .extension-install-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .legal-section p,
+  .legal-section li {
+    font-size: 0.9rem;
+  }
+
   .lp-container {
     padding: 0 16px;
   }
@@ -11774,31 +12170,27 @@ tr:hover td {
   gap: 20px;
 }
 
-.lv-footer-mini-links {
+.lv-footer-mini-legal {
   display: inline-flex;
   align-items: center;
-  gap: 24px;
+  gap: 10px;
 }
 
-.lv-footer-mini-links a {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+.lv-footer-mini-legal a {
   text-decoration: none;
-  color: var(--text-muted);
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  font-weight: 600;
   transition: color 0.18s ease;
 }
 
-.lv-footer-mini-links a:hover {
+.lv-footer-mini-legal a:hover {
   color: var(--text-primary);
 }
 
-.lv-footer-mini-links svg {
-  width: 13px;
-  height: 13px;
+.lv-footer-mini-legal span {
+  color: var(--text-muted);
+  font-size: 0.74rem;
 }
 
 .lv-footer-theme-toggle.theme-toggle {
@@ -12135,10 +12527,17 @@ tr:hover td {
   .lv-footer-mini-actions {
     width: 100%;
     justify-content: space-between;
+    flex-wrap: wrap;
+    row-gap: 10px;
   }
 
-  .lv-footer-mini-links {
-    gap: 14px;
+  .lv-footer-mini-legal {
+    gap: 8px;
+    order: 1;
+  }
+
+  .lv-footer-mini-legal a {
+    font-size: 0.72rem;
   }
 
   .lv-social-proof-logo {
