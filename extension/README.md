@@ -1,6 +1,28 @@
 # Atriveo Job Assistant (Chrome Extension)
 
-`Atriveo Job Assistant` is a Manifest V3 Chrome extension that detects ATS job pages (Workday, Greenhouse, Lever), extracts job data, and prepares a payload that matches your **New Application** flow.
+`Atriveo Job Assistant` is a Manifest V3 Chrome extension that detects ATS job pages, extracts job data, and prepares a payload that matches your **New Application** flow.
+
+Current ATS coverage:
+
+- Workday
+- Greenhouse
+- Lever
+- ApplyToJob
+- Ashby
+- SmartRecruiters
+- iCIMS
+- Jobvite
+- BambooHR
+- JazzHR
+- Oracle Taleo
+- SAP SuccessFactors
+- ADP Recruiting
+- Paylocity Recruiting
+- Teamtailor
+- Recruitee
+- Workable
+- JobScore
+- ClearCompany
 
 ## Backend Contract (Locked)
 
@@ -120,7 +142,7 @@ Referral behavior:
 
 ## Test on Job Pages
 
-1. Open a job posting on Workday, Greenhouse, or Lever.
+1. Open a job posting on any supported ATS page.
 2. Open the extension popup.
 3. Verify extracted fields and notes render.
 4. If logged out:
@@ -158,8 +180,8 @@ Run these checks before release:
   - Right button shows `Add Application`
   - Submitting creates row in `jobs` table and updates dashboard
 - Unsupported page:
-  - Shows `Unsupported page`
-  - Submit action disabled
+  - Manual entry is allowed
+  - Add Application works after required fields are filled
 - Duplicate submit:
   - Same job link (or same job id+company+role) returns duplicate message
 - Required field validation:

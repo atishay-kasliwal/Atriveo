@@ -122,6 +122,8 @@
   const cleanCompanyName = (value = "") => {
     let text = normalizeText(value);
     text = text.replace(/^jobs?\s+at\s+/i, "");
+    text = text.replace(/^at\s+/i, "");
+    text = text.replace(/^at(?=[A-Z])/, ""); // Case-sensitive to handle "atRoku" but not strip "Atlassian" or "atlassian"
     text = text.replace(/\s+[|:-]\s+careers?.*$/i, "");
     text = text.replace(/\s+[|:-]\s+jobs?.*$/i, "");
     return normalizeText(text);
@@ -149,6 +151,36 @@
     };
 
     return map[text] || (/[A-Z]{3}/.test(text) ? text : "");
+  };
+
+
+  const inferLocationType = (text = "") => {
+    const raw = String(text || "").toLowerCase();
+    if (!raw) return "";
+    if (/\b(?:remote|work from home|wfh|telecommute)\b/i.test(raw)) return "Remote";
+    if (/\b(?:hybrid)\b/i.test(raw)) return "Hybrid";
+    if (/\b(?:on-site|onsite|in-office|in office)\b/i.test(raw)) return "On-site";
+    return "";
+  };
+
+  const inferDepartment = (text = "") => {
+    const raw = String(text || "").toLowerCase();
+    if (!raw) return "";
+    
+    const departments = [
+      "Engineering", "Design", "Product", "Sales", "Marketing", "Finance",
+      "Human Resources", "HR", "Operations", "Legal", "Customer Support",
+      "Customer Success", "IT", "Data Science", "Analytics"
+    ];
+
+    // Find the first department name that appears as a standalone word.
+    for (const dept of departments) {
+      const regex = new RegExp(`\\b${dept}\\b`, "i");
+      if (regex.test(raw)) {
+        return dept;
+      }
+    }
+    return "";
   };
 
   const normalizePeriod = (value = "") => {
@@ -310,6 +342,8 @@
     const url = normalizeText(fields.url || window.location.href);
     const applicationStatus = cleanApplicationStatus(fields.application_status || "");
     const notes = normalizeText(fields.notes || "");
+    const locationType = normalizeText(fields.location_type || "") || inferLocationType(`${jobDescription} ${jobTitle} ${fields.location || ""}`);
+    const department = normalizeText(fields.department || "") || inferDepartment(`${jobDescription} ${jobTitle}`);
 
     return {
       job_title: jobTitle,
@@ -330,11 +364,16 @@
       period: normalizePeriod(salaryPeriod),
       notes,
       application_status: applicationStatus || "Not Applied",
+      location_type: locationType,
+      department,
       url,
       job_posting_url: url,
       ats_platform: normalizeText(fields.ats_platform || "")
     };
   };
+
+  const isUuidLike = (value = "") =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 
   const extractJobIdFromUrl = (href = window.location.href) => {
     try {
@@ -342,32 +381,36 @@
       const fromQuery =
         url.searchParams.get("jobId") ||
         url.searchParams.get("job_id") ||
-        url.searchParams.get("gh_jid");
+        url.searchParams.get("gh_jid") ||
+        url.searchParams.get("token");
 
-      if (fromQuery) return normalizeText(fromQuery);
+      if (fromQuery && !isUuidLike(fromQuery)) return normalizeText(fromQuery);
 
       let fallback = "";
       const segments = url.pathname.split("/").filter(Boolean).reverse();
       for (const segment of segments) {
         const cleaned = normalizeText(decodeURIComponent(segment));
         if (!cleaned) continue;
-        if (/^(jobs?|careers?|posting|job)$/i.test(cleaned)) continue;
+        if (/^(jobs?|careers?|posting|job|apply)$/i.test(cleaned)) continue;
+
+        // Skip UUID-like segments — they are posting identifiers, not job IDs.
+        if (isUuidLike(cleaned)) continue;
 
         // Prefer IDs that contain digits (e.g. R106021, 12345, DEV-9876).
         const embeddedId = cleaned.match(/\b([A-Za-z]*\d{3,}[A-Za-z0-9-]*)\b/);
-        if (embeddedId?.[1]) {
+        if (embeddedId?.[1] && !isUuidLike(embeddedId[1])) {
           return normalizeText(embeddedId[1]);
         }
 
         // Workday-style slugs often contain title + "_" + requisition token.
         const underscoredParts = cleaned.split("_").filter(Boolean).reverse();
         for (const part of underscoredParts) {
-          if (/\b[A-Za-z]*\d{3,}[A-Za-z0-9-]*\b/.test(part)) {
+          if (/\b[A-Za-z]*\d{3,}[A-Za-z0-9-]*\b/.test(part) && !isUuidLike(part)) {
             return normalizeText(part);
           }
         }
 
-        if (!fallback && /^[A-Za-z0-9_-]{3,}$/.test(cleaned)) {
+        if (!fallback && /^[A-Za-z0-9_-]{3,}$/.test(cleaned) && !isUuidLike(cleaned)) {
           fallback = cleaned;
         }
       }
@@ -380,18 +423,28 @@
     return "";
   };
 
+  const ATS_DOMAIN_FRAGMENTS = new Set([
+    "greenhouse", "lever", "myworkdayjobs", "ashbyhq",
+    "smartrecruiters", "icims", "jobvite", "bamboohr",
+    "jazzhr", "taleo", "successfactors", "adp",
+    "paylocity", "teamtailor", "recruitee", "workable",
+    "jobscore", "clearcompany", "applytojob"
+  ]);
+
   const getHostnameLabel = () => {
     const host = (window.location.hostname || "").toLowerCase();
     const parts = host.split(".").filter(Boolean);
-    const ignored = new Set(["www", "jobs", "job", "careers", "career"]);
+    const ignored = new Set(["www", "jobs", "job", "careers", "career", "com", "co", "io", "net"]);
+
+    const isAtsDomain = (part) => {
+      for (const fragment of ATS_DOMAIN_FRAGMENTS) {
+        if (part.includes(fragment)) return true;
+      }
+      return false;
+    };
 
     for (const part of parts) {
-      if (
-        !ignored.has(part) &&
-        !part.includes("greenhouse") &&
-        !part.includes("lever") &&
-        !part.includes("myworkdayjobs")
-      ) {
+      if (!ignored.has(part) && !isAtsDomain(part)) {
         return part.charAt(0).toUpperCase() + part.slice(1);
       }
     }
@@ -415,6 +468,10 @@
     getTextBySelectors,
     getTextListBySelectors,
     inferEmploymentType,
+    inferLocationType,
+    inferDepartment,
+    inferCurrencyFromText,
+    inferPeriodFromText,
     makeJobObject,
     normalizeCurrency,
     normalizePeriod,

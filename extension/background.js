@@ -19,7 +19,44 @@ const WEB_TAB_PATTERNS = [
   "https://www.atriveo.com/*",
   "https://atriveo.com/*"
 ];
-const asText = (value) => String(value || "").trim();
+const asText = (value) => {
+  const text = String(value || "").trim();
+  return text === "-" ? "" : text;
+};
+
+const inferAtsPlatformFromUrl = (url = "") => {
+  const source = asText(url).toLowerCase();
+  if (!source) return "";
+
+  const platformMatchers = [
+    { token: "myworkdayjobs.com", platform: "workday" },
+    { token: "greenhouse.io", platform: "greenhouse" },
+    { token: "lever.co", platform: "lever" },
+    { token: "applytojob.com", platform: "applytojob" },
+    { token: "ashbyhq.com", platform: "ashby" },
+    { token: "smartrecruiters.com", platform: "smartrecruiters" },
+    { token: "icims.com", platform: "icims" },
+    { token: "jobvite.com", platform: "jobvite" },
+    { token: "bamboohr.com", platform: "bamboohr" },
+    { token: "jazzhr.com", platform: "jazzhr" },
+    { token: "taleo.net", platform: "taleo" },
+    { token: "successfactors.com", platform: "successfactors" },
+    { token: "jobs.sap.com", platform: "successfactors" },
+    { token: "adp.com", platform: "adp" },
+    { token: "paylocity.com", platform: "paylocity" },
+    { token: "teamtailor.com", platform: "teamtailor" },
+    { token: "recruitee.com", platform: "recruitee" },
+    { token: "workable.com", platform: "workable" },
+    { token: "jobscore.com", platform: "jobscore" },
+    { token: "clearcompany.com", platform: "clearcompany" }
+  ];
+
+  for (const matcher of platformMatchers) {
+    if (source.includes(matcher.token)) return matcher.platform;
+  }
+
+  return "";
+};
 
 const normalizeApiBaseUrl = (value = "") =>
   asText(value)
@@ -274,8 +311,10 @@ const normalizeExtractedJob = (job = {}) => {
   const period = asText(job.period || job.salary_period);
   const applicationStatus = asText(job.application_status || "Not Applied");
   const url = asText(job.url || job.job_posting_url);
-  const atsPlatform = asText(job.ats_platform);
+  const atsPlatform = asText(job.ats_platform) || inferAtsPlatformFromUrl(url);
   const extractorNotes = asText(job.notes);
+  const locationType = asText(job.location_type);
+  const department = asText(job.department);
   const capturedAt = new Date().toISOString();
 
   const knownKeys = new Set([
@@ -299,7 +338,9 @@ const normalizeExtractedJob = (job = {}) => {
     "notes",
     "url",
     "job_posting_url",
-    "ats_platform"
+    "ats_platform",
+    "location_type",
+    "department"
   ]);
 
   const additionalMetadata = {};
@@ -327,6 +368,8 @@ const normalizeExtractedJob = (job = {}) => {
     period,
     application_status: applicationStatus,
     extractor_notes: extractorNotes,
+    location_type: locationType,
+    department,
     url,
     ats_platform: atsPlatform,
     additional_metadata: additionalMetadata,
@@ -342,6 +385,8 @@ const buildNotesFromExtractedJob = (job) => {
   if (job.employment_type && job.employment_type !== job.job_type) {
     lines.push(`Employment Type: ${job.employment_type}`);
   }
+  if (job.location_type) lines.push(`Location Type: ${job.location_type}`);
+  if (job.department) lines.push(`Department: ${job.department}`);
   if (job.salary_min) lines.push(`Min Salary: ${job.salary_min}`);
   if (job.salary_max) lines.push(`Max Salary: ${job.salary_max}`);
   if (job.currency) lines.push(`Currency: ${job.currency}`);
@@ -511,13 +556,49 @@ const prepareBackendPayload = (job, newApplicationPayload) => ({
   new_application: newApplicationPayload
 });
 
+const createManualRecord = (url, application = {}) => {
+  const sourceUrl = asText(url) || asText(application.job_link);
+  if (!sourceUrl) return null;
+
+  const extractedJob = normalizeExtractedJob({
+    job_title: application.job_title,
+    company: application.company,
+    job_id: application.job_application_id,
+    url: sourceUrl,
+    ats_platform: inferAtsPlatformFromUrl(sourceUrl) || "manual"
+  });
+  const fallbackPayload = buildNewApplicationPayload(extractedJob);
+  const newApplicationPayload = sanitizeNewApplicationPayload(
+    {
+      ...fallbackPayload,
+      ...application
+    },
+    buildNotesFromExtractedJob(extractedJob)
+  );
+
+  return {
+    extracted_job: extractedJob,
+    payload_version: EXTENSION_CONTRACT.version,
+    new_application_payload: newApplicationPayload,
+    captured_at: extractedJob.captured_at
+  };
+};
+
 const persistJob = async (incomingJob) => {
   const extractedJob = normalizeExtractedJob(incomingJob);
   if (!extractedJob.url) {
     throw new Error("Missing URL in extracted job payload.");
   }
 
-  const newApplicationPayload = buildNewApplicationPayload(extractedJob);
+  const existing = await chrome.storage.local.get([STORAGE_KEYS.JOBS_BY_URL]);
+  const jobsByUrl = existing[STORAGE_KEYS.JOBS_BY_URL] || {};
+  const existingRecord = jobsByUrl[extractedJob.url] || null;
+
+  const defaultPayload = buildNewApplicationPayload(extractedJob);
+  const newApplicationPayload = sanitizeNewApplicationPayload(
+    defaultPayload,
+    buildNotesFromExtractedJob(extractedJob)
+  );
   const preparedPayload = prepareBackendPayload(extractedJob, newApplicationPayload);
   const record = {
     extracted_job: extractedJob,
@@ -526,8 +607,6 @@ const persistJob = async (incomingJob) => {
     captured_at: extractedJob.captured_at
   };
 
-  const existing = await chrome.storage.local.get([STORAGE_KEYS.JOBS_BY_URL]);
-  const jobsByUrl = existing[STORAGE_KEYS.JOBS_BY_URL] || {};
   jobsByUrl[extractedJob.url] = record;
 
   await chrome.storage.local.set({
@@ -578,6 +657,52 @@ const saveRecord = async (record) => {
   await chrome.storage.local.set(updates);
 };
 
+const updateApplicationDraft = async ({ url, application = {} }) => {
+  const sourceUrl = asText(url);
+  if (!sourceUrl) throw new Error("Missing URL.");
+
+  const existingRecord = await getRecordForUrl(sourceUrl);
+  const record = existingRecord || createManualRecord(sourceUrl, application);
+  if (!record) throw new Error("Unable to prepare application draft.");
+
+  const fallbackNotes = buildNotesFromExtractedJob(record.extracted_job || {});
+  const payload = sanitizeNewApplicationPayload(
+    {
+      ...(record.new_application_payload || {}),
+      ...application
+    },
+    fallbackNotes
+  );
+
+  const updatedRecord = {
+    ...record,
+    extracted_job: {
+      ...(record.extracted_job || {}),
+      url: asText(record?.extracted_job?.url) || sourceUrl,
+      ats_platform:
+        asText(record?.extracted_job?.ats_platform) ||
+        inferAtsPlatformFromUrl(sourceUrl) ||
+        "manual",
+      job_title: asText(record?.extracted_job?.job_title) || payload.job_title,
+      company: asText(record?.extracted_job?.company) || payload.company,
+      job_id: asText(record?.extracted_job?.job_id) || payload.job_application_id
+    },
+    new_application_payload: payload,
+    payload_version: EXTENSION_CONTRACT.version,
+    captured_at: asText(record?.captured_at) || new Date().toISOString()
+  };
+
+  await saveRecord(updatedRecord);
+
+  const preparedPayload = prepareBackendPayload(updatedRecord.extracted_job, payload);
+  await chrome.storage.local.set({
+    [STORAGE_KEYS.PREPARED_PAYLOAD]: preparedPayload,
+    [STORAGE_KEYS.LAST_UPDATED]: Date.now()
+  });
+
+  return { record: updatedRecord, preparedPayload };
+};
+
 const submitApplication = async ({ url, keyword_match, referral_name, application = {} }) => {
   const session = await getAuthSession();
   if (!session?.token) {
@@ -586,9 +711,13 @@ const submitApplication = async ({ url, keyword_match, referral_name, applicatio
     throw error;
   }
 
-  const record = await getRecordForUrl(asText(url));
+  const sourceUrl = asText(url);
+  let record = await getRecordForUrl(sourceUrl);
+  if (!record) {
+    record = createManualRecord(sourceUrl, application);
+  }
   if (!record?.new_application_payload) {
-    throw new Error("No extracted job payload available for this tab.");
+    throw new Error("No application draft available for this tab.");
   }
 
   const payload = sanitizeNewApplicationPayload(
@@ -616,6 +745,17 @@ const submitApplication = async ({ url, keyword_match, referral_name, applicatio
   if (existing) {
     const updatedRecord = {
       ...record,
+      extracted_job: {
+        ...(record.extracted_job || {}),
+        url: asText(record?.extracted_job?.url) || sourceUrl || payload.job_link,
+        ats_platform:
+          asText(record?.extracted_job?.ats_platform) ||
+          inferAtsPlatformFromUrl(sourceUrl || payload.job_link) ||
+          "manual",
+        job_title: asText(record?.extracted_job?.job_title) || payload.job_title,
+        company: asText(record?.extracted_job?.company) || payload.company,
+        job_id: asText(record?.extracted_job?.job_id) || payload.job_application_id
+      },
       new_application_payload: payload
     };
     await saveRecord(updatedRecord);
@@ -657,6 +797,17 @@ const submitApplication = async ({ url, keyword_match, referral_name, applicatio
 
   const updatedRecord = {
     ...record,
+    extracted_job: {
+      ...(record.extracted_job || {}),
+      url: asText(record?.extracted_job?.url) || sourceUrl || payload.job_link,
+      ats_platform:
+        asText(record?.extracted_job?.ats_platform) ||
+        inferAtsPlatformFromUrl(sourceUrl || payload.job_link) ||
+        "manual",
+      job_title: asText(record?.extracted_job?.job_title) || payload.job_title,
+      company: asText(record?.extracted_job?.company) || payload.company,
+      job_id: asText(record?.extracted_job?.job_id) || payload.job_application_id
+    },
     new_application_payload: payload
   };
   await saveRecord(updatedRecord);
@@ -745,6 +896,17 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     syncWebSession()
       .then((status) => sendResponse({ ok: true, ...status }))
       .catch((error) => sendResponse({ ok: false, authenticated: false, error: error.message }));
+
+    return true;
+  }
+
+  if (type === "UPDATE_APPLICATION_DRAFT") {
+    updateApplicationDraft({
+      url: message.url,
+      application: message.application || {}
+    })
+      .then(({ record }) => sendResponse({ ok: true, record }))
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
 
     return true;
   }

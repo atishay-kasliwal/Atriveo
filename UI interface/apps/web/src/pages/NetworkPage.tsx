@@ -1,17 +1,21 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Area, Bar, BarChart, CartesianGrid, Cell, LabelList, Line, LineChart, ReferenceDot, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Cell, LabelList, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import Spinner from "../components/Spinner";
 import ManageSharedFieldsModal from "../components/network/ManageSharedFieldsModal";
 import TargetSignalsCarousel from "../components/network/TargetSignalsCarousel";
+import WeeklyCompetitionChart from "../components/network/WeeklyCompetitionChart";
+import { BADGES, BADGE_CATEGORY_LABEL, BADGE_TIERS, type BadgeCategory } from "../constants/badges";
 import {
   createJob,
   getNetworkFieldVisibility,
   getNetworkToday,
   getNetworkTrend,
+  getTargetProgress,
   updateNetworkFieldVisibility,
   type NetworkFieldVisibility,
   type NetworkTodayFriend,
   type NetworkTrendFriend,
+  type TargetProgress,
 } from "../lib/api";
 import { formatTableDateTime, getLocalISODate } from "../lib/formatDate";
 import { buildNetworkTickerFacts } from "../lib/networkTicker";
@@ -23,6 +27,7 @@ import {
   trackLifecycleMilestone,
   trackProductEvent,
 } from "../analytics/events";
+import { getEarnedBadgeIds, getEarnedBadges } from "../lib/badgeLogic";
 
 const ENTERPRISE_CHART_COLORS = [
   "#2563EB",
@@ -36,15 +41,8 @@ const ENTERPRISE_CHART_COLORS = [
   "#7A8FB4",
   "#6B7FA3",
 ];
-const NETWORK_TREND_COLORS = [
-  ENTERPRISE_CHART_COLORS[0],
-  ENTERPRISE_CHART_COLORS[1],
-  ENTERPRISE_CHART_COLORS[2],
-  ENTERPRISE_CHART_COLORS[3],
-  ENTERPRISE_CHART_COLORS[5],
-  ENTERPRISE_CHART_COLORS[8],
-];
-const MAX_NETWORK_TREND_FRIENDS = 5;
+const MAX_NETWORK_BOARD_ENTRIES = 11; // You + up to 10 friends
+const MAX_NETWORK_TODAY_BARS = 5;
 const NETWORK_CHART_THEME = {
   grid: "var(--network-chart-grid, var(--chart-grid))",
   tooltipBg: "var(--chart-tooltip-bg)",
@@ -54,6 +52,8 @@ const NETWORK_CHART_THEME = {
   textSecondary: "var(--chart-text-secondary)",
   textPrimary: "var(--chart-text)",
   accentSoft: "var(--accent-soft)",
+  accentDim: "var(--accent-dim)",
+  textMain: "var(--chart-text)",
 };
 const WEEKLY_LINE_PALETTE = [
   ENTERPRISE_CHART_COLORS[0],
@@ -198,46 +198,6 @@ function NetworkInsightBarTooltip({
   );
 }
 
-function NetworkWeeklyTooltip({
-  active,
-  label,
-  payload,
-}: {
-  active?: boolean;
-  label?: string | number;
-  payload?: Array<{ name?: string; value?: number; color?: string }>;
-}) {
-  if (!active || !payload?.length) return null;
-  const rows = payload
-    .map((p) => ({
-      name: String(p.name ?? ""),
-      value: Number(p.value ?? 0),
-      color: String(p.color ?? "var(--chart-text-secondary)"),
-    }))
-    .filter((r) => r.name)
-    .sort((a, b) => b.value - a.value);
-
-  return (
-    <div
-      style={{
-        background: NETWORK_CHART_THEME.tooltipBg,
-        border: `1px solid ${NETWORK_CHART_THEME.tooltipBorder}`,
-        borderRadius: 8,
-        padding: "10px 12px",
-        minWidth: 190,
-        boxShadow: NETWORK_CHART_THEME.tooltipShadow,
-      }}
-    >
-      <p style={{ margin: "0 0 8px", color: "var(--chart-text)", fontSize: 12, fontWeight: 700 }}>{String(label ?? "")}</p>
-      {rows.map((row) => (
-        <p key={row.name} style={{ margin: "0 0 6px", color: row.color, fontSize: 12 }}>
-          {row.name}: <strong>{row.value}</strong>
-        </p>
-      ))}
-    </div>
-  );
-}
-
 function toDateInput(value: string | null | undefined): string {
   const raw = String(value ?? "").trim();
   if (!raw) return getLocalISODate();
@@ -329,12 +289,31 @@ function augmentDemoNetworkData(
   return { trend, today };
 }
 
+const networkLineGradientId = (key: string) => `networkLineGrad-${key}`;
+
+export const renderNetworkLineGradients = (keys: string[]) => {
+  if (keys.length === 0) return null;
+  return `
+    ${keys
+      .map(
+        (k) => `
+      <linearGradient id="${weeklyShadeGradientId(k)}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="${k === "self" ? "var(--accent)" : "var(--accent-soft)"}" stop-opacity="0.18" />
+        <stop offset="100%" stop-color="${k === "self" ? "var(--accent)" : "var(--accent-soft)"}" stop-opacity="0" />
+      </linearGradient>
+    `
+      )
+      .join("")}
+  `;
+};
+
 export default function NetworkPage() {
   const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
   const useTargetDemoFallback = params?.get("demoTargets") === "1" || params?.get("demoNetwork") === "1";
   const useNetworkDemoAugment = params?.get("demoNetwork") === "1";
   const [trendData, setTrendData] = useState<NetworkTrendFriend[]>([]);
   const [todayData, setTodayData] = useState<NetworkTodayFriend[]>([]);
+  const [targetProgress, setTargetProgress] = useState<TargetProgress | null>(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -346,6 +325,8 @@ export default function NetworkPage() {
   const [showFieldVisibilityModal, setShowFieldVisibilityModal] = useState(false);
   const [isSavingFieldVisibility, setIsSavingFieldVisibility] = useState(false);
   const [fieldVisibilityError, setFieldVisibilityError] = useState("");
+  const [selectedWeeklyCompareKey, setSelectedWeeklyCompareKey] = useState("");
+  const [showBadgeGallery, setShowBadgeGallery] = useState(false);
   const [fieldVisibility, setFieldVisibility] = useState<NetworkFieldVisibility>({
     share_company: true,
     share_role: true,
@@ -375,10 +356,11 @@ export default function NetworkPage() {
     try {
       setError("");
       setIsLoading(true);
-      const [trendRes, todayRes, visibilityRes] = await Promise.all([
+      const [trendRes, todayRes, visibilityRes, targetRes] = await Promise.all([
         getNetworkTrend(10),
         getNetworkToday(),
         getNetworkFieldVisibility(),
+        getTargetProgress().catch(() => null),
       ]);
       const augmented = useNetworkDemoAugment
         ? augmentDemoNetworkData(trendRes.data ?? [], todayRes.data ?? [])
@@ -395,10 +377,12 @@ export default function NetworkPage() {
           ),
         );
       }
+      setTargetProgress(targetRes);
     } catch (e) {
       setError((e as Error).message);
       setTrendData([]);
       setTodayData([]);
+      setTargetProgress(null);
     } finally {
       setIsLoading(false);
     }
@@ -613,35 +597,31 @@ export default function NetworkPage() {
       .sort((a, b) => b.avgPerDay - a.avgPerDay);
     const selfEntry = ranked.find((entry) => entry.is_self);
     const others = ranked.filter((entry) => !entry.is_self);
-    const selectedBase = selfEntry
-      ? [selfEntry, ...others.slice(0, Math.max(0, MAX_NETWORK_TREND_FRIENDS - 1))]
-      : others.slice(0, MAX_NETWORK_TREND_FRIENDS);
-    const selected = selectedBase.map((friend, idx) => ({
+    const boardBase = selfEntry ? [selfEntry, ...others] : others;
+    const selected = boardBase.slice(0, MAX_NETWORK_BOARD_ENTRIES).map((friend, idx) => ({
       ...friend,
       key: `friend_${friend.friend_id}`,
       label: friend.is_self ? "You" : String(friend.friend_name || friend.friend_email),
-      color: NETWORK_TREND_COLORS[idx % NETWORK_TREND_COLORS.length],
+      color: ENTERPRISE_CHART_COLORS[idx % ENTERPRISE_CHART_COLORS.length],
       initials: initialsFromNameOrEmail(friend.friend_name, friend.friend_email),
     }));
     const weekStart = weekStartIsoUtc(todayIso);
     const last7Days = Array.from({ length: 7 }, (_, i) => isoDayAddDays(weekStart, i));
 
-    const todayRows = selected
+    const todayRowsAll = selected
       .map((friend) => ({
-        key: friend.key,
-        initials: friend.initials,
-        label: friend.label,
-        color: friend.color,
+        ...friend,
         total: Number(friend.trend.find((point) => point.day === todayIso)?.total ?? 0),
       }))
       .sort((a, b) => b.total - a.total);
+    const todayRowsActive = todayRowsAll.filter((row) => row.total > 0);
+    const todayRowsBase = todayRowsActive.length ? todayRowsActive : todayRowsAll;
+    const todayRows = todayRowsBase.slice(0, MAX_NETWORK_TODAY_BARS);
 
-    const leaderCount = todayRows.length ? todayRows[0].total : 0;
+    const leaderCount = todayRowsAll.length ? todayRowsAll[0].total : 0;
     const todayAverage = todayRows.length ? todayRows.reduce((sum, row) => sum + row.total, 0) / todayRows.length : 0;
-    const todayMax = todayRows.length ? todayRows[0].total : 0;
-    const leaders = leaderCount > 0 ? todayRows.filter((row) => row.total === leaderCount) : [];
-    const isTieLeader = leaders.length > 1;
-    const hasSingleLeader = leaders.length === 1;
+    const todayMax = todayRowsAll.length ? todayRowsAll[0].total : 0;
+    const leaders = leaderCount > 0 ? todayRowsAll.filter((row) => row.total === leaderCount) : [];
     const todayRowsWithLeader = todayRows.map((row) => ({
       ...row,
       isLeader: leaderCount > 0 && row.total === leaderCount,
@@ -691,20 +671,50 @@ export default function NetworkPage() {
       behindLeader: Math.max(0, leaderTotal7d - row.total),
       lineColor: WEEKLY_LINE_PALETTE[index % WEEKLY_LINE_PALETTE.length],
     }));
-    const selfWeekly = weeklyLeaderboard.find((row) => row.isSelf);
-    const leaderWeekly = weeklyLeaderboard[0];
-    const weeklyShadeKeys = [
-      ...(selfWeekly ? [selfWeekly.key] : []),
-      ...(leaderWeekly && leaderWeekly.key !== selfWeekly?.key ? [leaderWeekly.key] : []),
-    ];
+    const previousWeekStart = isoDayAddDays(weekStart, -7);
+    const previousWeekDays = Array.from({ length: 7 }, (_, i) => isoDayAddDays(previousWeekStart, i));
+    const previousWeekLeaderboard = selected
+      .map((friend) => {
+        const total = previousWeekDays.reduce(
+          (sum, day) => sum + Number(friend.trend.find((point) => point.day === day)?.total ?? 0),
+          0,
+        );
+        return {
+          key: friend.key,
+          isSelf: Boolean(friend.is_self),
+          total,
+        };
+      })
+      .sort((a, b) => b.total - a.total)
+      .map((row, index) => ({ ...row, rank: index + 1 }));
+    const hasPreviousWeekData = previousWeekLeaderboard.some((row) => row.total > 0);
+    const selfCurrentRank = weeklyLeaderboard.find((row) => row.isSelf)?.rank ?? null;
+    const selfPreviousRank = hasPreviousWeekData
+      ? (previousWeekLeaderboard.find((row) => row.isSelf)?.rank ?? null)
+      : null;
+    const selfRankChange =
+      selfCurrentRank && selfPreviousRank
+        ? selfPreviousRank - selfCurrentRank
+        : null;
+    const selfWeekly = weeklyLeaderboard.find((row) => row.isSelf) ?? null;
+    const topOtherWeekly = weeklyLeaderboard.find((row) => !row.isSelf) ?? null;
+    const weeklyTrendFriendsRaw =
+      selfWeekly && topOtherWeekly
+        ? [selfWeekly, topOtherWeekly]
+        : weeklyLeaderboard.slice(0, Math.min(2, weeklyLeaderboard.length));
+    const weeklyTrendFriends = weeklyTrendFriendsRaw.map((friend, idx) => ({
+      ...friend,
+      lineColor: idx === 0 ? ENTERPRISE_CHART_COLORS[0] : ENTERPRISE_CHART_COLORS[2],
+    }));
+    const weeklyShadeKeys = weeklyTrendFriends.map((friend) => friend.key);
     const weeklyColorByKey = new Map(weeklyLeaderboard.map((row) => [row.key, row.lineColor]));
     const todayRowsAligned = todayRowsWithLeader.map((row) => ({
       ...row,
-      color: weeklyColorByKey.get(row.key) ?? row.color,
+      color: row.isLeader ? ENTERPRISE_CHART_COLORS[0] : weeklyColorByKey.get(row.key) ?? row.color,
     }));
     const weeklyDailyRows = last7Days.map((day, dayIndex) => {
       const row: Record<string, string | number> = { day, label: formatWeekdayShort(day) };
-      weeklyLeaderboard.forEach((friend) => {
+      weeklyTrendFriends.forEach((friend) => {
         row[friend.key] = Number(friend.dayValues[dayIndex] ?? 0);
       });
       return row;
@@ -713,17 +723,17 @@ export default function NetworkPage() {
       {
         day: "__start__",
         label: "0",
-        ...Object.fromEntries(weeklyLeaderboard.map((friend) => [friend.key, 0])),
+        ...Object.fromEntries(weeklyTrendFriends.map((friend) => [friend.key, 0])),
       },
       ...weeklyDailyRows,
     ];
     const todayDow = utcDateFromIsoDay(todayIso)?.getUTCDay() ?? 1; // default Monday
     const todayWeekIndex = Math.max(0, Math.min(6, (todayDow + 6) % 7));
-    const passedDayLabels = weeklyDailyRows.slice(0, todayWeekIndex + 1).map((row) => String(row.label ?? ""));
+    const passedDayLabels = weeklyDailyRows.slice(0, todayWeekIndex).map((row) => String(row.label ?? ""));
     const historicalDots = weeklyDailyRows
       .slice(0, todayWeekIndex + 1)
       .flatMap((row) =>
-        weeklyLeaderboard.map((friend) => ({
+        weeklyTrendFriends.map((friend) => ({
           dayLabel: String(row.label ?? ""),
           y: Number(row[friend.key] ?? 0),
           color: friend.lineColor,
@@ -732,7 +742,7 @@ export default function NetworkPage() {
       );
     const weeklyEndLabels = (() => {
       if (!weeklyDailyRows.length) return [] as Array<{ key: string; label: string; shortLabel: string; lineColor: string; y: number; dy: number; isLeader: boolean; dayValue: number; dayLabel: string }>;
-      const rows = weeklyLeaderboard
+      const rows = weeklyTrendFriends
         .map((friend) => {
           let lastPositiveIndex = -1;
           for (let idx = weeklyDailyRows.length - 1; idx >= 0; idx -= 1) {
@@ -754,19 +764,22 @@ export default function NetworkPage() {
             dayValue,
             y: dayValue,
             dayLabel: String(sourceRow.label ?? ""),
-            dy: -10,
+            dy: -10, // Default initial offset
           };
         })
         .filter((row): row is { key: string; label: string; shortLabel: string; lineColor: string; y: number; dy: number; isLeader: boolean; dayValue: number; dayLabel: string } => Boolean(row))
         .sort((a, b) => b.y - a.y);
-      const closeThreshold = 7;
+      
+      // Algorithm to spread out converging end-labels vertically
+      const closeThreshold = 1.0; // Y-values distance to consider "overlapping"
       for (let i = 1; i < rows.length; i += 1) {
         const prev = rows[i - 1];
         const curr = rows[i];
         if (Math.abs(prev.y - curr.y) <= closeThreshold) {
-          // Only nudge labels when two lines are truly close; otherwise keep default placement.
-          if (prev.dy === -10) prev.dy = -15;
-          curr.dy = -5;
+          // If the current line's label overlaps with the previous (higher) one, push it down
+          // and push the higher one up to create vertical separation
+          if (prev.dy === -10) prev.dy = -16;
+          curr.dy += 12;
         }
       }
       return rows;
@@ -775,17 +788,28 @@ export default function NetworkPage() {
     return {
       selected,
       todayRows: todayRowsAligned,
+      todayRowsAll,
       todayLeader: {
         leaderCount,
         names: leaders.map((row) => row.label),
-        hasSingleLeader,
-        isTieLeader,
+        hasSingleLeader: leaders.length === 1,
+        isTieLeader: leaders.length > 1,
       },
       todayStats: {
         average: todayAverage,
         max: todayMax,
+        total: todayRowsAll.reduce((sum, row) => sum + row.total, 0),
+        hiddenCount: Math.max(0, todayRowsActive.length - todayRowsAligned.length),
+        isUserLeader: todayRowsAll.some((row) => row.is_self && row.total === leaderCount && leaderCount > 0),
       },
       weeklyLeaderboard,
+      weeklySelfRankSnapshot: {
+        currentRank: selfCurrentRank,
+        previousRank: selfPreviousRank,
+        change: selfRankChange,
+      },
+      weeklyTrendFriends,
+      weeklyComparatorLabel: weeklyTrendFriends.find((row) => !row.isSelf)?.displayName ?? "Top friend",
       weeklyShadeKeys,
       weeklyDailyRows,
       weeklySeriesRows,
@@ -794,9 +818,79 @@ export default function NetworkPage() {
       historicalDots,
     };
   }, [trendData]);
+
+  const compareFriendOptions = useMemo(
+    () =>
+      insightCharts.weeklyLeaderboard
+        .filter((row) => !row.isSelf)
+        .map((row) => ({
+          key: row.key,
+          label: row.displayName,
+          total: row.total,
+        })),
+    [insightCharts.weeklyLeaderboard],
+  );
+  const compareSelectWidthCh = useMemo(() => {
+    const longestOptionLength = compareFriendOptions.reduce((maxLen, option) => {
+      const text = `${option.label} · ${option.total}`;
+      return Math.max(maxLen, text.length);
+    }, 0);
+    // Add room for caret and inner padding while clamping for very long names.
+    return Math.max(12, Math.min(30, longestOptionLength + 2));
+  }, [compareFriendOptions]);
+
+  useEffect(() => {
+    if (!compareFriendOptions.length) {
+      if (selectedWeeklyCompareKey) setSelectedWeeklyCompareKey("");
+      return;
+    }
+    const stillValid = compareFriendOptions.some((option) => option.key === selectedWeeklyCompareKey);
+    if (!stillValid) {
+      setSelectedWeeklyCompareKey(compareFriendOptions[0].key);
+    }
+  }, [compareFriendOptions, selectedWeeklyCompareKey]);
+
+  const weeklyCompetition = useMemo(() => {
+    const labels = insightCharts.weeklyDailyRows.map((row) => String(row.label ?? ""));
+    if (!labels.length) return null;
+
+    const you = insightCharts.weeklyLeaderboard.find((friend) => friend.isSelf) ?? insightCharts.weeklyLeaderboard[0];
+    const fallbackFriend = insightCharts.weeklyLeaderboard.find((friend) => !friend.isSelf) ?? null;
+    const selectedFriend =
+      insightCharts.weeklyLeaderboard.find((friend) => friend.key === selectedWeeklyCompareKey && !friend.isSelf)
+      ?? fallbackFriend;
+    if (!you || !selectedFriend || you.key === selectedFriend.key) return null;
+
+    const userValues = labels.map((_, index) => Number(you.dayValues[index] ?? 0));
+    const friendValues = labels.map((_, index) => Number(selectedFriend.dayValues[index] ?? 0));
+    const todayIso = getLocalISODate();
+    const todayRow = insightCharts.weeklyDailyRows.find((row) => String(row.day ?? "") === todayIso);
+    const todayLabel = String(todayRow?.label ?? labels[labels.length - 1] ?? "");
+    const goal = Number(targetProgress?.daily?.target ?? 0);
+    const userTotal = userValues.reduce((sum, value) => sum + value, 0);
+    const friendTotal = friendValues.reduce((sum, value) => sum + value, 0);
+    const weekLead = userTotal - friendTotal;
+    const todayIndex = Math.max(0, labels.indexOf(todayLabel));
+    const todayLead = Number(userValues[todayIndex] ?? 0) - Number(friendValues[todayIndex] ?? 0);
+
+    return {
+      labels,
+      userValues,
+      friendValues,
+      friendName: selectedFriend.displayName,
+      friendRank: selectedFriend.rank,
+      userTotal,
+      friendTotal,
+      weekLead,
+      todayLead,
+      todayLabel,
+      goalTarget: goal > 0 ? goal : null,
+    };
+  }, [insightCharts.weeklyDailyRows, insightCharts.weeklyLeaderboard, selectedWeeklyCompareKey, targetProgress?.daily?.target]);
+
   const tickerFacts = useMemo(() => {
     return buildNetworkTickerFacts({
-      todayRows: insightCharts.todayRows.map((row) => ({
+      todayRows: insightCharts.todayRowsAll.map((row) => ({
         label: row.label,
         total: row.total,
       })),
@@ -839,6 +933,103 @@ export default function NetworkPage() {
     });
     return rows;
   }, [todayData]);
+  const weeklySelfStreak = useMemo(() => {
+    const selfRow = insightCharts.weeklyLeaderboard.find((row) => row.isSelf);
+    if (!selfRow || !insightCharts.weeklyDailyRows.length) return null;
+
+    const labels = insightCharts.weeklyDailyRows.map((row) => String(row.label ?? ""));
+    const values = labels.map((_, idx) => Number(selfRow.dayValues[idx] ?? 0));
+    const todayIso = getLocalISODate();
+    const todayIndexRaw = insightCharts.weeklyDailyRows.findIndex((row) => String(row.day ?? "") === todayIso);
+    const todayIndex = todayIndexRaw >= 0 ? todayIndexRaw : Math.max(0, labels.length - 1);
+
+    let streakCount = 0;
+    for (let idx = todayIndex; idx >= 0; idx -= 1) {
+      if (values[idx] > 0) streakCount += 1;
+      else break;
+    }
+
+    const days = labels.map((label, idx) => ({
+      label,
+      isActive: idx <= todayIndex && values[idx] > 0,
+      isFuture: idx > todayIndex,
+    }));
+
+    return {
+      count: streakCount,
+      days,
+    };
+  }, [insightCharts.weeklyDailyRows, insightCharts.weeklyLeaderboard]);
+  const weeklyBoardLeader = insightCharts.weeklyLeaderboard[0] ?? null;
+  const weeklyBoardTopThree = insightCharts.weeklyLeaderboard.slice(0, 3);
+  const weeklyHeaderTotal = useMemo(() => {
+    const selfRow = insightCharts.weeklyLeaderboard.find((row) => row.isSelf) ?? null;
+    return Number((selfRow ?? weeklyBoardLeader)?.total ?? 0);
+  }, [insightCharts.weeklyLeaderboard, weeklyBoardLeader]);
+  const weeklyBoardLeadBy = useMemo(() => {
+    if (!weeklyBoardTopThree.length) return 0;
+    const leader = Number(weeklyBoardTopThree[0]?.total ?? 0);
+    const second = Number(weeklyBoardTopThree[1]?.total ?? 0);
+    return Math.max(0, leader - second);
+  }, [weeklyBoardTopThree]);
+  const badgeStats = useMemo(() => {
+    const selfRow = insightCharts.weeklyLeaderboard.find((row) => row.isSelf) ?? null;
+    return {
+      weeklyApplications: Number(selfRow?.total ?? 0),
+      streak: Number(weeklySelfStreak?.count ?? 0),
+      rivalWins: Number(selfRow?.dailyWins ?? 0),
+    };
+  }, [insightCharts.weeklyLeaderboard, weeklySelfStreak]);
+  const earnedBadgeIds = useMemo(() => getEarnedBadgeIds(badgeStats), [badgeStats]);
+  const earnedBadges = useMemo(() => getEarnedBadges(badgeStats), [badgeStats]);
+  const topEarnedBadges = useMemo(() => earnedBadges.slice(0, 3), [earnedBadges]);
+  const badgeCategories = useMemo<BadgeCategory[]>(() => ["consistency", "applications", "rivalry"], []);
+  const totalMedals = BADGE_TIERS.length * badgeCategories.length;
+  const latestAchievement = earnedBadges.length ? earnedBadges[earnedBadges.length - 1] : null;
+
+  useEffect(() => {
+    if (!showBadgeGallery) return undefined;
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setShowBadgeGallery(false);
+      }
+    };
+    window.addEventListener("keydown", onEscape);
+    return () => window.removeEventListener("keydown", onEscape);
+  }, [showBadgeGallery]);
+
+  const rivalryKeepOnePlan = useMemo(() => {
+    const selfRow = insightCharts.weeklyLeaderboard.find((row) => row.isSelf) ?? null;
+    if (!selfRow) return null;
+    const rivalRow =
+      selfRow.rank === 1
+        ? insightCharts.weeklyLeaderboard.find((row) => !row.isSelf && row.rank === 2) ?? null
+        : insightCharts.weeklyLeaderboard[0] ?? null;
+    if (!rivalRow) return null;
+
+    const safeLeadTarget = 3;
+    const currentGap = selfRow.rank === 1 ? selfRow.total - rivalRow.total : rivalRow.total - selfRow.total;
+    const isDefending = selfRow.rank === 1;
+    const lockTargetTotal = isDefending ? rivalRow.total + safeLeadTarget : rivalRow.total + 1;
+    const appsNeededThisWeek = Math.max(0, lockTargetTotal - selfRow.total);
+    const progressGoal = Math.max(1, lockTargetTotal);
+    const progressPercent = Math.max(0, Math.min(100, Math.round((selfRow.total / progressGoal) * 100)));
+
+    return {
+      title: isDefending
+        ? `Need ${appsNeededThisWeek} app${appsNeededThisWeek === 1 ? "" : "s"} this week to stay ahead`
+        : `Need ${appsNeededThisWeek} app${appsNeededThisWeek === 1 ? "" : "s"} this week to take #1`,
+      detail: isDefending
+        ? appsNeededThisWeek > 0
+          ? `Build a +${safeLeadTarget} cushion over ${rivalRow.displayName}`
+          : `Lead cushion is already +${currentGap} over ${rivalRow.displayName}`
+        : `Close the gap on ${rivalRow.displayName} this week`,
+      progressGoal,
+      progressPercent,
+      weekTotal: selfRow.total,
+      isDefending,
+    };
+  }, [insightCharts.weeklyLeaderboard]);
   return (
     <>
       {error ? <div className="error">{error}</div> : null}
@@ -906,288 +1097,369 @@ export default function NetworkPage() {
                 <div className="network-combined-card">
                   <div className="network-trend-grid network-insights-grid">
                     <div className="network-trend-card network-insight-card network-weekly-card">
-                      <div className="chart-header network-insight-card-head">
-                        <div className="chart-title-group">
-                          <h2>Today&apos;s Application Count</h2>
+                      <div className="chart-header network-insight-card-head network-rivalry-header">
+                        <div className="chart-title-group network-rivalry-head">
+                          <h2 className="network-insight-title">Performance Snapshot</h2>
                         </div>
                       </div>
                       <div className="network-mini-chart network-split-chart">
                         <div className="network-chart-stage">
                           <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={insightCharts.todayRows} margin={{ top: 16, right: 14, left: 2, bottom: 4 }} barCategoryGap="18%">
+                            <BarChart data={insightCharts.todayRows} margin={{ top: 14, right: 6, left: 0, bottom: 6 }} barCategoryGap="18%">
                               <defs>
                                 {insightCharts.todayRows.map((row) => {
                                   const gradId = todayBarGradientId(row.key);
                                   return (
                                     <linearGradient key={gradId} id={gradId} x1="0" y1="0" x2="0" y2="1">
-                                      <stop offset="0%" stopColor={rgbaFromHex(row.color, row.isLeader ? 0.96 : 0.86)} />
-                                      <stop offset="100%" stopColor={rgbaFromHex(row.color, row.isLeader ? 0.74 : 0.45)} />
+                                      <stop offset="0%" stopColor={rgbaFromHex(row.color, row.isLeader ? 0.98 : 0.9)} />
+                                      <stop offset="100%" stopColor={rgbaFromHex(row.color, row.isLeader ? 0.34 : 0.22)} />
                                     </linearGradient>
                                   );
                                 })}
                               </defs>
-                              <CartesianGrid strokeDasharray="3 3" stroke={NETWORK_CHART_THEME.grid} vertical={false} />
-                              <XAxis
-                                dataKey="label"
-                                stroke={NETWORK_CHART_THEME.axis}
-                                tick={{ fill: NETWORK_CHART_THEME.textSecondary, fontSize: 12, fontWeight: 500 }}
-                                axisLine={{ stroke: NETWORK_CHART_THEME.axis, strokeWidth: 1 }}
-                                tickLine={false}
-                                interval={0}
-                                height={28}
-                                padding={{ left: 6, right: 6 }}
-                                tickFormatter={(value) => formatFirstNameLastInitial(String(value ?? ""))}
-                              />
-                              <YAxis
-                                allowDecimals={false}
-                                stroke={NETWORK_CHART_THEME.axis}
-                                tick={{ fill: NETWORK_CHART_THEME.textSecondary, fontSize: 10, fontWeight: 400 }}
-                                tickLine={false}
-                                axisLine={false}
-                                width={34}
-                                domain={[0, (dataMax: number) => Math.max(4, Math.ceil(Number(dataMax || 0) * 1.18 + 1))]}
-                              />
-                              {insightCharts.todayStats.average > 0 ? (
-                                <ReferenceLine
-                                  y={insightCharts.todayStats.average}
-                                  stroke={NETWORK_CHART_THEME.accentSoft}
-                                  strokeDasharray="5 5"
-                                  strokeWidth={1.2}
-                                  ifOverflow="extendDomain"
-                                  label={(props: { viewBox?: { x?: number; y?: number; width?: number } }) => {
-                                    const x = Number(props.viewBox?.x ?? 0) + Number(props.viewBox?.width ?? 0) / 2;
-                                    const y = Number(props.viewBox?.y ?? 0) - 6;
-                                    return (
-                                      <text x={x} y={y} textAnchor="middle" fill={NETWORK_CHART_THEME.accentSoft} fontSize={11} fontWeight={700}>
-                                        {`Avg ${insightCharts.todayStats.average.toFixed(1)}`}
-                                      </text>
-                                    );
-                                  }}
-                                />
-                              ) : null}
+      <CartesianGrid strokeDasharray="4 4" stroke={NETWORK_CHART_THEME.grid} vertical={false} opacity={0.35} />
+      <XAxis
+        dataKey="label"
+        tick={{ fill: NETWORK_CHART_THEME.textSecondary, fontSize: 12, fontWeight: 600 }}
+        axisLine={{ stroke: NETWORK_CHART_THEME.grid }}
+        tickLine={false}
+        interval={0}
+        height={28}
+        tickMargin={8}
+        minTickGap={18}
+        padding={{ left: 4, right: 4 }}
+        tickFormatter={(value) => formatFirstNameLastInitial(String(value ?? ""))}
+      />
+      <YAxis
+        allowDecimals={false}
+        tick={{ fill: NETWORK_CHART_THEME.textSecondary, fontSize: 12, fontWeight: 600 }}
+        tickLine={false}
+        axisLine={{ stroke: NETWORK_CHART_THEME.grid }}
+        width={30}
+        tickMargin={6}
+        domain={[0, (dataMax: number) => Math.max(4, Math.ceil(Number(dataMax || 0) * 1.15))]}
+      />
+      {insightCharts.todayStats.average > 0 && insightCharts.todayRows.length > 1 ? (
+        <ReferenceLine
+          y={insightCharts.todayStats.average}
+          stroke="var(--text-muted)" /* Accessible average line color */
+          strokeDasharray="6 4"
+          strokeWidth={1.5}
+          opacity={0.8}
+          ifOverflow="extendDomain"
+          label={(props: { viewBox?: { x?: number; y?: number; width?: number } }) => {
+            const x = Number(props.viewBox?.x ?? 0) + Number(props.viewBox?.width ?? 0) / 2;
+            const y = Number(props.viewBox?.y ?? 0) - 8;
+            return (
+              <text x={x} y={y} fill="var(--text-secondary)" fontSize={11} fontWeight={600} textAnchor="middle">
+                Avg {insightCharts.todayStats.average}
+              </text>
+            );
+          }}
+        />
+      ) : null}
                               <Tooltip content={<NetworkInsightBarTooltip metricLabel="Applications today" />} cursor={false} />
-                              <Bar
-                                dataKey="total"
-                                fillOpacity={0.96}
-                                radius={[8, 8, 0, 0]}
-                                maxBarSize={56}
-                                activeBar={false}
-                              >
-                                <LabelList
+                                <Bar
                                   dataKey="total"
-                                  content={(props: {
-                                    x?: number | string;
-                                    y?: number | string;
-                                    width?: number | string;
-                                    value?: number | string;
-                                    payload?: { isLeader?: boolean; color?: string } | null;
-                                  }) => {
-                                    const x = Number(props.x ?? 0);
-                                    const y = Number(props.y ?? 0);
-                                    const width = Number(props.width ?? 0);
-                                    const value = Number(props.value ?? 0);
-                                    const isLeader = Boolean(props.payload?.isLeader);
-                                    const payloadColor = String(props.payload?.color ?? "#2563eb");
-                                    if (!(value > 0) || width <= 0) return null;
-                                    const centerX = x + width / 2;
-                                    const valueColor = isLeader ? payloadColor : rgbaFromHex(payloadColor, 0.9);
-                                    return (
-                                      <g>
-                                        {insightCharts.todayLeader.hasSingleLeader && isLeader ? (
-                                          <text x={centerX} y={y - 22} textAnchor="middle" fill={payloadColor} fontSize={14}>
-                                            {"\u{1F451}"}
+                                  fillOpacity={1}
+                                  radius={[6, 6, 0, 0]}
+                                  maxBarSize={64}
+                                  isAnimationActive
+                                  animationBegin={80}
+                                  animationDuration={720}
+                                  animationEasing="ease-out"
+                                  activeBar={false}
+                                >
+                                  <LabelList
+                                    dataKey="total"
+                                    position="insideTop"
+                                    offset={12}
+                                    content={(props: {
+                                      x?: number | string;
+                                      y?: number | string;
+                                      width?: number | string;
+                                      height?: number | string;
+                                      value?: number | string;
+                                      payload?: { isLeader?: boolean; color?: string; total?: number } | null;
+                                    }) => {
+                                      const x = Number(props.x ?? 0);
+                                      const y = Number(props.y ?? 0);
+                                      const width = Number(props.width ?? 0);
+                                      const height = Number(props.height ?? 0);
+                                      const value = Number(props.value ?? 0);
+                                      const isLeader = Boolean(props.payload?.isLeader);
+                                      const payloadColor = String(props.payload?.color ?? "#2563eb");
+                                      if (!(value > 0) || width <= 0) return null;
+                                      
+                                      const centerX = x + width / 2;
+                                      // If the bar is very short, position the label slightly above it
+                                      // Otherwise cleanly inside the top of the bar.
+                                      const isShortBar = height < 30;
+                                      const labelY = isShortBar ? y - 10 : y + 16;
+                                      const textColor = isShortBar ? (isLeader ? payloadColor : rgbaFromHex(payloadColor, 0.9)) : "#ffffff";
+                                      
+                                      return (
+                                        <g>
+                                          {insightCharts.todayLeader.hasSingleLeader && isLeader ? (
+                                            <text x={centerX} y={y - (isShortBar ? 26 : 14)} textAnchor="middle" fill={payloadColor} fontSize={16} filter="drop-shadow(0px 2px 4px rgba(0,0,0,0.1))">
+                                              {"\u{1F451}"}
+                                            </text>
+                                          ) : null}
+                                          <text
+                                            x={centerX}
+                                            y={labelY}
+                                            textAnchor="middle"
+                                            fill={textColor}
+                                            fontSize={14}
+                                            fontWeight={700}
+                                            style={{ textShadow: !isShortBar ? "0px 1px 2px rgba(0,0,0,0.3)" : "none" }}
+                                          >
+                                            {String(value)}
                                           </text>
-                                        ) : null}
-                                        <text
-                                          x={centerX}
-                                          y={y - 6}
-                                          textAnchor="middle"
-                                          fill={valueColor}
-                                          fontSize={14}
-                                          fontWeight={700}
-                                        >
-                                          {String(value)}
-                                        </text>
-                                      </g>
-                                    );
-                                  }}
-                                />
-                                {insightCharts.todayRows.map((row) => (
-                                  <Cell
-                                    key={`today-${row.key}`}
-                                    fill={`url(#${todayBarGradientId(row.key)})`}
-                                    fillOpacity={1}
-                                    stroke={row.total > 0 ? (row.isLeader ? "rgba(255,255,255,0.62)" : rgbaFromHex(row.color, 0.56)) : "rgba(255,255,255,0.12)"}
-                                    strokeWidth={row.isLeader ? 1.5 : 1}
+                                        </g>
+                                      );
+                                    }}
                                   />
-                                ))}
-                              </Bar>
-                            </BarChart>
+                                  {insightCharts.todayRows.map((row) => (
+                                    <Cell
+                                      key={`today-${row.key}`}
+                                      fill={`url(#${todayBarGradientId(row.key)})`}
+                                      fillOpacity={1}
+                                      stroke={row.total > 0 ? (row.isLeader ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.4)") : "rgba(255,255,255,0.12)"}
+                                      strokeWidth={row.isLeader ? 2 : 1}
+                                    />
+                                  ))}
+                                </Bar>
+                              </BarChart>
                           </ResponsiveContainer>
                         </div>
+                      </div>
+                      {insightCharts.todayStats.hiddenCount > 0 ? (
+                        <p className="network-weekly-hint" style={{ marginTop: 8 }}>
+                          Top {MAX_NETWORK_TODAY_BARS} shown. +{insightCharts.todayStats.hiddenCount} more friend
+                          {insightCharts.todayStats.hiddenCount === 1 ? "" : "s"} have activity today.
+                        </p>
+                      ) : null}
+                      <div className="network-badge-preview" aria-label="Achievements preview">
+                        <div className="network-badge-preview-head">
+                          <p className="network-badge-preview-title">Achievements</p>
+                        </div>
+                        {topEarnedBadges.length ? (
+                          <div className="network-badge-preview-row">
+                            {topEarnedBadges.map((badge) => {
+                              const Icon = badge.Icon;
+                              return (
+                                <div
+                                  key={badge.id}
+                                  className={`network-badge-preview-item network-medal tier-${badge.tier}`}
+                                  aria-label={`${badge.name}. ${badge.description}`}
+                                >
+                                  <span className="network-badge-preview-icon">
+                                    <Icon />
+                                  </span>
+                                  <span className="network-badge-preview-label">{badge.name}</span>
+                                  <span className="network-medal-tooltip" role="tooltip">
+                                    <strong>{badge.name}</strong>
+                                    <span>{badge.description}</span>
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <p className="network-badge-preview-empty">Apply and compete this week to unlock your first badge.</p>
+                        )}
                       </div>
                     </div>
 
                     <div className="network-trend-card network-insight-card">
-                      <div className="chart-header network-insight-card-head">
-                        <div className="chart-title-group">
-                          <h2>Last 7 Days by Friend</h2>
+                      <div className="chart-header network-insight-card-head network-rivalry-header network-rivalry-feature-header">
+                        <div className="chart-title-group network-rivalry-head">
+                          <h2 className="network-insight-title">🔥 Rivalry Mode</h2>
+                        </div>
+                        <div className="chart-filter network-compare-filter">
+                          <span className="chart-filter-label">Pick rival</span>
+                          <select
+                            className="chart-filter-select network-compare-select"
+                            aria-label="Select friend to compare weekly trend"
+                            value={selectedWeeklyCompareKey}
+                            onChange={(event) => setSelectedWeeklyCompareKey(event.target.value)}
+                            disabled={!compareFriendOptions.length}
+                            style={{ width: `${compareSelectWidthCh}ch`, maxWidth: "100%" }}
+                          >
+                            {compareFriendOptions.length ? (
+                              compareFriendOptions.map((option) => (
+                                <option key={option.key} value={option.key}>
+                                  {option.label} · {option.total}
+                                </option>
+                              ))
+                            ) : (
+                              <option value="">No friends available</option>
+                            )}
+                          </select>
                         </div>
                       </div>
+                      <p className="network-rivalry-subtitle network-rivalry-subtitle--below">
+                        Compete with friends to track job application momentum.
+                      </p>
                       <div className="network-weekly-line-layout">
                         <div className="network-weekly-line-stage network-chart-stage">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={insightCharts.weeklySeriesRows} margin={{ top: 24, right: 22, left: 0, bottom: 2 }}>
-                              <defs>
-                                {insightCharts.weeklyShadeKeys.map((key) => {
-                                  const row = insightCharts.weeklyLeaderboard.find((friend) => friend.key === key);
-                                  if (!row) return null;
-                                  const gradId = weeklyShadeGradientId(row.key);
-                                  return (
-                                    <linearGradient key={gradId} id={gradId} x1="0" y1="0" x2="0" y2="1">
-                                      <stop offset="0%" stopColor={rgbaFromHex(row.lineColor, row.isSelf ? 0.72 : 0.62)} />
-                                      <stop offset="45%" stopColor={rgbaFromHex(row.lineColor, row.isSelf ? 0.36 : 0.3)} />
-                                      <stop offset="100%" stopColor={rgbaFromHex(row.lineColor, 0.08)} />
-                                    </linearGradient>
-                                  );
-                                })}
-                              </defs>
-                              <CartesianGrid strokeDasharray="3 3" stroke={NETWORK_CHART_THEME.grid} vertical={false} />
-                              <XAxis
-                                dataKey="label"
-                                stroke={NETWORK_CHART_THEME.axis}
-                                tick={{ fill: NETWORK_CHART_THEME.textSecondary, fontSize: 10, fontWeight: 400 }}
-                                axisLine={{ stroke: NETWORK_CHART_THEME.axis, strokeWidth: 1 }}
-                                tickLine={false}
-                                interval={0}
-                                height={24}
-                                padding={{ left: 0, right: 18 }}
-                                tickFormatter={(value) => (String(value) === "" ? "" : String(value))}
-                              />
-                              <YAxis
-                                allowDecimals={false}
-                                stroke={NETWORK_CHART_THEME.axis}
-                                tick={{ fill: NETWORK_CHART_THEME.textSecondary, fontSize: 11, fontWeight: 400 }}
-                                tickLine={false}
-                                axisLine={false}
-                                width={34}
-                                domain={[0, (dataMax: number) => Math.max(8, Math.ceil(Number(dataMax || 0) + 4))]}
-                              />
-                              {insightCharts.passedDayLabels.map((label) => (
-                                <ReferenceLine
-                                  key={`passed-day-${label}`}
-                                  x={label}
-                                  stroke={NETWORK_CHART_THEME.grid}
-                                  strokeDasharray="2 4"
-                                  strokeWidth={1}
-                                />
-                              ))}
-                              <Tooltip content={<NetworkWeeklyTooltip />} cursor={false} />
-                              {insightCharts.weeklyShadeKeys.map((key) => {
-                                const row = insightCharts.weeklyLeaderboard.find((friend) => friend.key === key);
-                                if (!row) return null;
-                                return (
-                                  <Area
-                                    key={`shade-${row.key}`}
-                                    type="monotone"
-                                    dataKey={row.key}
-                                    stroke="none"
-                                    fill={`url(#${weeklyShadeGradientId(row.key)})`}
-                                    fillOpacity={row.isSelf ? 0.22 : 0.16}
-                                    baseValue={0}
-                                    isAnimationActive={false}
-                                  />
-                                );
-                              })}
-                              {insightCharts.weeklyLeaderboard.map((friend) => (
-                                <Line
-                                  key={`line-${friend.key}`}
-                                  type="monotone"
-                                  dataKey={friend.key}
-                                  name={friend.label}
-                                  stroke={friend.lineColor}
-                                  strokeWidth={2}
-                                  dot={false}
-                                  activeDot={false}
-                                  isAnimationActive
-                                />
-                              ))}
-                              {insightCharts.historicalDots.map((dot) => (
-                                <ReferenceDot
-                                  key={`hist-dot-${dot.key}`}
-                                  x={dot.dayLabel}
-                                  y={dot.y}
-                                  r={2.5}
-                                  fill={dot.color}
-                                  stroke="color-mix(in srgb, var(--bg-base) 70%, transparent)"
-                                  strokeWidth={1}
-                                />
-                              ))}
-                              {insightCharts.weeklyEndLabels.length > 0
-                                ? insightCharts.weeklyEndLabels.map((row) => (
-                                    <ReferenceDot
-                                      key={`end-${row.key}`}
-                                      x={row.dayLabel}
-                                      y={row.y}
-                                      r={0}
-                                      ifOverflow="extendDomain"
-                                      label={(props: { x?: number; y?: number; viewBox?: { x?: number; y?: number } }) => {
-                                        const px = Number(props.viewBox?.x ?? props.x ?? 0);
-                                        const py = Number(props.viewBox?.y ?? props.y ?? 0) + row.dy;
-                                        const text = `${row.shortLabel} ${row.dayValue}`;
-                                        const x = px - 10;
-                                        return (
-                                          <g>
-                                            <text
-                                              x={x}
-                                              y={py + 3}
-                                              textAnchor="end"
-                                              fill={row.lineColor}
-                                              fontSize={10}
-                                              fontWeight={row.isLeader ? 700 : 600}
-                                            >
-                                              {text}
-                                            </text>
-                                          </g>
-                                        );
-                                      }}
-                                    />
-                                  ))
-                                : null}
-                            </LineChart>
-                          </ResponsiveContainer>
+                          {weeklyCompetition ? (
+                            <WeeklyCompetitionChart
+                              labels={weeklyCompetition.labels}
+                              userValues={weeklyCompetition.userValues}
+                              friendValues={weeklyCompetition.friendValues}
+                              friendName={weeklyCompetition.friendName}
+                              todayLabel={weeklyCompetition.todayLabel}
+                              goalTarget={weeklyCompetition.goalTarget}
+                            />
+                          ) : (
+                            <div className="chart-empty" style={{ minHeight: 180 }}>
+                              Not enough data for weekly competition.
+                            </div>
+                          )}
                         </div>
                       </div>
+                      {weeklyCompetition ? (
+                        <div className="trend-uniform-foot network-rivalry-footer">
+                          <span
+                            className={`trend-uniform-foot-item ${weeklyCompetition.weekLead > 0 ? "trend-uniform-foot-item--applied" : weeklyCompetition.weekLead < 0 ? "trend-uniform-foot-item--rejected" : "trend-uniform-foot-item--muted"}`}
+                          >
+                            {weeklyCompetition.weekLead > 0
+                              ? `You +${weeklyCompetition.weekLead} this week`
+                              : weeklyCompetition.weekLead < 0
+                                ? `${weeklyCompetition.friendName} +${Math.abs(weeklyCompetition.weekLead)} this week`
+                                : "Week tie"}
+                          </span>
+                          <span
+                            className={`trend-uniform-foot-item ${weeklyCompetition.todayLead > 0 ? "trend-uniform-foot-item--applied" : weeklyCompetition.todayLead < 0 ? "trend-uniform-foot-item--rejected" : "trend-uniform-foot-item--muted"}`}
+                          >
+                            {weeklyCompetition.todayLead > 0
+                              ? `Today +${weeklyCompetition.todayLead}`
+                              : weeklyCompetition.todayLead < 0
+                                ? `Today -${Math.abs(weeklyCompetition.todayLead)}`
+                                : "Today even"}
+                          </span>
+                          <span className="trend-uniform-foot-item trend-uniform-foot-item--muted">
+                            Rival rank #{weeklyCompetition.friendRank}
+                          </span>
+                        </div>
+                      ) : null}
                     </div>
 
-                    <div className="network-trend-card network-insight-card network-weekly-mini-board">
-                      <div className="chart-header network-insight-card-head">
-                        <div className="chart-title-group">
-                          <h2>Weekly Board</h2>
+                    <div className="network-trend-card network-insight-card network-weekly-mini-board network-weekly-mini-board-stack">
+                      <div className="chart-header network-insight-card-head network-rivalry-header network-weekly-mini-board-header">
+                        <div className="chart-title-group network-rivalry-head">
+                          <h2 className="network-insight-title">🏆 Weekly Board</h2>
                         </div>
+                        <strong className="network-weekly-board-total" aria-label="Today total applications">
+                          {weeklyHeaderTotal}
+                        </strong>
                       </div>
-                      {insightCharts.weeklyLeaderboard.length ? (
-                        <div className="network-board-mascot">
-                          <div className="network-board-mascot-avatar" aria-hidden="true">
-                            {insightCharts.weeklyLeaderboard[0].displayName.slice(0, 1).toUpperCase()}
-                          </div>
-                          <div className="network-board-mascot-copy">
-                            <p className="network-board-mascot-title">Current Champion</p>
-                            <p className="network-board-mascot-name">
-                              {insightCharts.weeklyLeaderboard[0].displayName} · {insightCharts.weeklyLeaderboard[0].total}
-                            </p>
+                      {weeklyBoardLeader ? (
+                        <div className="network-rivalry-status">
+                          <p className="network-rivalry-status-title">
+                            {weeklyBoardLeader.isSelf
+                              ? "You're leading this week"
+                              : `${weeklyBoardLeader.displayName} is leading this week`}
+                          </p>
+                          <p className="network-rivalry-status-copy">
+                            {weeklyBoardLeadBy > 0 ? `+${weeklyBoardLeadBy} applications ahead` : "Top spot is currently tied"}
+                          </p>
+                          {insightCharts.weeklySelfRankSnapshot.currentRank ? (
+                            <div className="network-rivalry-rank-snapshot" aria-label="Weekly rank snapshot">
+                              <span className="network-rivalry-rank-pill is-current">
+                                <span className="network-rivalry-rank-pill-label">This week</span>
+                                <strong className="network-rivalry-rank-pill-value">
+                                  #{insightCharts.weeklySelfRankSnapshot.currentRank}
+                                </strong>
+                              </span>
+                              <span className="network-rivalry-rank-pill is-previous">
+                                <span className="network-rivalry-rank-pill-label">Last week</span>
+                                <strong className="network-rivalry-rank-pill-value">
+                                  {insightCharts.weeklySelfRankSnapshot.previousRank
+                                    ? `#${insightCharts.weeklySelfRankSnapshot.previousRank}`
+                                    : "—"}
+                                </strong>
+                              </span>
+                              {typeof insightCharts.weeklySelfRankSnapshot.change === "number" ? (
+                                <span
+                                  className={`network-rivalry-rank-shift ${
+                                    insightCharts.weeklySelfRankSnapshot.change > 0
+                                      ? "is-up"
+                                      : insightCharts.weeklySelfRankSnapshot.change < 0
+                                        ? "is-down"
+                                        : "is-even"
+                                  }`}
+                                >
+                                  {insightCharts.weeklySelfRankSnapshot.change > 0
+                                    ? `↑${insightCharts.weeklySelfRankSnapshot.change}`
+                                    : insightCharts.weeklySelfRankSnapshot.change < 0
+                                      ? `↓${Math.abs(insightCharts.weeklySelfRankSnapshot.change)}`
+                                      : "→0"}
+                                </span>
+                              ) : null}
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : null}
+                      {weeklyBoardTopThree.length ? (
+                        <div className="network-rivalry-top3-grid" aria-label="Top 3 competitors">
+                          {weeklyBoardTopThree.map((row, index) => (
+                            <div
+                              key={`top3-${row.key}`}
+                              className={`network-rivalry-top3-card place-${index + 1}`}
+                            >
+                              <div className="network-rivalry-rank-badge" aria-hidden="true">
+                                {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
+                              </div>
+                              <p className="network-rivalry-top3-name">{row.displayName}</p>
+                              <strong className="network-rivalry-top3-score">{row.total}</strong>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                      {weeklySelfStreak ? (
+                        <div className="network-rivalry-streak">
+                          <p className="network-streak-title">
+                            <span aria-hidden="true">🔥</span>{" "}
+                            {weeklySelfStreak.count} day streak
+                          </p>
+                          <p className="network-streak-copy">
+                            {weeklySelfStreak.count > 0
+                              ? "Keep applying to grow your streak"
+                              : "Apply today to start your streak"}
+                          </p>
+                          <div className="network-streak-days" aria-label="Your weekly streak progress">
+                            {weeklySelfStreak.days.map((day) => (
+                              <div
+                                key={`streak-${day.label}`}
+                                className={`network-streak-day${day.isActive ? " is-active" : ""}${day.isFuture ? " is-future" : ""}`}
+                                title={`${day.label}`}
+                              >
+                                <span>{day.label}</span>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       ) : null}
-                      <div className="network-mini-board-list">
-                        {insightCharts.weeklyLeaderboard.map((row) => (
-                          <div key={`mini-board-${row.key}`} className={`network-mini-board-row${row.isLeader ? " is-leader" : ""}`}>
-                            <span className="network-mini-board-rank">{row.rank}</span>
-                            <span className="network-mini-board-name">{row.displayName}</span>
-                            <strong className="network-mini-board-total">{row.total}</strong>
+                      {rivalryKeepOnePlan ? (
+                        <div className="network-rivalry-keep-panel" aria-label="How to keep number one">
+                          <p className="network-rivalry-keep-kicker">
+                            {rivalryKeepOnePlan.isDefending ? "Weekly lock" : "Weekly comeback"}
+                          </p>
+                          <p className="network-rivalry-keep-title">{rivalryKeepOnePlan.title}</p>
+                          <div className="network-rivalry-keep-meter" aria-hidden="true">
+                            <span style={{ width: `${rivalryKeepOnePlan.progressPercent}%` }} />
                           </div>
-                        ))}
-                      </div>
+                          <div className="network-rivalry-keep-meta">
+                            <span>
+                              Week {rivalryKeepOnePlan.weekTotal}/{rivalryKeepOnePlan.progressGoal}
+                            </span>
+                            <span>{rivalryKeepOnePlan.detail}</span>
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                   <TargetSignalsCarousel
@@ -1369,6 +1641,86 @@ export default function NetworkPage() {
         onSave={saveFieldVisibility}
         onToggle={setVisibilityValue}
       />
+
+      {showBadgeGallery ? (
+        <div className="modal-overlay network-badge-modal-overlay" onClick={() => setShowBadgeGallery(false)}>
+          <div
+            className="modal network-badge-modal"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Badge gallery"
+          >
+            <div className="network-badge-modal-head">
+              <h3>Achievements</h3>
+              <button
+                type="button"
+                className="network-badge-modal-close"
+                aria-label="Close achievements modal"
+                onClick={() => setShowBadgeGallery(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="network-badge-modal-hero">
+              <p className="network-badge-modal-subtitle">
+                {earnedBadges.length} of {totalMedals} medals earned
+              </p>
+              <section className="network-badge-latest" aria-label="Latest achievement">
+                <p className="network-badge-latest-kicker">Latest Achievement</p>
+                {latestAchievement ? (
+                  <div className={`network-badge-latest-row network-medal tier-${latestAchievement.tier} is-unlocked`}>
+                    <span className="network-badge-latest-icon">
+                      <latestAchievement.Icon />
+                    </span>
+                    <div className="network-badge-latest-copy">
+                      <p className="network-badge-latest-name">{latestAchievement.name}</p>
+                      <p className="network-badge-latest-desc">{latestAchievement.description}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="network-badge-latest-empty">No medals unlocked yet. Keep applying to unlock your first one.</p>
+                )}
+              </section>
+            </div>
+            <div className="network-badge-gallery">
+              {badgeCategories.map((category) => {
+                const unlockedCount = BADGE_TIERS.filter((tier) => earnedBadgeIds.has(BADGES[category][tier].id)).length;
+                return (
+                  <section key={category} className="network-badge-gallery-section">
+                    <div className="network-badge-gallery-section-head">
+                      <h4>{BADGE_CATEGORY_LABEL[category]}</h4>
+                      <span>
+                        {unlockedCount} / {BADGE_TIERS.length}
+                      </span>
+                    </div>
+                    <div className="network-badge-gallery-shelf">
+                      {BADGE_TIERS.map((tier) => {
+                        const badge = BADGES[category][tier];
+                        const Icon = badge.Icon;
+                        const unlocked = earnedBadgeIds.has(badge.id);
+                        return (
+                          <article
+                            key={badge.id}
+                            className={`network-badge-gallery-item network-medal tier-${badge.tier}${unlocked ? " is-unlocked" : " is-locked"}`}
+                            aria-label={`${badge.name}. ${badge.description}. ${unlocked ? "Unlocked" : "Locked"}.`}
+                          >
+                            <span className="network-badge-gallery-icon">
+                              <Icon />
+                            </span>
+                            <p className="network-badge-gallery-name">{badge.name}</p>
+                            <p className="network-badge-gallery-desc">{badge.description}</p>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {showPrefillModal ? (
         <div className="modal-overlay" onClick={() => !isPrefillSaving && setShowPrefillModal(false)}>

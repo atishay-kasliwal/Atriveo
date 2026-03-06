@@ -10,8 +10,31 @@ const referralNameEl = document.getElementById("referralName");
 const actionStatusEl = document.getElementById("actionStatus");
 const refreshBtn = document.getElementById("refreshBtn");
 const actionBtn = document.getElementById("actionBtn");
+const EDITABLE_TEXT_FIELDS = [jobTitleEl, jobCompanyEl, jobApplicationIdEl, jobLinkEl, jobNotesEl];
+const SINGLE_LINE_EDITABLE_FIELDS = [jobTitleEl, jobCompanyEl, jobApplicationIdEl, jobLinkEl];
 
-const ATS_HOSTS = ["myworkdayjobs.com", "greenhouse.io", "lever.co"];
+const ATS_HOSTS = [
+  "myworkdayjobs.com",
+  "greenhouse.io",
+  "lever.co",
+  "applytojob.com",
+  "ashbyhq.com",
+  "smartrecruiters.com",
+  "icims.com",
+  "jobvite.com",
+  "bamboohr.com",
+  "jazzhr.com",
+  "taleo.net",
+  "successfactors.com",
+  "jobs.sap.com",
+  "adp.com",
+  "paylocity.com",
+  "teamtailor.com",
+  "recruitee.com",
+  "workable.com",
+  "jobscore.com",
+  "clearcompany.com"
+];
 
 let activeTab = null;
 let currentRecord = null;
@@ -54,9 +77,24 @@ const isSupportedUrl = (url) => {
   return ATS_HOSTS.some((domain) => url.includes(domain));
 };
 
-const valueOrDash = (value) => {
-  const text = String(value || "").trim();
-  return text || "-";
+const toSingleLineText = (value = "") => {
+  const raw = String(value || "").replace(/\u00a0/g, " ");
+  const normalized = raw.replace(/\s+/g, " ").trim();
+  return normalized === "-" ? "" : normalized;
+};
+
+const toMultilineText = (value = "") => {
+  const raw = String(value || "").replace(/\u00a0/g, " ").replace(/\r/g, "");
+  const normalized = raw
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  return normalized === "-" ? "" : normalized;
+};
+
+const toDisplayText = (value = "", { multiline = false } = {}) => {
+  const normalized = multiline ? toMultilineText(value) : toSingleLineText(value);
+  return normalized;
 };
 
 const clearActionStatusTimer = () => {
@@ -89,10 +127,11 @@ const setSubmissionComplete = (complete) => {
   popupEl.classList.toggle("success-only", submissionComplete);
 };
 
-const readEditableText = (element) => {
+const readEditableText = (element, { multiline = false } = {}) => {
   if (!element) return "";
-  const raw = String(element.textContent || "").trim();
-  return raw === "-" ? "" : raw;
+  return multiline
+    ? toMultilineText(element.textContent || "")
+    : toSingleLineText(element.textContent || "");
 };
 
 const isValidHttpUrl = (value = "") => {
@@ -117,13 +156,12 @@ const getFormPayload = () => ({
   company: readEditableText(jobCompanyEl),
   job_application_id: readEditableText(jobApplicationIdEl),
   job_link: readEditableText(jobLinkEl),
-  notes: readEditableText(jobNotesEl),
+  notes: readEditableText(jobNotesEl, { multiline: true }),
   keyword_match: String(keywordMatchEl.value || "Medium").trim() || "Medium",
-  referral_name: String(referralNameEl.value || "").trim()
+  referral_name: toSingleLineText(referralNameEl.value || "")
 });
 
 const hasSubmittablePayload = () => {
-  if (!currentRecord?.new_application_payload) return false;
   const payload = getFormPayload();
   return Boolean(payload.job_title && payload.company && payload.job_link && isValidHttpUrl(payload.job_link));
 };
@@ -135,12 +173,12 @@ const setActionInFlight = (inFlight) => {
 };
 
 const clearJobFields = () => {
-  jobTitleEl.textContent = "Waiting for extraction...";
-  jobCompanyEl.textContent = "-";
-  jobApplicationIdEl.textContent = "-";
-  jobLinkEl.textContent = "-";
+  jobTitleEl.textContent = "";
+  jobCompanyEl.textContent = "";
+  jobApplicationIdEl.textContent = "";
+  jobLinkEl.textContent = "";
   jobLinkEl.href = "#";
-  jobNotesEl.textContent = "-";
+  jobNotesEl.textContent = "";
   keywordMatchEl.value = "Medium";
   referralNameEl.value = "";
 };
@@ -148,23 +186,22 @@ const clearJobFields = () => {
 const renderPayload = (payload) => {
   if (!payload) {
     clearJobFields();
-    jobTitleEl.textContent = "No job data found";
     return;
   }
 
-  jobTitleEl.textContent = valueOrDash(payload.job_title);
-  jobCompanyEl.textContent = valueOrDash(payload.company);
-  jobApplicationIdEl.textContent = valueOrDash(payload.job_application_id);
-  jobNotesEl.textContent = valueOrDash(payload.notes);
-  keywordMatchEl.value = valueOrDash(payload.keyword_match) === "-" ? "Medium" : payload.keyword_match;
-  referralNameEl.value = payload.referral_name || "";
+  jobTitleEl.textContent = toDisplayText(payload.job_title);
+  jobCompanyEl.textContent = toDisplayText(payload.company);
+  jobApplicationIdEl.textContent = toDisplayText(payload.job_application_id);
+  jobNotesEl.textContent = toDisplayText(payload.notes, { multiline: true });
+  keywordMatchEl.value = toSingleLineText(payload.keyword_match || "Medium") || "Medium";
+  referralNameEl.value = toDisplayText(payload.referral_name);
 
-  const safeUrl = String(payload.job_link || "").trim();
+  const safeUrl = toSingleLineText(payload.job_link || "");
   if (safeUrl) {
     jobLinkEl.textContent = safeUrl;
     jobLinkEl.href = safeUrl;
   } else {
-    jobLinkEl.textContent = "-";
+    jobLinkEl.textContent = "";
     jobLinkEl.href = "#";
   }
 };
@@ -209,6 +246,20 @@ const refreshAuthStatus = async ({ syncWeb = true } = {}) => {
   return authState;
 };
 
+const persistDraft = async () => {
+  if (!activeTab?.url) return;
+
+  const response = await runtimeMessage({
+    type: "UPDATE_APPLICATION_DRAFT",
+    url: activeTab.url,
+    application: getFormPayload()
+  }).catch(() => null);
+
+  if (response?.ok && response.record) {
+    currentRecord = response.record;
+  }
+};
+
 const refresh = async () => {
   setActionInFlight(false);
   setSubmissionComplete(false);
@@ -226,25 +277,39 @@ const refresh = async () => {
     return;
   }
 
-  if (!isSupportedUrl(activeTab.url)) {
-    scanMessageEl.textContent = "Open a Workday, Greenhouse, or Lever job page.";
-    jobTitleEl.textContent = "Unsupported page";
-    await refreshAuthStatus({ syncWeb: true });
-    updateActionButtonState();
-    return;
+  const supportedPage = isSupportedUrl(activeTab.url);
+  let recordResult = null;
+
+  if (supportedPage) {
+    recordResult = await fetchRecordForTab(activeTab).catch(() => null);
+  } else {
+    scanMessageEl.textContent = "Unsupported page. Fill fields manually.";
+    const stored = await runtimeMessage({ type: "GET_JOB_FOR_URL", url: activeTab.url }).catch(() => null);
+    recordResult = stored?.record || null;
   }
 
-  const [recordResult] = await Promise.all([fetchRecordForTab(activeTab).catch(() => null)]);
   await refreshAuthStatus({ syncWeb: true });
 
   currentRecord = recordResult;
   if (!currentRecord) {
-    jobTitleEl.textContent = "No job data detected yet";
+    renderPayload({
+      job_title: "",
+      company: "",
+      job_application_id: "",
+      job_link: isValidHttpUrl(activeTab.url) ? activeTab.url : "",
+      notes: "",
+      keyword_match: "Medium",
+      referral_name: ""
+    });
   } else {
     renderPayload(currentRecord.new_application_payload || null);
   }
 
-  if (!authState.authenticated) {
+  if (!supportedPage && authState.authenticated) {
+    setActionStatus("Unsupported page: fill details manually, then add application.");
+  } else if (!authState.authenticated && !supportedPage) {
+    setActionStatus("Unsupported page: fill details manually, then login to add.");
+  } else if (!authState.authenticated) {
     setActionStatus("Login required to add application.");
   }
 
@@ -297,7 +362,7 @@ const handleAddApplication = async () => {
   setSubmissionComplete(false);
 
   if (!activeTab?.url) {
-    setActionStatus("No active ATS tab detected.", "error", { autoClearMs: 4500 });
+    setActionStatus("No active tab detected.", "error", { autoClearMs: 4500 });
     return;
   }
 
@@ -311,6 +376,7 @@ const handleAddApplication = async () => {
 
   setActionInFlight(true);
   setActionStatus("Adding application...");
+  await persistDraft().catch(() => null);
 
   const response = await runtimeMessage({
     type: "SUBMIT_APPLICATION",
@@ -364,21 +430,80 @@ const handlePrimaryAction = async () => {
   await handleLogin();
 };
 
-const handleFormInputChange = () => {
+const insertTextAtCursor = (text) => {
+  if (
+    typeof document.queryCommandSupported === "function" &&
+    document.queryCommandSupported("insertText")
+  ) {
+    document.execCommand("insertText", false, text);
+    return;
+  }
+
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return;
+
+  selection.deleteFromDocument();
+  const range = selection.getRangeAt(0);
+  const textNode = document.createTextNode(text);
+  range.insertNode(textNode);
+  range.setStartAfter(textNode);
+  range.setEndAfter(textNode);
+  selection.removeAllRanges();
+  selection.addRange(range);
+};
+
+const handleEditablePaste = (event) => {
+  event.preventDefault();
+  const target = event.currentTarget;
+  const text = event.clipboardData?.getData("text/plain") || "";
+  const normalized =
+    target === jobNotesEl ? toMultilineText(text) : toSingleLineText(text);
+  insertTextAtCursor(normalized);
+  handleFormInputChange();
+};
+
+const handleSingleLineEnter = (event) => {
+  if (event.key !== "Enter") return;
+  event.preventDefault();
+  insertTextAtCursor(" ");
+};
+
+const handleInputPaste = (event) => {
+  event.preventDefault();
+  const text = toSingleLineText(event.clipboardData?.getData("text/plain") || "");
+  const target = event.currentTarget;
+  const start = Number(target.selectionStart ?? target.value.length);
+  const end = Number(target.selectionEnd ?? target.value.length);
+  target.setRangeText(text, start, end, "end");
+  handleFormInputChange();
+};
+
+const handleFormInputChange = (event) => {
+  if (event?.target === referralNameEl) {
+    referralNameEl.value = toSingleLineText(referralNameEl.value || "");
+  }
+
   if (submissionComplete) {
     setSubmissionComplete(false);
     setActionStatus("");
   }
   syncJobLinkHref();
+  void persistDraft();
   updateActionButtonState();
 };
 
-[jobTitleEl, jobCompanyEl, jobApplicationIdEl, jobLinkEl, jobNotesEl].forEach((element) => {
+EDITABLE_TEXT_FIELDS.forEach((element) => {
   element.addEventListener("input", handleFormInputChange);
+  element.addEventListener("paste", handleEditablePaste);
+});
+
+SINGLE_LINE_EDITABLE_FIELDS.forEach((element) => {
+  element.addEventListener("keydown", handleSingleLineEnter);
 });
 
 keywordMatchEl.addEventListener("change", handleFormInputChange);
 referralNameEl.addEventListener("input", handleFormInputChange);
+referralNameEl.addEventListener("paste", handleInputPaste);
 refreshBtn.addEventListener("click", refresh);
 actionBtn.addEventListener("click", handlePrimaryAction);
 document.addEventListener("DOMContentLoaded", refresh);

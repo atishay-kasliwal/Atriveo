@@ -1,9 +1,32 @@
 (function initAtriveoDetector() {
+  const PLATFORM_MATCHERS = [
+    { token: "myworkdayjobs", platform: "workday" },
+    { token: "greenhouse.io", platform: "greenhouse" },
+    { token: "lever.co", platform: "lever" },
+    { token: "applytojob.com", platform: "applytojob" },
+    { token: "ashbyhq.com", platform: "ashby" },
+    { token: "smartrecruiters.com", platform: "smartrecruiters" },
+    { token: "icims.com", platform: "icims" },
+    { token: "jobvite.com", platform: "jobvite" },
+    { token: "bamboohr.com", platform: "bamboohr" },
+    { token: "jazzhr.com", platform: "jazzhr" },
+    { token: "taleo.net", platform: "taleo" },
+    { token: "successfactors.com", platform: "successfactors" },
+    { token: "jobs.sap.com", platform: "successfactors" },
+    { token: "adp.com", platform: "adp" },
+    { token: "paylocity.com", platform: "paylocity" },
+    { token: "teamtailor.com", platform: "teamtailor" },
+    { token: "recruitee.com", platform: "recruitee" },
+    { token: "workable.com", platform: "workable" },
+    { token: "jobscore.com", platform: "jobscore" },
+    { token: "clearcompany.com", platform: "clearcompany" }
+  ];
+
   const getPlatform = (hostname) => {
     const host = (hostname || "").toLowerCase();
-    if (host.includes("myworkdayjobs")) return "workday";
-    if (host.includes("greenhouse.io")) return "greenhouse";
-    if (host.includes("lever.co")) return "lever";
+    for (const matcher of PLATFORM_MATCHERS) {
+      if (host.includes(matcher.token)) return matcher.platform;
+    }
     return "";
   };
 

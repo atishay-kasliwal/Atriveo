@@ -27,15 +27,23 @@
       ])
     );
 
-    const location = utils.cleanLocation(
-      utils.firstNonEmpty([
-        utils.getTextBySelectors([
-          ".posting-categories .sort-by-location",
-          ".posting-categories .location"
-        ]),
-        utils.getCapturedMatchFromText(pageText, [/\blocation\s*[:\-]?\s*([A-Za-z0-9,.\- ]{2,80})/i])
-      ])
-    );
+    const locationRaw = utils.firstNonEmpty([
+      utils.getTextBySelectors([
+        ".posting-categories .sort-by-location",
+        ".posting-categories .location"
+      ]),
+      utils.getCapturedMatchFromText(pageText, [/\blocation\s*[:\-]?\s*([A-Za-z0-9,.\- ]{2,80})/i])
+    ]);
+    const location = utils.cleanLocation(locationRaw);
+
+    const department = utils.firstNonEmpty([
+      utils.getTextBySelectors([
+        ".posting-categories .sort-by-team",
+        ".posting-categories .department",
+        ".department"
+      ]),
+      utils.inferDepartment(`${categoryText} ${pageText}`)
+    ]);
 
     const jobDescription = utils.firstNonEmpty([
       utils.getTextBySelectors([
@@ -56,6 +64,13 @@
       ]),
       utils.inferEmploymentType(categoryText),
       utils.inferEmploymentType(pageText)
+    ]);
+
+    const locationType = utils.firstNonEmpty([
+      utils.getTextBySelectors([".posting-categories .workplaceTypes"]),
+      utils.inferLocationType(locationRaw),
+      utils.inferLocationType(categoryText),
+      utils.inferLocationType(jobDescription)
     ]);
 
     const jobId = utils.firstNonEmpty([
@@ -102,6 +117,8 @@
       salary_currency: salary.salary_currency,
       salary_period: salary.salary_period,
       application_status: applicationStatus,
+      location_type: locationType,
+      department,
       notes: "",
       salary_source_text: `${salaryText} ${categoryText} ${pageText}`,
       url: window.location.href,
