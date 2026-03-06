@@ -16,10 +16,8 @@ const EXTENSION_CONTRACT = {
 const WEB_LOGIN_URL = "https://www.atriveo.com/";
 const WEB_SESSION_KEY = "dashboard_auth_session";
 const WEB_TAB_PATTERNS = [
-  "*://www.atriveo.com/*",
-  "*://atriveo.com/*",
-  "*://*.atriveo.com/*",
-  "*://product.atishaykasliwal.com/*"
+  "https://www.atriveo.com/*",
+  "https://atriveo.com/*"
 ];
 const asText = (value) => String(value || "").trim();
 

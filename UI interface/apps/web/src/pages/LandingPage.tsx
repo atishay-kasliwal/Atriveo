@@ -173,7 +173,7 @@ const TESTIMONIALS = [
   },
 ];
 
-const CHROME_WEB_STORE_URL = "https://chromewebstore.google.com/";
+const EXTENSION_INSTALL_PATH = "/extension-install";
 
 const PARTICLES = Array.from({ length: 20 }, (_, i) => ({
   id: i,
@@ -329,6 +329,9 @@ export default function LandingPage({
             Atriveo<span>.</span>
           </Link>
           <div className="lv-nav-actions">
+            <Link to={EXTENSION_INSTALL_PATH} className="lv-btn lv-btn-ghost">
+              Add Extension
+            </Link>
             {isAuthenticated ? (
               <Link to={DASHBOARD_BASE_PATH} className="lv-btn lv-btn-primary">
                 Dashboard
@@ -576,21 +579,16 @@ export default function LandingPage({
             <div className="lv-extension-copy">
               <p className="lv-extension-kicker">
                 <span aria-hidden="true">A.</span>
-                Autofill Applications
+                Apply Faster with Atriveo
               </p>
-              <h2>Autofill repetitive job application questions</h2>
+              <h2>Automatically detect job applications and streamline the process.</h2>
               <p>
-                Install the Atriveo Job Assistant extension to autofill job application fields and capture key details in one click.
+                The Atriveo Job Assistant captures important job details and helps you autofill repetitive fields so you can apply faster and stay organized.
               </p>
               <div className="lv-extension-actions">
-                <a
-                  className="lv-btn lv-btn-primary lv-extension-cta-primary"
-                  href={CHROME_WEB_STORE_URL}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Add to Chrome
-                </a>
+                <Link className="lv-btn lv-btn-primary lv-extension-cta-primary" to={EXTENSION_INSTALL_PATH}>
+                  Add Extension
+                </Link>
                 <a className="lv-btn lv-btn-outline lv-extension-cta-secondary" href="#lv-how">
                   Learn More
                 </a>
@@ -822,13 +820,13 @@ export default function LandingPage({
         <div className="lv-footer-mini-inner">
           <p>© 2026 Atriveo. Built for ambitious students.</p>
           <div className="lv-footer-mini-actions">
-            <nav className="lv-footer-mini-links" aria-label="Social links">
-              <a href="https://x.com" target="_blank" rel="noreferrer" aria-label="X">x</a>
-              <a href="https://linkedin.com" target="_blank" rel="noreferrer" aria-label="LinkedIn">in</a>
-              <a href="https://github.com" target="_blank" rel="noreferrer" aria-label="GitHub">
-                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.21.68-.48v-1.7c-2.78.61-3.37-1.18-3.37-1.18-.45-1.17-1.1-1.48-1.1-1.48-.9-.63.07-.62.07-.62 1 .07 1.53 1.05 1.53 1.05.88 1.54 2.31 1.1 2.87.85.09-.66.35-1.1.63-1.36-2.22-.26-4.56-1.14-4.56-5.08 0-1.12.39-2.03 1.02-2.75-.1-.26-.44-1.3.1-2.7 0 0 .84-.27 2.75 1.05A9.3 9.3 0 0 1 12 6.8c.83 0 1.67.11 2.45.33 1.91-1.32 2.75-1.05 2.75-1.05.54 1.4.2 2.44.1 2.7.64.72 1.02 1.63 1.02 2.75 0 3.95-2.35 4.82-4.58 5.07.36.32.67.95.67 1.92v2.84c0 .27.18.58.68.48A10 10 0 0 0 12 2Z" />
-                </svg>
+            <nav className="lv-footer-mini-legal" aria-label="Legal links">
+              <a href="https://www.atriveo.com/privacy" target="_blank" rel="noreferrer">
+                Privacy Policy
+              </a>
+              <span aria-hidden="true">•</span>
+              <a href="https://www.atriveo.com/terms" target="_blank" rel="noreferrer">
+                Terms of Service
               </a>
             </nav>
             <ThemeToggle theme={theme} onToggle={onToggleTheme} className="lv-footer-theme-toggle" />

@@ -10,6 +10,9 @@ import NotesPage from "./pages/NotesPage";
 import NetworkPage from "./pages/NetworkPage";
 import LandingPage from "./pages/LandingPage";
 import HeaderTestPage from "./pages/HeaderTestPage";
+import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
+import TermsOfServicePage from "./pages/TermsOfServicePage";
+import ExtensionInstallPage from "./pages/ExtensionInstallPage";
 import {
   clearStoredSession,
   getMe,
@@ -133,6 +136,36 @@ export default function App() {
             }
           />
           <Route path="/header-test" element={<HeaderTestPage />} />
+          <Route
+            path="/extension-install"
+            element={
+              <ExtensionInstallPage
+                isAuthenticated={Boolean(session)}
+                theme={theme}
+                onToggleTheme={handleToggleTheme}
+              />
+            }
+          />
+          <Route
+            path="/privacy"
+            element={
+              <PrivacyPolicyPage
+                isAuthenticated={Boolean(session)}
+                theme={theme}
+                onToggleTheme={handleToggleTheme}
+              />
+            }
+          />
+          <Route
+            path="/terms"
+            element={
+              <TermsOfServicePage
+                isAuthenticated={Boolean(session)}
+                theme={theme}
+                onToggleTheme={handleToggleTheme}
+              />
+            }
+          />
           <Route
             path={`${DASHBOARD_BASE_PATH}/*`}
             element={
