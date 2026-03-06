@@ -9251,10 +9251,11 @@ tr:hover td {
   display: grid;
   gap: 6px;
   width: 100%;
+  justify-items: center;
 }
 
 .google-auth-render {
-  width: 100%;
+  width: min(100%, 360px);
   min-height: 40px;
 }
 
@@ -9268,6 +9269,7 @@ tr:hover td {
 }
 
 .google-auth-fallback {
+  width: min(100%, 360px);
   min-height: 40px;
   border-radius: 999px;
   border: 1px solid var(--marketing-border);
@@ -9281,6 +9283,7 @@ tr:hover td {
   margin: 0;
   color: var(--marketing-muted);
   font-size: 0.78rem;
+  text-align: center;
 }
 
 .lp-footer {
