@@ -156,7 +156,7 @@ export function GoogleAuthButton({
           size: "large",
           shape: "pill",
           text: mode === "signup" ? "signup_with" : "signin_with",
-          logo_alignment: "left",
+          logo_alignment: "center",
           width,
         });
 

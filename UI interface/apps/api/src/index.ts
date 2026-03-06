@@ -2363,39 +2363,233 @@ const jobInput = z.object({
   date_saved: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 });
 
+type CreateJobRecordInput = {
+  user_id: number;
+  source: string;
+  role: string;
+  company: string;
+  location_raw: string | null;
+  job_link: string | null;
+  job_application_id: string | null;
+  oa_deadline_date: string | null;
+  keyword_matching: unknown;
+  oa_status: unknown;
+  referral_status: unknown;
+  response_status: string | null;
+  application_status: string | null;
+  notes: string | null;
+  date_saved: string | null;
+  referred_by_name: string | null;
+};
+
+type DuplicateJobRecord = {
+  id: number;
+  role: string | null;
+  company: string | null;
+  job_link: string | null;
+  job_application_id: string | null;
+  created_at: string | null;
+  date_saved: string | null;
+};
+
+async function findDuplicateJobForUser(
+  env: Bindings,
+  input: CreateJobRecordInput,
+): Promise<DuplicateJobRecord | null> {
+  const jobLink = asTrimmedString(input.job_link);
+  if (jobLink) {
+    const [existingByLink] = await query<DuplicateJobRecord>(
+      env,
+      `
+      SELECT id, role, company, job_link, job_application_id, created_at::text, date_saved::text
+      FROM jobs
+      WHERE user_id = $1
+        AND TRIM(COALESCE(job_link, '')) = TRIM($2)
+      ORDER BY created_at DESC NULLS LAST, id DESC
+      LIMIT 1
+      `,
+      [input.user_id, jobLink],
+    );
+    if (existingByLink) return existingByLink;
+  }
+
+  const jobApplicationId = asTrimmedString(input.job_application_id);
+  if (jobApplicationId && jobApplicationId !== "-") {
+    const [existingByJobId] = await query<DuplicateJobRecord>(
+      env,
+      `
+      SELECT id, role, company, job_link, job_application_id, created_at::text, date_saved::text
+      FROM jobs
+      WHERE user_id = $1
+        AND LOWER(TRIM(COALESCE(job_application_id, ''))) = LOWER(TRIM($2))
+        AND LOWER(TRIM(COALESCE(company, ''))) = LOWER(TRIM($3))
+        AND LOWER(TRIM(COALESCE(role, ''))) = LOWER(TRIM($4))
+      ORDER BY created_at DESC NULLS LAST, id DESC
+      LIMIT 1
+      `,
+      [input.user_id, jobApplicationId, input.company, input.role],
+    );
+    if (existingByJobId) return existingByJobId;
+  }
+
+  return null;
+}
+
+async function createJobRecord(env: Bindings, input: CreateJobRecordInput): Promise<Record<string, unknown> | null> {
+  const [row] = await query(
+    env,
+    `
+    INSERT INTO jobs (user_id, source, role, company, location_raw, job_link, job_application_id, oa_deadline_date, keyword_matching, oa_status, referral_status, response_status, application_status, notes, date_saved)
+    VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7, '-'), $8::date, COALESCE($9, 'Medium'), COALESCE($10, 'No'), $11, $12, COALESCE($13, 'Applied'), $14, (COALESCE($15::date, CURRENT_DATE))::timestamp)
+    RETURNING *
+    `,
+    [
+      input.user_id,
+      input.source,
+      input.role,
+      input.company,
+      input.location_raw,
+      input.job_link,
+      input.job_application_id?.trim() ? input.job_application_id.trim() : null,
+      input.oa_deadline_date,
+      normalizeKeywordMatching(input.keyword_matching),
+      normalizeOaStatus(input.oa_status),
+      normalizeReferralStatus(input.referral_status),
+      input.response_status,
+      input.application_status,
+      input.notes,
+      input.date_saved,
+    ],
+  );
+
+  if (row) {
+    await syncReferralFromJob(env, input.user_id, row as Record<string, unknown>, {
+      referredByName: input.referred_by_name,
+    });
+  }
+
+  return (row as Record<string, unknown>) || null;
+}
+
+const extensionApplicationInputV1 = z.object({
+  payload_version: z.literal("v1"),
+  source: z.string().trim().min(1).max(120).optional(),
+  submitted_at: z.string().optional(),
+  extracted_job: z
+    .object({
+      location: z.string().optional(),
+      url: z.string().url().optional(),
+      ats_platform: z.string().optional(),
+      job_id: z.string().optional(),
+      employment_type: z.string().optional(),
+      job_type: z.string().optional(),
+      salary_min: z.string().optional(),
+      salary_max: z.string().optional(),
+      currency: z.string().optional(),
+      period: z.string().optional(),
+    })
+    .partial()
+    .optional(),
+  application: z.object({
+    job_title: z.string().trim().min(1),
+    company: z.string().trim().min(1),
+    job_application_id: z.string().optional().nullable(),
+    job_link: z.string().url(),
+    keyword_match: z.enum(["Strong", "Medium", "Weak", "Week"]).optional(),
+    referral: z.enum(["Requested", "Yes", "No"]).optional(),
+    referral_name: z.string().optional().nullable(),
+    notes: z.string().optional().nullable(),
+  }),
+});
+
+function mapExtensionV1ToCreateJobInput(
+  userId: number,
+  payload: z.infer<typeof extensionApplicationInputV1>,
+): CreateJobRecordInput {
+  const referralName = asTrimmedString(payload.application.referral_name);
+  const explicitReferral = normalizeReferralStatus(payload.application.referral);
+  const referralStatus = referralName ? "Yes" : explicitReferral ?? "No";
+  const extracted = payload.extracted_job || {};
+
+  return {
+    user_id: userId,
+    source: "extension-v1",
+    role: payload.application.job_title.trim(),
+    company: payload.application.company.trim(),
+    location_raw: asTrimmedString(extracted.location),
+    job_link: asTrimmedString(payload.application.job_link),
+    job_application_id: asTrimmedString(payload.application.job_application_id),
+    oa_deadline_date: null,
+    keyword_matching: payload.application.keyword_match ?? "Medium",
+    oa_status: "No",
+    referral_status: referralStatus,
+    response_status: "Review",
+    application_status: "Applied",
+    notes: asTrimmedString(payload.application.notes),
+    date_saved: toIsoDate(payload.submitted_at) ?? null,
+    referred_by_name: referralName,
+  };
+}
+
 app.post("/api/jobs", async (c) => {
   const userId = c.get("authUser").id;
   const parsed = jobInput.safeParse(await c.req.json());
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
   const p = parsed.data;
-  const [row] = await query(
-    c.env,
-    `
-    INSERT INTO jobs (user_id, source, role, company, location_raw, job_link, job_application_id, oa_deadline_date, keyword_matching, oa_status, referral_status, response_status, application_status, notes, date_saved)
-    VALUES ($1, 'manual', $2, $3, $4, $5, COALESCE($6, '-'), $7::date, COALESCE($8, 'Medium'), COALESCE($9, 'No'), $10, $11, COALESCE($12, 'Applied'), $13, (COALESCE($14::date, CURRENT_DATE))::timestamp)
-    RETURNING *
-    `,
-    [
-      userId,
-      p.role,
-      p.company,
-      p.location_raw ?? null,
-      p.job_link ?? null,
-      p.job_application_id?.trim() ? p.job_application_id.trim() : null,
-      p.oa_deadline_date ?? null,
-      normalizeKeywordMatching(p.keyword_matching),
-      normalizeOaStatus(p.oa_status),
-      normalizeReferralStatus(p.referral_status),
-      p.response_status ?? null,
-      p.application_status ?? null,
-      p.notes ?? null,
-      p.date_saved ?? null,
-    ],
-  );
-  if (row) {
-    await syncReferralFromJob(c.env, userId, row as Record<string, unknown>, { referredByName: p.referred_by_name ?? null });
-  }
+
+  const row = await createJobRecord(c.env, {
+    user_id: userId,
+    source: "manual",
+    role: p.role,
+    company: p.company,
+    location_raw: p.location_raw ?? null,
+    job_link: p.job_link ?? null,
+    job_application_id: p.job_application_id?.trim() ? p.job_application_id.trim() : null,
+    oa_deadline_date: p.oa_deadline_date ?? null,
+    keyword_matching: p.keyword_matching,
+    oa_status: p.oa_status,
+    referral_status: p.referral_status,
+    response_status: p.response_status ?? null,
+    application_status: p.application_status ?? null,
+    notes: p.notes ?? null,
+    date_saved: p.date_saved ?? null,
+    referred_by_name: p.referred_by_name ?? null,
+  });
+
+  if (!row) return c.json({ error: "Unable to create application right now." }, 500);
   return c.json(row, 201);
+});
+
+app.post("/api/extension/applications", async (c) => {
+  const userId = c.get("authUser").id;
+  const parsed = extensionApplicationInputV1.safeParse(await c.req.json());
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
+
+  const createInput = mapExtensionV1ToCreateJobInput(userId, parsed.data);
+  const duplicate = await findDuplicateJobForUser(c.env, createInput);
+  if (duplicate) {
+    return c.json(
+      {
+        error: "Application already exists for this job.",
+        code: "DUPLICATE_APPLICATION",
+        payload_version: "v1",
+        existing_job: duplicate,
+      },
+      409,
+    );
+  }
+
+  const row = await createJobRecord(c.env, createInput);
+  if (!row) return c.json({ error: "Unable to create extension application right now." }, 500);
+
+  return c.json(
+    {
+      payload_version: "v1",
+      source: parsed.data.source ?? "atriveo-job-assistant",
+      job: row,
+    },
+    201,
+  );
 });
 
 const jobsCsvImportInput = z.object({
