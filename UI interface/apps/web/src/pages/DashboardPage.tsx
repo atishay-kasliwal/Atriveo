@@ -932,36 +932,42 @@ export default function DashboardPage() {
           value={derivedKpis.jobs}
           sparkline={kpiSparklineByMetric.total}
           sparklineColor={KPI_SPARKLINE_COLORS.primaryBlue}
+          changeContext="vs 14 days ago"
         />
         <KpiCard
           label="Applications this month"
           value={derivedKpis.jobsThisMonth}
           sparkline={kpiSparklineByMetric.thisMonth}
           sparklineColor={KPI_SPARKLINE_COLORS.skyBlue}
+          changeContext="vs month start"
         />
         <KpiCard
           label="Applications this week"
           value={derivedKpis.jobsThisWeek}
           sparkline={kpiSparklineByMetric.thisWeek}
           sparklineColor={KPI_SPARKLINE_COLORS.teal}
+          changeContext="vs week start (Mon)"
         />
         <KpiCard
           label="Applications today"
           value={derivedKpis.jobsToday}
           sparkline={kpiSparklineByMetric.todayWindow}
           sparklineColor={KPI_SPARKLINE_COLORS.green}
+          changeContext="vs 7-day trend start"
         />
         <KpiCard
           label="Total applications with referral"
           value={derivedKpis.jobsWithReferral}
           sparkline={kpiSparklineByMetric.referral}
           sparklineColor={KPI_SPARKLINE_COLORS.lime}
+          changeContext="vs 14 days ago"
         />
         <KpiCard
           label="Monthly target progress"
           value={monthlyTargetKpiValue}
           sparkline={kpiSparklineByMetric.thisMonth}
           sparklineColor={KPI_SPARKLINE_COLORS.amber}
+          changeContext="vs month start"
         />
         <KpiCard
           label="Total rejects"
@@ -969,6 +975,7 @@ export default function DashboardPage() {
           accent="red"
           sparkline={kpiSparklineByMetric.rejects}
           sparklineColor={KPI_SPARKLINE_COLORS.red}
+          changeContext="vs 14 days ago"
         />
       </section>
       <section className="dashboard-actions">

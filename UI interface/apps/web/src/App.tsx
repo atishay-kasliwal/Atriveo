@@ -172,6 +172,8 @@ export default function App() {
               session ? (
                 <Layout
                   userEmail={session.user.email}
+                  userFirstName={session.user.first_name}
+                  userLastName={session.user.last_name}
                   onLogout={handleLogout}
                   theme={theme}
                   onToggleTheme={handleToggleTheme}

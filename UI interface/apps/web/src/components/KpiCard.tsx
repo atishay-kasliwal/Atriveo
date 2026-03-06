@@ -8,6 +8,7 @@ type Props = {
   accent?: "red";
   sparkline?: number[];
   sparklineColor?: string;
+  changeContext?: string;
 };
 
 function Sparkline({
@@ -75,7 +76,7 @@ function Sparkline({
   );
 }
 
-export default function KpiCard({ label, value, accent, sparkline, sparklineColor }: Props) {
+export default function KpiCard({ label, value, accent, sparkline, sparklineColor, changeContext }: Props) {
   const displayValue = value !== undefined && value !== null ? value : 0;
   const className = accent === "red" ? "kpi-card kpi-card--red" : "kpi-card";
   const sparklineData = sparkline && sparkline.length > 1 ? sparkline : [0, 0];
@@ -94,6 +95,7 @@ export default function KpiCard({ label, value, accent, sparkline, sparklineColo
       trendText = `↓ ${pct}%`;
     }
   }
+  const contextText = changeContext?.trim() || "vs start of shown trend";
 
   return (
     <div className={className}>
@@ -102,6 +104,7 @@ export default function KpiCard({ label, value, accent, sparkline, sparklineColo
         <div className="kpi-value">{displayValue}</div>
         <span className={trendClass}>{trendText}</span>
       </div>
+      <div className="kpi-change-context">{contextText}</div>
       <Sparkline data={sparklineData} accent={accent} color={sparklineColor} label={label} />
     </div>
   );
