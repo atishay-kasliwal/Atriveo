@@ -10268,7 +10268,7 @@ tr:hover td {
 .lv-particles span {
   position: absolute;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--accent) 60%, #ffffff 40%);
+  background: color-mix(in srgb, var(--accent) 82%, var(--accent-soft) 18%);
   opacity: 0.22;
   animation: lvParticleDrift linear infinite;
 }
@@ -10329,6 +10329,10 @@ tr:hover td {
   align-items: center;
   justify-content: center;
   gap: 12px;
+}
+
+.lv-hero-actions .lv-btn-primary {
+  border-radius: 999px;
 }
 
 .lv-hero-footnote {
@@ -10621,6 +10625,379 @@ tr:hover td {
   object-fit: contain;
   opacity: 1;
   filter: none;
+}
+
+.lv-extension-showcase {
+  padding: 0 0 92px;
+}
+
+.lv-extension-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.06fr) minmax(0, 0.94fr);
+  gap: clamp(22px, 3.4vw, 52px);
+  align-items: center;
+}
+
+.lv-extension-pill-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+  margin-bottom: 18px;
+}
+
+.lv-extension-pill-label {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-right: 2px;
+}
+
+.lv-extension-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 78%, transparent);
+  background: color-mix(in srgb, var(--bg-card) 82%, transparent);
+  color: var(--text-secondary);
+  padding: 6px 12px;
+  font-size: 0.83rem;
+  font-weight: 600;
+}
+
+.lv-extension-pill-mark {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.68rem;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.lv-extension-pill-mark--workday {
+  background: rgba(255, 189, 46, 0.16);
+  color: #f59e0b;
+}
+
+.lv-extension-pill-mark--greenhouse {
+  background: rgba(20, 184, 166, 0.18);
+  color: #14b8a6;
+}
+
+.lv-extension-pill-mark--lever {
+  background: rgba(148, 163, 184, 0.2);
+  color: #94a3b8;
+}
+
+.lv-extension-pill--more {
+  gap: 0;
+}
+
+.lv-extension-browser {
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 76%, transparent);
+  background: color-mix(in srgb, var(--bg-card) 90%, transparent);
+  box-shadow: 0 24px 52px color-mix(in srgb, #020617 42%, transparent);
+}
+
+.lv-extension-browser-head {
+  min-height: 46px;
+  padding: 0 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--bg-card-border) 66%, transparent);
+  background: color-mix(in srgb, var(--bg-card-elevated) 76%, transparent);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lv-extension-browser-tab {
+  width: 78px;
+  height: 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-muted) 35%, transparent);
+}
+
+.lv-extension-browser-add {
+  width: 14px;
+  height: 14px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 74%, transparent);
+  margin-right: auto;
+}
+
+.lv-extension-browser-action {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--accent) 42%, transparent);
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lv-extension-browser-action i {
+  width: 8px;
+  height: 8px;
+  border-top: 2px solid #f8fbff;
+  border-right: 2px solid #f8fbff;
+  transform: rotate(45deg);
+}
+
+.lv-extension-browser-body {
+  position: relative;
+  min-height: 290px;
+  padding: 20px 18px 18px;
+}
+
+.lv-extension-mini-popup {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 116px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 76%, transparent);
+  background: color-mix(in srgb, var(--bg-card-elevated) 88%, transparent);
+  box-shadow: 0 10px 20px color-mix(in srgb, #020617 24%, transparent);
+  padding: 8px;
+  display: grid;
+  gap: 6px;
+}
+
+.lv-extension-mini-popup strong {
+  font-size: 0.62rem;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.lv-extension-mini-line {
+  display: block;
+  height: 5px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-muted) 40%, transparent);
+}
+
+.lv-extension-mini-line--short {
+  width: 72%;
+}
+
+.lv-extension-mini-add {
+  justify-self: end;
+  min-width: 38px;
+  height: 20px;
+  border-radius: 999px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent-soft) 75%, #ffffff 25%), var(--accent));
+  color: #ffffff;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.lv-extension-company {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.lv-extension-company-mark {
+  margin-top: 2px;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: color-mix(in srgb, var(--accent-soft) 78%, #ffffff 22%);
+}
+
+.lv-extension-company strong {
+  display: block;
+  font-size: 1.04rem;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.lv-extension-company small {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.92rem;
+  color: var(--text-secondary);
+}
+
+.lv-extension-skeleton {
+  margin-top: 34px;
+  display: grid;
+  gap: 14px;
+}
+
+.lv-extension-skeleton span {
+  display: block;
+  height: 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-card-elevated) 82%, transparent);
+}
+
+.lv-extension-metrics {
+  margin-top: 20px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 142px);
+  gap: 10px;
+}
+
+.lv-extension-metric,
+.lv-extension-mini-funnel {
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 74%, transparent);
+  background: color-mix(in srgb, var(--bg-card-elevated) 62%, transparent);
+  padding: 10px;
+}
+
+.lv-extension-metric small,
+.lv-extension-mini-funnel small {
+  display: block;
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.lv-extension-metric strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--text-primary);
+}
+
+.lv-extension-sparkline {
+  margin-top: 10px;
+  height: 48px;
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 4px;
+  align-items: end;
+}
+
+.lv-extension-sparkline span {
+  display: block;
+  border-radius: 4px 4px 2px 2px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent-soft) 84%, #ffffff 16%), var(--accent));
+}
+
+.lv-extension-mini-funnel-bars {
+  margin-top: 12px;
+  display: grid;
+  gap: 7px;
+}
+
+.lv-extension-mini-funnel-bars span {
+  display: block;
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 82%, #8bc2ff 18%), color-mix(in srgb, var(--accent-dim) 86%, #6aa8ff 14%));
+}
+
+.lv-extension-copy {
+  max-width: 520px;
+}
+
+.lv-extension-kicker {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.lv-extension-kicker span {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 72%, transparent);
+  background: color-mix(in srgb, var(--bg-card-elevated) 78%, transparent);
+  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.98rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.lv-extension-copy h2 {
+  margin: 18px 0 0;
+  font-family: var(--font-header);
+  font-size: clamp(1.82rem, 3.4vw, 2.75rem);
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.lv-extension-copy p {
+  margin: 20px 0 0;
+  color: var(--text-secondary);
+  font-size: 1.03rem;
+  line-height: 1.65;
+}
+
+.lv-extension-actions {
+  margin-top: 30px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.lv-extension-actions .lv-btn {
+  min-height: 40px;
+  min-width: 164px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 0.9rem;
+}
+
+.lv-extension-cta-secondary {
+  border-color: color-mix(in srgb, var(--accent) 54%, var(--bg-card-border));
+  color: color-mix(in srgb, var(--accent-soft) 70%, var(--text-primary) 30%);
+  background: transparent;
+}
+
+.lv-extension-cta-secondary:hover {
+  border-color: color-mix(in srgb, var(--accent) 80%, var(--bg-card-border));
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.lv-extension-proof {
+  margin: 22px 0 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.02rem;
+  color: var(--text-secondary);
+}
+
+.lv-extension-proof span {
+  letter-spacing: 0.04em;
+  color: #f59e0b;
+  font-size: 1.08rem;
 }
 
 .lv-features,
@@ -11510,7 +11887,8 @@ tr:hover td {
 }
 
 :root[data-theme="light"] .lv-particles span {
-  background: rgba(37, 99, 235, 0.5);
+  background: rgba(37, 99, 235, 0.78);
+  box-shadow: 0 0 10px rgba(37, 99, 235, 0.32);
 }
 
 :root[data-theme="light"] .lv-dashboard-card,
@@ -11537,6 +11915,68 @@ tr:hover td {
   background: #ffffff;
   border-color: #dbe3ef;
   box-shadow: 0 14px 28px rgba(15, 23, 42, 0.08);
+}
+
+:root[data-theme="light"] .lv-extension-pill,
+:root[data-theme="light"] .lv-extension-browser {
+  background: #ffffff;
+  border-color: #dbe3ef;
+  box-shadow: 0 18px 34px rgba(15, 23, 42, 0.08);
+}
+
+:root[data-theme="light"] .lv-extension-metric,
+:root[data-theme="light"] .lv-extension-mini-funnel {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+:root[data-theme="light"] .lv-extension-mini-popup {
+  background: #ffffff;
+  border-color: #dbe3ef;
+  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.1);
+}
+
+:root[data-theme="light"] .lv-extension-mini-line {
+  background: #cbd5e1;
+}
+
+:root[data-theme="light"] .lv-extension-browser-head {
+  background: #f8fafc;
+  border-bottom-color: #e2e8f0;
+}
+
+:root[data-theme="light"] .lv-extension-browser-tab,
+:root[data-theme="light"] .lv-extension-skeleton span {
+  background: #e2e8f0;
+}
+
+:root[data-theme="light"] .lv-extension-browser-add {
+  border-color: #dbe3ef;
+}
+
+:root[data-theme="light"] .lv-extension-browser-action {
+  border-color: rgba(37, 99, 235, 0.32);
+  background: rgba(37, 99, 235, 0.16);
+}
+
+:root[data-theme="light"] .lv-extension-company-mark {
+  background: rgba(37, 99, 235, 0.14);
+  color: #2563eb;
+}
+
+:root[data-theme="light"] .lv-extension-kicker span {
+  background: #ffffff;
+  border-color: #dbe3ef;
+}
+
+:root[data-theme="light"] .lv-extension-cta-secondary {
+  color: #1d4ed8;
+  border-color: rgba(37, 99, 235, 0.36);
+  background: #ffffff;
+}
+
+:root[data-theme="light"] .lv-extension-cta-secondary:hover {
+  background: #eff6ff;
 }
 
 :root[data-theme="light"] .lv-window-dots span {
@@ -11583,6 +12023,17 @@ tr:hover td {
   border-color: rgba(96, 165, 250, 0.38);
 }
 
+:root[data-theme="dark"] .lv-extension-pill,
+:root[data-theme="dark"] .lv-extension-browser {
+  border-color: rgba(96, 165, 250, 0.3);
+  background: linear-gradient(160deg, rgba(11, 22, 49, 0.93) 0%, rgba(6, 14, 34, 0.98) 100%);
+}
+
+:root[data-theme="dark"] .lv-extension-mini-popup {
+  border-color: rgba(96, 165, 250, 0.3);
+  background: linear-gradient(160deg, rgba(17, 31, 62, 0.92) 0%, rgba(10, 22, 44, 0.98) 100%);
+}
+
 @media (max-width: 1080px) {
   .lv-dashboard-body {
     grid-template-columns: minmax(0, 1fr);
@@ -11606,6 +12057,15 @@ tr:hover td {
 
   .lv-preview {
     margin-top: -92px;
+  }
+
+  .lv-extension-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 30px;
+  }
+
+  .lv-extension-copy {
+    max-width: none;
   }
 
   .lv-feature-grid,
@@ -11681,6 +12141,36 @@ tr:hover td {
   .lv-social-proof-logo {
     width: clamp(68px, 24vw, 112px);
     height: 32px;
+  }
+
+  .lv-extension-showcase {
+    padding-bottom: 72px;
+  }
+
+  .lv-extension-browser-body {
+    min-height: 248px;
+  }
+
+  .lv-extension-metrics {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .lv-extension-copy p {
+    font-size: 0.98rem;
+  }
+
+  .lv-extension-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .lv-extension-actions .lv-btn {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .lv-extension-proof {
+    font-size: 0.94rem;
   }
 
   .lv-hero {

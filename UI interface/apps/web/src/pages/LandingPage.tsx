@@ -173,6 +173,8 @@ const TESTIMONIALS = [
   },
 ];
 
+const CHROME_WEB_STORE_URL = "https://chromewebstore.google.com/";
+
 const PARTICLES = Array.from({ length: 20 }, (_, i) => ({
   id: i,
   left: `${(i * 17) % 100}%`,
@@ -483,7 +485,124 @@ export default function LandingPage({
           </div>
         </section>
 
-        <section className="lv-features">
+        <section className="lv-extension-showcase" aria-label="Atriveo Chrome extension">
+          <div className="lv-wrap lv-extension-grid">
+            <div className="lv-extension-preview" aria-hidden="true">
+              <div className="lv-extension-pill-row">
+                <span className="lv-extension-pill-label">Works on</span>
+                <span className="lv-extension-pill">
+                  <i className="lv-extension-pill-mark lv-extension-pill-mark--workday">W</i>
+                  Workday
+                </span>
+                <span className="lv-extension-pill">
+                  <i className="lv-extension-pill-mark lv-extension-pill-mark--greenhouse">G</i>
+                  Greenhouse
+                </span>
+                <span className="lv-extension-pill">
+                  <i className="lv-extension-pill-mark lv-extension-pill-mark--lever">L</i>
+                  Lever
+                </span>
+                <span className="lv-extension-pill lv-extension-pill--more">+19 coming soon</span>
+              </div>
+
+              <article className="lv-extension-browser">
+                <header className="lv-extension-browser-head">
+                  <div className="lv-window-dots" aria-hidden="true">
+                    <span />
+                    <span />
+                    <span />
+                  </div>
+                  <span className="lv-extension-browser-tab" />
+                  <span className="lv-extension-browser-add" />
+                  <span className="lv-extension-browser-action">
+                    <i />
+                  </span>
+                </header>
+
+                <div className="lv-extension-browser-body">
+                  <aside className="lv-extension-mini-popup" aria-hidden="true">
+                    <strong>Atriveo</strong>
+                    <span className="lv-extension-mini-line" />
+                    <span className="lv-extension-mini-line lv-extension-mini-line--short" />
+                    <span className="lv-extension-mini-add">Add</span>
+                  </aside>
+
+                  <div className="lv-extension-company">
+                    <span className="lv-extension-company-mark">A.</span>
+                    <div>
+                      <strong>airbnb</strong>
+                      <small>Software Engineer</small>
+                    </div>
+                  </div>
+
+                  <div className="lv-extension-skeleton" aria-hidden="true">
+                    <span style={{ width: "62%" }} />
+                    <span style={{ width: "34%" }} />
+                    <span style={{ width: "22%" }} />
+                    <span style={{ width: "28%" }} />
+                    <span style={{ width: "18%" }} />
+                    <span style={{ width: "24%" }} />
+                  </div>
+
+                  <div className="lv-extension-metrics" aria-hidden="true">
+                    <article className="lv-extension-metric">
+                      <small>Autofill Rate</small>
+                      <strong>87%</strong>
+                      <div className="lv-extension-sparkline">
+                        <span style={{ height: "36%" }} />
+                        <span style={{ height: "42%" }} />
+                        <span style={{ height: "54%" }} />
+                        <span style={{ height: "48%" }} />
+                        <span style={{ height: "63%" }} />
+                        <span style={{ height: "72%" }} />
+                        <span style={{ height: "68%" }} />
+                        <span style={{ height: "79%" }} />
+                      </div>
+                    </article>
+
+                    <article className="lv-extension-mini-funnel">
+                      <small>Stages</small>
+                      <div className="lv-extension-mini-funnel-bars">
+                        <span style={{ width: "100%" }} />
+                        <span style={{ width: "72%" }} />
+                        <span style={{ width: "46%" }} />
+                      </div>
+                    </article>
+                  </div>
+                </div>
+              </article>
+            </div>
+
+            <div className="lv-extension-copy">
+              <p className="lv-extension-kicker">
+                <span aria-hidden="true">A.</span>
+                Autofill Applications
+              </p>
+              <h2>Autofill repetitive job application questions</h2>
+              <p>
+                Install the Atriveo Job Assistant extension to autofill job application fields and capture key details in one click.
+              </p>
+              <div className="lv-extension-actions">
+                <a
+                  className="lv-btn lv-btn-primary lv-extension-cta-primary"
+                  href={CHROME_WEB_STORE_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Add to Chrome
+                </a>
+                <a className="lv-btn lv-btn-outline lv-extension-cta-secondary" href="#lv-how">
+                  Learn More
+                </a>
+              </div>
+              <p className="lv-extension-proof" aria-label="social proof">
+                <span>★★★★★</span> 200,000+ applications submitted
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section id="lv-features" className="lv-features">
           <div className="lv-wrap">
             <h2>Everything you need to manage your job search.</h2>
             <div className="lv-feature-grid">
@@ -640,7 +759,7 @@ export default function LandingPage({
           </div>
         </section>
 
-        <section className="lv-how">
+        <section id="lv-how" className="lv-how">
           <div className="lv-wrap">
             <h2>How it works</h2>
             <div className="lv-step-grid">
