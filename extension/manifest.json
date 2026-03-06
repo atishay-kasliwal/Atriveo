@@ -66,6 +66,7 @@
         "content-scripts/greenhouse.js",
         "content-scripts/lever.js",
         "content-scripts/applytojob.js",
+        "content-scripts/ashby.js",
         "content-scripts/generic-ats.js",
         "content-scripts/detector.js"
       ],

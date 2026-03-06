@@ -13,25 +13,30 @@
       utils.stripLabelPrefix(document.title, ["job"])
     ]);
 
-    const company = utils.cleanCompanyName(
-      utils.firstNonEmpty([
-        utils.getTextBySelectors([
-          ".company-name",
-          ".app-title + .company-name",
-          ".app-header .company"
-        ]),
-        utils.getCapturedMatchFromText(document.title, [/at\s+(.+)$/i]),
-        utils.getMetaContent("og:site_name"),
-        utils.getHostnameLabel()
-      ])
-    );
+    const companyRaw = utils.firstNonEmpty([
+      utils.getTextBySelectors([
+        ".company-name",
+        ".app-title + .company-name",
+        ".app-header .company"
+      ]),
+      utils.getCapturedMatchFromText(document.title, [/at\s+(.+)$/i]),
+      utils.getMetaContent("og:site_name"),
+      utils.getHostnameLabel()
+    ]);
 
-    const location = utils.cleanLocation(
-      utils.firstNonEmpty([
-        utils.getTextBySelectors([".location", ".location-name", ".app-header .location"]),
-        utils.getCapturedMatchFromText(pageText, [/\blocation\s*[:\-]?\s*([A-Za-z0-9,.\- ]{2,80})/i])
-      ])
-    );
+    const company = utils.cleanCompanyName(companyRaw);
+
+    const department = utils.firstNonEmpty([
+      utils.getTextBySelectors([".department"]),
+      utils.getCapturedMatchFromText(companyRaw, [/(.+?)\s+at\s+/i]),
+      utils.inferDepartment(`${utils.getTextBySelectors([".breadcrumb"])} ${pageText}`)
+    ]);
+
+    const locationRaw = utils.firstNonEmpty([
+      utils.getTextBySelectors([".location", ".location-name", ".app-header .location"]),
+      utils.getCapturedMatchFromText(pageText, [/\blocation\s*[:\-]?\s*([A-Za-z0-9,.\- ]{2,80})/i])
+    ]);
+    const location = utils.cleanLocation(locationRaw);
 
     const jobDescription = utils.firstNonEmpty([
       utils.getTextBySelectors(["#content", "#job-description", ".job__description", "main"]),
@@ -55,6 +60,12 @@
       ...metaItems.filter((entry) => /(full|part|contract|intern|temporary|seasonal)/i.test(entry)),
       utils.inferEmploymentType(metaItems.join(" ")),
       utils.inferEmploymentType(pageText)
+    ]);
+
+    const locationType = utils.firstNonEmpty([
+      utils.inferLocationType(locationRaw),
+      utils.inferLocationType(metaItems.join(" ")),
+      utils.inferLocationType(jobDescription)
     ]);
 
     const salaryText = utils.firstNonEmpty([
@@ -98,6 +109,8 @@
       salary_currency: salary.salary_currency,
       salary_period: salary.salary_period,
       application_status: applicationStatus,
+      location_type: locationType,
+      department,
       notes: "",
       salary_source_text: `${salaryText} ${metaItems.join(" ")} ${pageText}`,
       url: window.location.href,

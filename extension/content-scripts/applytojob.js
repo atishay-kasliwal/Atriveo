@@ -220,21 +220,33 @@
       ])
     );
 
-    const location = utils.cleanLocation(
-      utils.firstNonEmpty([
-        utils.getTextBySelectors([
-          ".location",
-          ".job-location",
-          ".position-location",
-          '[data-testid*="location"]',
-          '[class*="location"]'
-        ]),
-        jsonLdLocation,
-        utils.getCapturedMatchFromText(pageText, [
-          /\blocations?\s*[:\-]?\s*([A-Za-z0-9,.\- ]{2,100})\b/i
-        ])
+    const locationRaw = utils.firstNonEmpty([
+      utils.getTextBySelectors([
+        ".location",
+        ".job-location",
+        ".position-location",
+        '[data-testid*="location"]',
+        '[class*="location"]',
+        ".resumator-job-location",
+        ".resumator-location"
+      ]),
+      jsonLdLocation,
+      utils.getCapturedMatchFromText(pageText, [
+        /\blocations?\s*[:\-]?\s*([A-Za-z0-9,.\- ]{2,100})\b/i
       ])
-    );
+    ]);
+    const location = utils.cleanLocation(locationRaw);
+
+    const department = utils.firstNonEmpty([
+      utils.getTextBySelectors([
+        ".department",
+        ".job-department",
+        ".resumator-department",
+        '[data-testid*="department"]',
+        '[class*="department"]'
+      ]),
+      utils.inferDepartment(`${detailText} ${pageText}`)
+    ]);
 
     const jobDescription = utils.firstNonEmpty([
       utils.getTextBySelectors([
@@ -270,6 +282,12 @@
       utils.inferEmploymentType(`${detailText} ${pageText}`)
     ]);
 
+    const locationType = utils.firstNonEmpty([
+      utils.inferLocationType(locationRaw),
+      utils.inferLocationType(detailText),
+      utils.inferLocationType(jobDescription)
+    ]);
+
     const parsedSalary = utils.parseSalaryFromText(`${detailText} ${jobDescription} ${pageText}`);
     const salary = {
       salary_min: parsedSalary.salary_min || jsonLdSalary.salary_min,
@@ -297,6 +315,8 @@
       salary_max: salary.salary_max,
       salary_currency: salary.salary_currency,
       salary_period: salary.salary_period,
+      location_type: locationType,
+      department,
       notes: "",
       salary_source_text: `${detailText} ${pageText}`,
       url: window.location.href,

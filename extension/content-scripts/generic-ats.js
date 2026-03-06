@@ -2,7 +2,6 @@
   window.AtriveoExtractors = window.AtriveoExtractors || {};
 
   const GENERIC_PLATFORMS = [
-    "ashby",
     "smartrecruiters",
     "icims",
     "jobvite",
@@ -70,20 +69,30 @@
       ])
     );
 
-    const location = utils.cleanLocation(
-      utils.firstNonEmpty([
-        utils.getTextBySelectors([
-          ".location",
-          ".job-location",
-          ".position-location",
-          '[data-testid*="location"]',
-          '[class*="location"]'
-        ]),
-        utils.getCapturedMatchFromText(pageText, [
-          /\blocations?\s*[:\-]?\s*([A-Za-z0-9,.\- ]{2,120})\b/i
-        ])
+    const locationRaw = utils.firstNonEmpty([
+      utils.getTextBySelectors([
+        ".location",
+        ".job-location",
+        ".position-location",
+        '[data-testid*="location"]',
+        '[class*="location"]'
+      ]),
+      utils.getCapturedMatchFromText(pageText, [
+        /\blocations?\s*[:\-]?\s*([A-Za-z0-9,.\- ]{2,120})\b/i
       ])
-    );
+    ]);
+    const location = utils.cleanLocation(locationRaw);
+
+    const department = utils.firstNonEmpty([
+      utils.getTextBySelectors([
+        ".department",
+        ".job-department",
+        ".team",
+        '[data-testid*="department"]',
+        '[class*="department"]'
+      ]),
+      utils.inferDepartment(`${metaText} ${pageText}`)
+    ]);
 
     const jobDescription = utils.firstNonEmpty([
       utils.getTextBySelectors([
@@ -118,6 +127,12 @@
       utils.inferEmploymentType(`${metaText} ${pageText}`)
     ]);
 
+    const locationType = utils.firstNonEmpty([
+      utils.inferLocationType(locationRaw),
+      utils.inferLocationType(metaText),
+      utils.inferLocationType(jobDescription)
+    ]);
+
     const salary = utils.parseSalaryFromText(`${metaText} ${jobDescription} ${pageText}`);
     const jobType = utils.firstNonEmpty([
       utils.extractJobTypeFromText(`${metaText} ${pageText}`),
@@ -138,6 +153,8 @@
       salary_max: salary.salary_max,
       salary_currency: salary.salary_currency,
       salary_period: salary.salary_period,
+      location_type: locationType,
+      department,
       notes: "",
       salary_source_text: `${metaText} ${pageText}`,
       url: window.location.href,

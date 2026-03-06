@@ -54,6 +54,8 @@ const NETWORK_CHART_THEME = {
   textSecondary: "var(--chart-text-secondary)",
   textPrimary: "var(--chart-text)",
   accentSoft: "var(--accent-soft)",
+  accentDim: "var(--accent-dim)",
+  textMain: "var(--chart-text)",
 };
 const WEEKLY_LINE_PALETTE = [
   ENTERPRISE_CHART_COLORS[0],
@@ -328,6 +330,24 @@ function augmentDemoNetworkData(
 
   return { trend, today };
 }
+
+const networkLineGradientId = (key: string) => `networkLineGrad-${key}`;
+
+export const renderNetworkLineGradients = (keys: string[]) => {
+  if (keys.length === 0) return null;
+  return `
+    ${keys
+      .map(
+        (k) => `
+      <linearGradient id="${weeklyShadeGradientId(k)}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="${k === "self" ? "var(--accent)" : "var(--accent-soft)"}" stop-opacity="0.18" />
+        <stop offset="100%" stop-color="${k === "self" ? "var(--accent)" : "var(--accent-soft)"}" stop-opacity="0" />
+      </linearGradient>
+    `
+      )
+      .join("")}
+  `;
+};
 
 export default function NetworkPage() {
   const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
@@ -628,10 +648,7 @@ export default function NetworkPage() {
 
     const todayRows = selected
       .map((friend) => ({
-        key: friend.key,
-        initials: friend.initials,
-        label: friend.label,
-        color: friend.color,
+        ...friend,
         total: Number(friend.trend.find((point) => point.day === todayIso)?.total ?? 0),
       }))
       .sort((a, b) => b.total - a.total);
@@ -754,19 +771,22 @@ export default function NetworkPage() {
             dayValue,
             y: dayValue,
             dayLabel: String(sourceRow.label ?? ""),
-            dy: -10,
+            dy: -10, // Default initial offset
           };
         })
         .filter((row): row is { key: string; label: string; shortLabel: string; lineColor: string; y: number; dy: number; isLeader: boolean; dayValue: number; dayLabel: string } => Boolean(row))
         .sort((a, b) => b.y - a.y);
-      const closeThreshold = 7;
+      
+      // Algorithm to spread out converging end-labels vertically
+      const closeThreshold = 1.0; // Y-values distance to consider "overlapping"
       for (let i = 1; i < rows.length; i += 1) {
         const prev = rows[i - 1];
         const curr = rows[i];
         if (Math.abs(prev.y - curr.y) <= closeThreshold) {
-          // Only nudge labels when two lines are truly close; otherwise keep default placement.
-          if (prev.dy === -10) prev.dy = -15;
-          curr.dy = -5;
+          // If the current line's label overlaps with the previous (higher) one, push it down
+          // and push the higher one up to create vertical separation
+          if (prev.dy === -10) prev.dy = -16;
+          curr.dy += 12;
         }
       }
       return rows;
@@ -784,6 +804,8 @@ export default function NetworkPage() {
       todayStats: {
         average: todayAverage,
         max: todayMax,
+        total: todayRowsAligned.reduce((sum, row) => sum + row.total, 0),
+        isUserLeader: selfEntry?.is_self && selfEntry.total === leaderCount,
       },
       weeklyLeaderboard,
       weeklyShadeKeys,
@@ -910,6 +932,38 @@ export default function NetworkPage() {
                         <div className="chart-title-group">
                           <h2>Today&apos;s Application Count</h2>
                         </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <span
+                            style={{
+                              fontSize: "56px", /* Increased font size */
+                              fontWeight: 700,  /* Heavier weight */
+                              color: "var(--text-primary)",
+                              lineHeight: 1,
+                              letterSpacing: "-0.03em",
+                            }}
+                          >
+                            {insightCharts.todayStats.total}
+                          </span>
+                          <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                            {insightCharts.todayStats.isUserLeader && (
+                              <span
+                                style={{
+                                  fontSize: "12px",
+                                  fontWeight: 700,
+                                  color: "var(--brand-champion)",
+                                  background: "color-mix(in srgb, var(--brand-champion) 12%, transparent)",
+                                  padding: "2px 8px",
+                                  borderRadius: "4px",
+                                  textTransform: "uppercase",
+                                  display: "inline-block",
+                                  width: "max-content",
+                                }}
+                              >
+                                {"\u{1F525}"} Top Contributor
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
                       <div className="network-mini-chart network-split-chart">
                         <div className="network-chart-stage">
@@ -926,103 +980,115 @@ export default function NetworkPage() {
                                   );
                                 })}
                               </defs>
-                              <CartesianGrid strokeDasharray="3 3" stroke={NETWORK_CHART_THEME.grid} vertical={false} />
-                              <XAxis
-                                dataKey="label"
-                                stroke={NETWORK_CHART_THEME.axis}
-                                tick={{ fill: NETWORK_CHART_THEME.textSecondary, fontSize: 12, fontWeight: 500 }}
-                                axisLine={{ stroke: NETWORK_CHART_THEME.axis, strokeWidth: 1 }}
-                                tickLine={false}
-                                interval={0}
-                                height={28}
-                                padding={{ left: 6, right: 6 }}
-                                tickFormatter={(value) => formatFirstNameLastInitial(String(value ?? ""))}
-                              />
-                              <YAxis
-                                allowDecimals={false}
-                                stroke={NETWORK_CHART_THEME.axis}
-                                tick={{ fill: NETWORK_CHART_THEME.textSecondary, fontSize: 10, fontWeight: 400 }}
-                                tickLine={false}
-                                axisLine={false}
-                                width={34}
-                                domain={[0, (dataMax: number) => Math.max(4, Math.ceil(Number(dataMax || 0) * 1.18 + 1))]}
-                              />
-                              {insightCharts.todayStats.average > 0 ? (
-                                <ReferenceLine
-                                  y={insightCharts.todayStats.average}
-                                  stroke={NETWORK_CHART_THEME.accentSoft}
-                                  strokeDasharray="5 5"
-                                  strokeWidth={1.2}
-                                  ifOverflow="extendDomain"
-                                  label={(props: { viewBox?: { x?: number; y?: number; width?: number } }) => {
-                                    const x = Number(props.viewBox?.x ?? 0) + Number(props.viewBox?.width ?? 0) / 2;
-                                    const y = Number(props.viewBox?.y ?? 0) - 6;
-                                    return (
-                                      <text x={x} y={y} textAnchor="middle" fill={NETWORK_CHART_THEME.accentSoft} fontSize={11} fontWeight={700}>
-                                        {`Avg ${insightCharts.todayStats.average.toFixed(1)}`}
-                                      </text>
-                                    );
-                                  }}
-                                />
-                              ) : null}
+      <CartesianGrid strokeDasharray="4 4" stroke={NETWORK_CHART_THEME.grid} vertical={false} opacity={0.35} />
+      <XAxis
+        dataKey="label"
+        stroke={NETWORK_CHART_THEME.axis}
+        tick={{ fill: NETWORK_CHART_THEME.textSecondary, fontSize: 12, fontWeight: 500 }}
+        axisLine={{ stroke: NETWORK_CHART_THEME.axis, strokeWidth: 1, opacity: 0.5 }}
+        tickLine={false}
+        interval={0}
+        height={28}
+        padding={{ left: 12, right: 12 }}
+        tickFormatter={(value) => formatFirstNameLastInitial(String(value ?? ""))}
+      />
+      <YAxis
+        allowDecimals={false}
+        stroke={NETWORK_CHART_THEME.axis}
+        tick={{ fill: NETWORK_CHART_THEME.textSecondary, fontSize: 11, fontWeight: 500 }}
+        tickLine={false}
+        axisLine={false}
+        width={28}
+        domain={[0, (dataMax: number) => Math.max(4, Math.ceil(Number(dataMax || 0) * 1.15))]}
+      />
+      {insightCharts.todayStats.average > 0 ? (
+        <ReferenceLine
+          y={insightCharts.todayStats.average}
+          stroke="var(--text-muted)" /* Accessible average line color */
+          strokeDasharray="6 4"
+          strokeWidth={1.5}
+          opacity={0.8}
+          ifOverflow="extendDomain"
+          label={(props: { viewBox?: { x?: number; y?: number; width?: number } }) => {
+            const x = Number(props.viewBox?.x ?? 0) + Number(props.viewBox?.width ?? 0) / 2;
+            const y = Number(props.viewBox?.y ?? 0) - 8;
+            return (
+              <text x={x} y={y} fill="var(--text-secondary)" fontSize={11} fontWeight={600} textAnchor="middle">
+                Avg {insightCharts.todayStats.average}
+              </text>
+            );
+          }}
+        />
+      ) : null}
                               <Tooltip content={<NetworkInsightBarTooltip metricLabel="Applications today" />} cursor={false} />
-                              <Bar
-                                dataKey="total"
-                                fillOpacity={0.96}
-                                radius={[8, 8, 0, 0]}
-                                maxBarSize={56}
-                                activeBar={false}
-                              >
-                                <LabelList
+                                <Bar
                                   dataKey="total"
-                                  content={(props: {
-                                    x?: number | string;
-                                    y?: number | string;
-                                    width?: number | string;
-                                    value?: number | string;
-                                    payload?: { isLeader?: boolean; color?: string } | null;
-                                  }) => {
-                                    const x = Number(props.x ?? 0);
-                                    const y = Number(props.y ?? 0);
-                                    const width = Number(props.width ?? 0);
-                                    const value = Number(props.value ?? 0);
-                                    const isLeader = Boolean(props.payload?.isLeader);
-                                    const payloadColor = String(props.payload?.color ?? "#2563eb");
-                                    if (!(value > 0) || width <= 0) return null;
-                                    const centerX = x + width / 2;
-                                    const valueColor = isLeader ? payloadColor : rgbaFromHex(payloadColor, 0.9);
-                                    return (
-                                      <g>
-                                        {insightCharts.todayLeader.hasSingleLeader && isLeader ? (
-                                          <text x={centerX} y={y - 22} textAnchor="middle" fill={payloadColor} fontSize={14}>
-                                            {"\u{1F451}"}
+                                  fillOpacity={1}
+                                  radius={[6, 6, 0, 0]}
+                                  maxBarSize={64}
+                                  activeBar={false}
+                                >
+                                  <LabelList
+                                    dataKey="total"
+                                    position="insideTop"
+                                    offset={12}
+                                    content={(props: {
+                                      x?: number | string;
+                                      y?: number | string;
+                                      width?: number | string;
+                                      height?: number | string;
+                                      value?: number | string;
+                                      payload?: { isLeader?: boolean; color?: string; total?: number } | null;
+                                    }) => {
+                                      const x = Number(props.x ?? 0);
+                                      const y = Number(props.y ?? 0);
+                                      const width = Number(props.width ?? 0);
+                                      const height = Number(props.height ?? 0);
+                                      const value = Number(props.value ?? 0);
+                                      const isLeader = Boolean(props.payload?.isLeader);
+                                      const payloadColor = String(props.payload?.color ?? "#2563eb");
+                                      if (!(value > 0) || width <= 0) return null;
+                                      
+                                      const centerX = x + width / 2;
+                                      // If the bar is very short, position the label slightly above it
+                                      // Otherwise cleanly inside the top of the bar.
+                                      const isShortBar = height < 30;
+                                      const labelY = isShortBar ? y - 10 : y + 16;
+                                      const textColor = isShortBar ? (isLeader ? payloadColor : rgbaFromHex(payloadColor, 0.9)) : "#ffffff";
+                                      
+                                      return (
+                                        <g>
+                                          {insightCharts.todayLeader.hasSingleLeader && isLeader ? (
+                                            <text x={centerX} y={y - (isShortBar ? 26 : 14)} textAnchor="middle" fill={payloadColor} fontSize={16} filter="drop-shadow(0px 2px 4px rgba(0,0,0,0.1))">
+                                              {"\u{1F451}"}
+                                            </text>
+                                          ) : null}
+                                          <text
+                                            x={centerX}
+                                            y={labelY}
+                                            textAnchor="middle"
+                                            fill={textColor}
+                                            fontSize={14}
+                                            fontWeight={700}
+                                            style={{ textShadow: !isShortBar ? "0px 1px 2px rgba(0,0,0,0.3)" : "none" }}
+                                          >
+                                            {String(value)}
                                           </text>
-                                        ) : null}
-                                        <text
-                                          x={centerX}
-                                          y={y - 6}
-                                          textAnchor="middle"
-                                          fill={valueColor}
-                                          fontSize={14}
-                                          fontWeight={700}
-                                        >
-                                          {String(value)}
-                                        </text>
-                                      </g>
-                                    );
-                                  }}
-                                />
-                                {insightCharts.todayRows.map((row) => (
-                                  <Cell
-                                    key={`today-${row.key}`}
-                                    fill={`url(#${todayBarGradientId(row.key)})`}
-                                    fillOpacity={1}
-                                    stroke={row.total > 0 ? (row.isLeader ? "rgba(255,255,255,0.62)" : rgbaFromHex(row.color, 0.56)) : "rgba(255,255,255,0.12)"}
-                                    strokeWidth={row.isLeader ? 1.5 : 1}
+                                        </g>
+                                      );
+                                    }}
                                   />
-                                ))}
-                              </Bar>
-                            </BarChart>
+                                  {insightCharts.todayRows.map((row) => (
+                                    <Cell
+                                      key={`today-${row.key}`}
+                                      fill={`url(#${todayBarGradientId(row.key)})`}
+                                      fillOpacity={1}
+                                      stroke={row.total > 0 ? (row.isLeader ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.4)") : "rgba(255,255,255,0.12)"}
+                                      strokeWidth={row.isLeader ? 2 : 1}
+                                    />
+                                  ))}
+                                </Bar>
+                              </BarChart>
                           </ResponsiveContainer>
                         </div>
                       </div>
@@ -1037,40 +1103,48 @@ export default function NetworkPage() {
                       <div className="network-weekly-line-layout">
                         <div className="network-weekly-line-stage network-chart-stage">
                           <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={insightCharts.weeklySeriesRows} margin={{ top: 24, right: 22, left: 0, bottom: 2 }}>
+                            <LineChart data={insightCharts.weeklySeriesRows} margin={{ top: 24, right: 40, left: 0, bottom: 2 }}>
                               <defs>
+                                <filter id="networkLineGlow" x="-20%" y="-20%" width="140%" height="140%">
+                                  <feDropShadow dx="0" dy="2" stdDeviation="4" floodColor="var(--accent)" floodOpacity="0.35" />
+                                </filter>
                                 {insightCharts.weeklyShadeKeys.map((key) => {
                                   const row = insightCharts.weeklyLeaderboard.find((friend) => friend.key === key);
                                   if (!row) return null;
-                                  const gradId = weeklyShadeGradientId(row.key);
                                   return (
-                                    <linearGradient key={gradId} id={gradId} x1="0" y1="0" x2="0" y2="1">
-                                      <stop offset="0%" stopColor={rgbaFromHex(row.lineColor, row.isSelf ? 0.72 : 0.62)} />
-                                      <stop offset="45%" stopColor={rgbaFromHex(row.lineColor, row.isSelf ? 0.36 : 0.3)} />
-                                      <stop offset="100%" stopColor={rgbaFromHex(row.lineColor, 0.08)} />
+                                    <linearGradient
+                                      key={`shade-grad-${row.key}`}
+                                      id={weeklyShadeGradientId(row.key)}
+                                      x1="0"
+                                      y1="0"
+                                      x2="0"
+                                      y2="1"
+                                    >
+                                      <stop offset="0%" stopColor={row.isSelf ? "var(--accent)" : "var(--accent-soft)"} stopOpacity={row.isSelf ? 0.18 : 0.08} />
+                                      <stop offset="100%" stopColor={row.isSelf ? "var(--accent)" : "var(--accent-soft)"} stopOpacity={0} />
                                     </linearGradient>
                                   );
                                 })}
                               </defs>
-                              <CartesianGrid strokeDasharray="3 3" stroke={NETWORK_CHART_THEME.grid} vertical={false} />
+                              <CartesianGrid strokeDasharray="4 4" stroke={NETWORK_CHART_THEME.grid} vertical={false} opacity={0.35} />
                               <XAxis
                                 dataKey="label"
                                 stroke={NETWORK_CHART_THEME.axis}
-                                tick={{ fill: NETWORK_CHART_THEME.textSecondary, fontSize: 10, fontWeight: 400 }}
-                                axisLine={{ stroke: NETWORK_CHART_THEME.axis, strokeWidth: 1 }}
+                                tick={{ fill: NETWORK_CHART_THEME.textSecondary, fontSize: 11, fontWeight: 500 }}
+                                axisLine={{ stroke: NETWORK_CHART_THEME.axis, strokeWidth: 1, opacity: 0.5 }}
                                 tickLine={false}
                                 interval={0}
                                 height={24}
-                                padding={{ left: 0, right: 18 }}
+                                padding={{ left: 0, right: 32 }}
                                 tickFormatter={(value) => (String(value) === "" ? "" : String(value))}
                               />
                               <YAxis
                                 allowDecimals={false}
                                 stroke={NETWORK_CHART_THEME.axis}
-                                tick={{ fill: NETWORK_CHART_THEME.textSecondary, fontSize: 11, fontWeight: 400 }}
+                                tick={{ fill: NETWORK_CHART_THEME.textSecondary, fontSize: 11, fontWeight: 500 }}
                                 tickLine={false}
                                 axisLine={false}
-                                width={34}
+                                width={28}
                                 domain={[0, (dataMax: number) => Math.max(8, Math.ceil(Number(dataMax || 0) + 4))]}
                               />
                               {insightCharts.passedDayLabels.map((label) => (
@@ -1080,6 +1154,7 @@ export default function NetworkPage() {
                                   stroke={NETWORK_CHART_THEME.grid}
                                   strokeDasharray="2 4"
                                   strokeWidth={1}
+                                  opacity={0.5}
                                 />
                               ))}
                               <Tooltip content={<NetworkWeeklyTooltip />} cursor={false} />
@@ -1089,11 +1164,11 @@ export default function NetworkPage() {
                                 return (
                                   <Area
                                     key={`shade-${row.key}`}
-                                    type="monotone"
+                                    type="monotoneX"
                                     dataKey={row.key}
                                     stroke="none"
                                     fill={`url(#${weeklyShadeGradientId(row.key)})`}
-                                    fillOpacity={row.isSelf ? 0.22 : 0.16}
+                                    fillOpacity={row.isSelf ? 0.45 : 0.15}
                                     baseValue={0}
                                     isAnimationActive={false}
                                   />
@@ -1106,10 +1181,12 @@ export default function NetworkPage() {
                                   dataKey={friend.key}
                                   name={friend.label}
                                   stroke={friend.lineColor}
-                                  strokeWidth={2}
+                                  strokeWidth={friend.isSelf ? 3 : 2}
+                                  opacity={friend.isSelf ? 1 : 0.55}
                                   dot={false}
-                                  activeDot={false}
+                                  activeDot={{ r: friend.isSelf ? 5 : 4, strokeWidth: 0, fill: friend.lineColor }}
                                   isAnimationActive
+                                  style={friend.isSelf ? { filter: "url(#networkLineGlow)" } : undefined}
                                 />
                               ))}
                               {insightCharts.historicalDots.map((dot) => (
@@ -1135,16 +1212,16 @@ export default function NetworkPage() {
                                         const px = Number(props.viewBox?.x ?? props.x ?? 0);
                                         const py = Number(props.viewBox?.y ?? props.y ?? 0) + row.dy;
                                         const text = `${row.shortLabel} ${row.dayValue}`;
-                                        const x = px - 10;
+                                        const x = px + 8;
                                         return (
                                           <g>
                                             <text
                                               x={x}
-                                              y={py + 3}
-                                              textAnchor="end"
+                                              y={py + 4}
+                                              textAnchor="start"
                                               fill={row.lineColor}
-                                              fontSize={10}
-                                              fontWeight={row.isLeader ? 700 : 600}
+                                              fontSize={row.isLeader ? 12 : 11}
+                                              fontWeight={row.isLeader ? 700 : 500}
                                             >
                                               {text}
                                             </text>

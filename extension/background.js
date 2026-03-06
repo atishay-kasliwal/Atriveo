@@ -313,6 +313,8 @@ const normalizeExtractedJob = (job = {}) => {
   const url = asText(job.url || job.job_posting_url);
   const atsPlatform = asText(job.ats_platform) || inferAtsPlatformFromUrl(url);
   const extractorNotes = asText(job.notes);
+  const locationType = asText(job.location_type);
+  const department = asText(job.department);
   const capturedAt = new Date().toISOString();
 
   const knownKeys = new Set([
@@ -336,7 +338,9 @@ const normalizeExtractedJob = (job = {}) => {
     "notes",
     "url",
     "job_posting_url",
-    "ats_platform"
+    "ats_platform",
+    "location_type",
+    "department"
   ]);
 
   const additionalMetadata = {};
@@ -364,6 +368,8 @@ const normalizeExtractedJob = (job = {}) => {
     period,
     application_status: applicationStatus,
     extractor_notes: extractorNotes,
+    location_type: locationType,
+    department,
     url,
     ats_platform: atsPlatform,
     additional_metadata: additionalMetadata,
@@ -379,6 +385,8 @@ const buildNotesFromExtractedJob = (job) => {
   if (job.employment_type && job.employment_type !== job.job_type) {
     lines.push(`Employment Type: ${job.employment_type}`);
   }
+  if (job.location_type) lines.push(`Location Type: ${job.location_type}`);
+  if (job.department) lines.push(`Department: ${job.department}`);
   if (job.salary_min) lines.push(`Min Salary: ${job.salary_min}`);
   if (job.salary_max) lines.push(`Max Salary: ${job.salary_max}`);
   if (job.currency) lines.push(`Currency: ${job.currency}`);
@@ -588,10 +596,7 @@ const persistJob = async (incomingJob) => {
 
   const defaultPayload = buildNewApplicationPayload(extractedJob);
   const newApplicationPayload = sanitizeNewApplicationPayload(
-    {
-      ...defaultPayload,
-      ...(existingRecord?.new_application_payload || {})
-    },
+    defaultPayload,
     buildNotesFromExtractedJob(extractedJob)
   );
   const preparedPayload = prepareBackendPayload(extractedJob, newApplicationPayload);
