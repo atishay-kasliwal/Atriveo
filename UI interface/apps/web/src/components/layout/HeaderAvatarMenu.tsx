@@ -19,6 +19,14 @@ type HeaderAvatarMenuProps = {
   initials?: string;
 };
 
+function normalizeAvatarInitials(raw: string | undefined): string {
+  const cleaned = String(raw ?? "")
+    .replace(/[^a-zA-Z0-9]/g, "")
+    .toUpperCase();
+  if (!cleaned) return "U";
+  return cleaned.slice(0, 2);
+}
+
 type HeaderMenuSection = "workspace" | "account";
 
 type HeaderMenuAction = {
@@ -38,7 +46,7 @@ export default function HeaderAvatarMenu({
   onAddFriend,
   onLogout,
   templateHref,
-  initials = "A",
+  initials = "U",
 }: HeaderAvatarMenuProps) {
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
@@ -162,12 +170,13 @@ export default function HeaderAvatarMenu({
 
   const workspaceActions = actions.filter((action) => action.section === "workspace");
   const accountActions = actions.filter((action) => action.section === "account");
+  const avatarInitials = normalizeAvatarInitials(initials);
 
   return (
     <div className="avatar-menu" ref={rootRef}>
       <AvatarTriggerButton
         ref={triggerRef}
-        initials={initials}
+        initials={avatarInitials}
         isOpen={isOpen}
         menuId={menuId}
         onClick={() => setIsOpen((prev) => !prev)}
@@ -230,7 +239,7 @@ const AvatarTriggerButton = forwardRef<HTMLButtonElement, AvatarTriggerButtonPro
       aria-controls={isOpen ? menuId : undefined}
       aria-label="Open settings menu"
     >
-      {initials.slice(0, 1).toUpperCase()}
+      {initials}
     </button>
   ),
 );
