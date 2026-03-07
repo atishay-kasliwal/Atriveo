@@ -2488,6 +2488,7 @@ const extensionApplicationInputV1 = z.object({
   payload_version: z.literal("v1"),
   source: z.string().trim().min(1).max(120).optional(),
   submitted_at: z.string().optional(),
+  submitted_local_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   extracted_job: z
     .object({
       location: z.string().optional(),
@@ -2539,7 +2540,8 @@ function mapExtensionV1ToCreateJobInput(
     response_status: "Review",
     application_status: "Applied",
     notes: asTrimmedString(payload.application.notes),
-    date_saved: toIsoDate(payload.submitted_at) ?? null,
+    // Prefer extension-local submission day so "today" metrics align with the user's local timezone.
+    date_saved: payload.submitted_local_date ?? toIsoDate(payload.submitted_at) ?? null,
     referred_by_name: referralName,
   };
 }
