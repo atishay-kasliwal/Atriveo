@@ -3,6 +3,7 @@ name: Deploy Production Stack
 on:
   push:
     branches:
+      - main
       - master
   workflow_dispatch:
 
