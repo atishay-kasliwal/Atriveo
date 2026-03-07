@@ -688,7 +688,7 @@ export default function DashboardPage() {
       { label: "This month", total: thisMonth },
       { label: "Last month", total: lastMonth },
     ];
-  }, [summary.dailyTrend]);
+  }, [mtdSummary.dailyTrend]);
 
   const mtdDelta = useMemo(() => {
     if (!mtdCompare) return null;

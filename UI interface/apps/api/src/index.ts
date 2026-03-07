@@ -2119,7 +2119,7 @@ function insertJobsImportBatchStatement(userId: number, rows: CsvImportRow[]): S
       NULLIF(TRIM(r.company), ''),
       NULLIF(TRIM(r.location_raw), ''),
       NULLIF(TRIM(r.job_link), ''),
-      COALESCE(NULLIF(TRIM(r.job_application_id), ''), '-'),
+      NULLIF(TRIM(r.job_application_id), ''),
       NULLIF(TRIM(r.oa_deadline_date), '')::date,
       COALESCE(NULLIF(TRIM(r.keyword_matching), ''), 'Medium'),
       COALESCE(NULLIF(TRIM(r.oa_status), ''), 'No'),
