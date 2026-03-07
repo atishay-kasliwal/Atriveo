@@ -8,7 +8,8 @@ type ExtensionInstallPageProps = {
   onToggleTheme: () => void;
 };
 
-const EXTENSION_DOWNLOAD_PATH = "/downloads/atriveo-job-assistant-v1.0.1.zip";
+const EXTENSION_VERSION = "1.0.3";
+const EXTENSION_DOWNLOAD_PATH = `/downloads/atriveo-job-assistant-v${EXTENSION_VERSION}.zip`;
 const INSTALL_STEPS = [
   "Click Download Extension (.zip).",
   "Unzip it first so you have a normal folder.",
@@ -73,8 +74,8 @@ export default function ExtensionInstallPage({
               </p>
 
               <div className="extension-install-status">
-                <span className="extension-install-status-badge">Pending Review</span>
-                <span>Manual install is available for early users.</span>
+                <span className="extension-install-status-badge">Latest Build</span>
+                <span>Manual install is available now. Current package: v{EXTENSION_VERSION}.</span>
               </div>
 
               <div className="extension-install-actions">
@@ -90,12 +91,15 @@ export default function ExtensionInstallPage({
             <aside className="extension-install-preview" aria-hidden="true">
               <div className="extension-install-preview-head">
                 <strong>Atriveo Job Assistant</strong>
-                <span />
+                <span className="extension-install-version">
+                  <span className="extension-install-version-dot" />
+                  v{EXTENSION_VERSION}
+                </span>
               </div>
               <div className="extension-install-preview-list">
                 <div>
                   <small>Supported ATS</small>
-                  <strong>Workday, Greenhouse, Lever</strong>
+                  <strong>25+ ATS incl. Workday, Greenhouse, Lever, LinkedIn</strong>
                 </div>
                 <div>
                   <small>Flow</small>

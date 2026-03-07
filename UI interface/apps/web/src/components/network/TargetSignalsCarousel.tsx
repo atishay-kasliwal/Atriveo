@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useMemo, useState } from "react";
 import type { NetworkTodayFriend } from "../../lib/api";
 import { TOP_TARGET_COMPANIES, TOP_TARGET_COMPANY_ALIASES, TOP_TARGET_COMPANY_LOGOS } from "../../lib/topTargetCompanies";
 
@@ -30,6 +30,23 @@ type SignalEvent = {
   friendId: number;
   dateIso: string;
   link: string;
+  jobApplicationId: string;
+  oaStatus: string;
+  oaDeadline: string;
+  referralStatus: string;
+  notes: string;
+};
+
+type RecentApplication = {
+  role: string;
+  appliedBy: string;
+  link: string;
+  dateIso: string;
+  jobApplicationId: string;
+  oaStatus: string;
+  oaDeadline: string;
+  referralStatus: string;
+  notes: string;
 };
 
 type SignalCard = {
@@ -39,12 +56,7 @@ type SignalCard = {
   latestRole: string;
   latestAppliedAt: string;
   previewFriends: string[];
-  recentApplications: Array<{
-    role: string;
-    appliedBy: string;
-    link: string;
-    dateIso: string;
-  }>;
+  recentApplications: RecentApplication[];
 };
 
 function normalizeCompanyName(value: string): string {
@@ -53,6 +65,11 @@ function normalizeCompanyName(value: string): string {
     .replace(/[.,]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function normalizeDisplayValue(value: unknown, fallback = "-"): string {
+  const raw = String(value ?? "").trim();
+  return raw.length ? raw : fallback;
 }
 
 function friendlyTimeAgo(isoLike: string): string {
@@ -70,21 +87,13 @@ function friendlyTimeAgo(isoLike: string): string {
 
 function formatAppliedAt(isoLike: string): string {
   const ts = Date.parse(isoLike);
-  if (Number.isNaN(ts)) return "—";
+  if (Number.isNaN(ts)) return "-";
   return new Date(ts).toLocaleString(undefined, {
     month: "short",
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
   });
-}
-
-function getSlidesPerPage(width: number): number {
-  if (width >= 1280) return 5;
-  if (width >= 1080) return 4;
-  if (width >= 900) return 3;
-  if (width >= 640) return 2;
-  return 1;
 }
 
 function logoInitials(company: string): string {
@@ -107,18 +116,18 @@ function resolveCompanyLogo(company: string): string {
   return raw;
 }
 
-export default function TargetSignalsCarousel({ todayData, useDemoFallback = false, onAddApplication }: TargetSignalsCarouselProps) {
-  const [viewportWidth, setViewportWidth] = useState<number>(() => (typeof window === "undefined" ? 1280 : window.innerWidth));
-  const [page, setPage] = useState(0);
-  const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
+function toPrefillValue(value: string): string | null {
+  const normalized = normalizeDisplayValue(value);
+  if (!normalized || normalized === "-" || normalized === "Not shared") return null;
+  return normalized;
+}
 
-  useEffect(() => {
-    function onResize() {
-      setViewportWidth(window.innerWidth);
-    }
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
+export default function TargetSignalsCarousel({
+  todayData,
+  useDemoFallback = false,
+  onAddApplication,
+}: TargetSignalsCarouselProps) {
+  const [companyQuery, setCompanyQuery] = useState("");
 
   const { cards } = useMemo(() => {
     const canonicalByNormalized = new Map<string, string>();
@@ -139,23 +148,39 @@ export default function TargetSignalsCarousel({ todayData, useDemoFallback = fal
         if (!companyRaw) return;
         const canonical = canonicalByNormalized.get(normalizeCompanyName(companyRaw));
         if (!canonical) return;
+
         realEvents.push({
           company: canonical,
-          role: String(job.role || "Not specified"),
+          role: normalizeDisplayValue(job.role, "Not specified"),
           friendLabel,
           friendId,
           dateIso: String(job.applied_at || job.date_saved || new Date().toISOString()),
           link: String(job.job_link || ""),
+          jobApplicationId: job.can_view_job_application_id
+            ? normalizeDisplayValue(job.job_application_id, "-")
+            : "Not shared",
+          oaStatus: job.can_view_oa_status
+            ? normalizeDisplayValue(job.oa_status, "-")
+            : "Not shared",
+          oaDeadline: job.can_view_oa_deadline
+            ? normalizeDisplayValue(job.oa_deadline_date, "-")
+            : "Not shared",
+          referralStatus: job.can_view_referral_used
+            ? normalizeDisplayValue(job.referral_status, "-")
+            : "Not shared",
+          notes: job.can_view_notes
+            ? normalizeDisplayValue(job.notes, "-")
+            : "Not shared",
         });
       });
     });
 
     const friendPool = todayData
-      .map((f) => ({
-        id: Number(f.friend_id ?? 0),
-        label: String(f.friend_name || f.friend_email || "Friend"),
+      .map((friend) => ({
+        id: Number(friend.friend_id ?? 0),
+        label: String(friend.friend_name || friend.friend_email || "Friend"),
       }))
-      .filter((f) => f.label);
+      .filter((friend) => friend.label);
 
     const demoEvents: SignalEvent[] = [];
     if (useDemoFallback && realEvents.length === 0 && friendPool.length > 0) {
@@ -187,6 +212,8 @@ export default function TargetSignalsCarousel({ todayData, useDemoFallback = fal
           const person = friendPool[(index + i + companyIdx) % friendPool.length];
           const role = demoRoles[(index + i * 2) % demoRoles.length];
           const minutesAgo = companyIdx * 34 + i * 19 + 6;
+          const dayOffset = (companyIdx + i) % 7;
+          const deadline = new Date(now + dayOffset * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
           demoEvents.push({
             company: entry.name,
             role,
@@ -194,6 +221,11 @@ export default function TargetSignalsCarousel({ todayData, useDemoFallback = fal
             friendId: person.id || index + i + 1,
             dateIso: new Date(now - minutesAgo * 60 * 1000).toISOString(),
             link: `https://careers.example.com/${encodeURIComponent(entry.name.toLowerCase())}/${(index + i + 101).toString(36)}`,
+            jobApplicationId: `DEMO-${(index + i + 1001).toString(36).toUpperCase()}`,
+            oaStatus: i % 2 === 0 ? "Yes" : "No",
+            oaDeadline: i % 3 === 0 ? deadline : "-",
+            referralStatus: i % 2 === 0 ? "Requested" : "No",
+            notes: i % 2 === 0 ? "Strong profile match." : "-",
           });
         }
         index += entry.count;
@@ -246,23 +278,28 @@ export default function TargetSignalsCarousel({ todayData, useDemoFallback = fal
     });
 
     const rowsBase: SignalCard[] = Array.from(grouped.values()).map((row) => ({
-        company: row.company,
-        friendsApplied: row.friendIds.size,
-        totalApplications: row.total,
-        latestRole: row.latestRole,
-        latestAppliedAt: row.latestTs > 0 ? new Date(row.latestTs).toISOString() : "",
-        previewFriends: row.previewFriends,
-        recentApplications: row.events
-          .slice()
-          .sort((a, b) => Date.parse(b.dateIso || "") - Date.parse(a.dateIso || ""))
-          .slice(0, 2)
-          .map((e) => ({
-            role: e.role,
-            appliedBy: e.friendLabel,
-            link: e.link,
-            dateIso: e.dateIso,
-          })),
-      }));
+      company: row.company,
+      friendsApplied: row.friendIds.size,
+      totalApplications: row.total,
+      latestRole: row.latestRole,
+      latestAppliedAt: row.latestTs > 0 ? new Date(row.latestTs).toISOString() : "",
+      previewFriends: row.previewFriends,
+      recentApplications: row.events
+        .slice()
+        .sort((a, b) => Date.parse(b.dateIso || "") - Date.parse(a.dateIso || ""))
+        .slice(0, 2)
+        .map((event) => ({
+          role: event.role,
+          appliedBy: event.friendLabel,
+          link: event.link,
+          dateIso: event.dateIso,
+          jobApplicationId: event.jobApplicationId,
+          oaStatus: event.oaStatus,
+          oaDeadline: event.oaDeadline,
+          referralStatus: event.referralStatus,
+          notes: event.notes,
+        })),
+    }));
 
     const rows = rowsBase.slice();
     rows.sort((a, b) => {
@@ -271,63 +308,37 @@ export default function TargetSignalsCarousel({ todayData, useDemoFallback = fal
       return Date.parse(b.latestAppliedAt || "") - Date.parse(a.latestAppliedAt || "");
     });
 
-    return {
-      cards: rows,
-    };
+    return { cards: rows };
   }, [todayData, useDemoFallback]);
 
-  const perPage = getSlidesPerPage(viewportWidth);
-  const totalPages = Math.max(1, Math.ceil(cards.length / perPage));
+  const filteredCards = useMemo(() => {
+    const query = normalizeCompanyName(companyQuery);
+    if (!query) return cards;
+    return cards.filter((card) => normalizeCompanyName(card.company).includes(query));
+  }, [cards, companyQuery]);
 
-  useEffect(() => {
-    setPage((prev) => Math.max(0, Math.min(prev, totalPages - 1)));
-  }, [totalPages]);
-
-  useEffect(() => {
-    if (!cards.length) {
-      setSelectedCompany(null);
-      return;
-    }
-    if (!selectedCompany || !cards.some((c) => c.company === selectedCompany)) {
-      setSelectedCompany(cards[0].company);
-    }
-  }, [cards, selectedCompany]);
-
-  const pageCards = useMemo(() => {
-    const start = page * perPage;
-    return cards.slice(start, start + perPage);
-  }, [cards, page, perPage]);
-
-  const selectedCard = useMemo(() => cards.find((c) => c.company === selectedCompany) ?? null, [cards, selectedCompany]);
+  const shouldScrollCards = filteredCards.length > 1;
 
   return (
-    <section className="target-signals">
+    <section className={`target-signals${shouldScrollCards ? " has-scrollable-list" : ""}`}>
       <div className="target-signals-head">
-        <div>
+        <div className="target-signals-head-main">
           <h3>Target Company Signals</h3>
+          <p>Search and compare big companies quickly with full field previews.</p>
         </div>
-        <div className="target-signals-controls" aria-label="Target company pagination">
-          <div className="target-signals-controls-strip">
-            <span className="target-signals-page">{cards.length === 0 ? "0 / 0" : `${page + 1} / ${totalPages}`}</span>
-            <button
-              type="button"
-              className="target-signals-arrow"
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
-              disabled={page === 0}
-              aria-label="Previous companies"
-            >
-              ‹
-            </button>
-            <button
-              type="button"
-              className="target-signals-arrow"
-              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-              disabled={page >= totalPages - 1}
-              aria-label="Next companies"
-            >
-              ›
-            </button>
-          </div>
+
+        <div className="target-signals-controls" aria-label="Target company filter">
+          <input
+            type="search"
+            className="target-signals-search"
+            placeholder="Search company"
+            value={companyQuery}
+            onChange={(event) => setCompanyQuery(event.target.value)}
+          />
+          <span className="target-signals-count">
+            {filteredCards.length} compan{filteredCards.length === 1 ? "y" : "ies"}
+            {shouldScrollCards ? " (scroll)" : ""}
+          </span>
         </div>
       </div>
 
@@ -339,22 +350,18 @@ export default function TargetSignalsCarousel({ todayData, useDemoFallback = fal
           <p className="network-empty-state-title">No target company signals yet</p>
           <p className="network-empty-state-copy">No friend applications in your top target companies today.</p>
         </div>
+      ) : filteredCards.length === 0 ? (
+        <div className="target-signals-empty network-empty-state" role="status" aria-live="polite">
+          <div className="network-empty-state-icon" aria-hidden="true">
+            ⌕
+          </div>
+          <p className="network-empty-state-title">No matching companies</p>
+          <p className="network-empty-state-copy">Try a different search term.</p>
+        </div>
       ) : (
-        <div className="target-signals-grid" style={{ "--target-cols": perPage } as CSSProperties}>
-          {pageCards.map((card) => (
-            <article
-              key={card.company}
-              className={`target-signal-card${selectedCompany === card.company ? " is-selected" : ""}`}
-              onClick={() => setSelectedCompany((prev) => (prev === card.company ? null : card.company))}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  setSelectedCompany((prev) => (prev === card.company ? null : card.company));
-                }
-              }}
-            >
+        <div className={`target-signals-grid${shouldScrollCards ? " is-scrollable" : ""}`}>
+          {filteredCards.map((card) => (
+            <article key={card.company} className="target-signal-card">
               <div className="target-signal-title">
                 <span className="target-signal-logo-wrap" aria-hidden="true">
                   {resolveCompanyLogo(card.company) ? (
@@ -363,8 +370,8 @@ export default function TargetSignalsCarousel({ todayData, useDemoFallback = fal
                       alt=""
                       className="target-signal-logo"
                       loading="lazy"
-                      onError={(e) => {
-                        const img = e.currentTarget;
+                      onError={(event) => {
+                        const img = event.currentTarget;
                         img.style.display = "none";
                         const fallback = img.nextElementSibling as HTMLElement | null;
                         if (fallback) fallback.style.display = "grid";
@@ -380,90 +387,101 @@ export default function TargetSignalsCarousel({ todayData, useDemoFallback = fal
                 </span>
                 <span>{card.company}</span>
               </div>
-              <div className="target-signal-stats">
-                <strong>{card.friendsApplied}</strong> friend{card.friendsApplied === 1 ? "" : "s"} applied
+
+              <div className="target-signal-summary">
+                <span className="target-signal-stat-chip">
+                  <strong>{card.friendsApplied}</strong> friend{card.friendsApplied === 1 ? "" : "s"} applied
+                </span>
+                <span className="target-signal-stat-chip">
+                  <strong>{card.totalApplications}</strong> total application{card.totalApplications === 1 ? "" : "s"}
+                </span>
               </div>
-              <div className="target-signal-stats">
-                <strong>{card.totalApplications}</strong> total application{card.totalApplications === 1 ? "" : "s"}
+              <div className="target-signal-meta-row">
+                <span className="target-signal-meta-role">Last role: {card.latestRole}</span>
+                <span className="target-signal-meta-context">
+                  {card.latestAppliedAt ? friendlyTimeAgo(card.latestAppliedAt) : "recently"}
+                  {card.previewFriends.length ? ` · ${card.previewFriends.join(" · ")}` : ""}
+                </span>
               </div>
-              <div className="target-signal-meta">Last role: {card.latestRole}</div>
-              <div className="target-signal-foot">
-                <span>{card.latestAppliedAt ? friendlyTimeAgo(card.latestAppliedAt) : "recently"}</span>
-                <span className="target-signal-friends">{card.previewFriends.join(" · ")}</span>
+
+              <div className="target-signal-app-list">
+                {card.recentApplications.map((app, index) => (
+                  <div key={`${card.company}-${index}`} className="target-signal-app">
+                    <div className="target-signal-app-head">
+                      <span className="target-signal-app-index">#{index + 1}</span>
+                      <strong className="target-signal-app-role" title={app.role}>{app.role}</strong>
+                      <span className="target-signal-app-time">{formatAppliedAt(app.dateIso)}</span>
+                    </div>
+
+                    <div className="target-signal-app-kv-grid">
+                      <span className="target-signal-app-kv-item" title={app.appliedBy}>
+                        <strong>Applied by:</strong> {app.appliedBy}
+                      </span>
+                      <span className="target-signal-app-kv-item" title={app.jobApplicationId}>
+                        <strong>Job/App ID:</strong> {app.jobApplicationId}
+                      </span>
+                      <span className="target-signal-app-kv-item" title={app.oaStatus}>
+                        <strong>OA:</strong> {app.oaStatus}
+                      </span>
+                      <span className="target-signal-app-kv-item" title={app.oaDeadline}>
+                        <strong>Deadline:</strong> {app.oaDeadline}
+                      </span>
+                      <span className="target-signal-app-kv-item" title={app.referralStatus}>
+                        <strong>Referral:</strong> {app.referralStatus}
+                      </span>
+                      <span className="target-signal-app-kv-item target-signal-app-kv-item--full" title={app.notes}>
+                        <strong>Notes:</strong> {app.notes}
+                      </span>
+                    </div>
+
+                    <div className="target-signal-app-actions">
+                      {app.link ? (
+                        <a
+                          href={app.link}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="target-signal-link-chip"
+                        >
+                          Open
+                        </a>
+                      ) : (
+                        <span className="target-signal-muted">No link</span>
+                      )}
+
+                      {onAddApplication ? (
+                        <button
+                          type="button"
+                          className="action-btn target-signal-add-btn"
+                          onClick={() =>
+                            onAddApplication({
+                              friendName: app.appliedBy,
+                              job: {
+                                company: card.company,
+                                role: app.role,
+                                date_saved: app.dateIso,
+                                applied_at: app.dateIso,
+                                job_link: app.link || null,
+                                job_application_id: toPrefillValue(app.jobApplicationId),
+                                oa_deadline_date: toPrefillValue(app.oaDeadline),
+                                oa_status: toPrefillValue(app.oaStatus),
+                                referral_status: toPrefillValue(app.referralStatus),
+                                application_status: null,
+                                notes: toPrefillValue(app.notes),
+                              },
+                            })
+                          }
+                        >
+                          Add Application
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
               </div>
             </article>
           ))}
         </div>
       )}
-
-      {selectedCard ? (
-        <div className="target-signals-detail">
-          <div className="target-signals-detail-head">
-            <strong>{selectedCard.company}</strong>
-            <span>Latest 2 applications</span>
-          </div>
-          <div className="table-wrap">
-            <table className="target-signals-table">
-              <thead>
-                <tr>
-                  <th>No.</th>
-                  <th>Role</th>
-                  <th>Applied By</th>
-                  <th>Applied Time</th>
-                  <th>Link</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {selectedCard.recentApplications.map((app, idx) => (
-                  <tr key={`${selectedCard.company}-app-${idx}`}>
-                    <td className="table-col-no">{idx + 1}</td>
-                    <td>{app.role}</td>
-                    <td>{app.appliedBy}</td>
-                    <td>{formatAppliedAt(app.dateIso)}</td>
-                    <td>
-                      {app.link ? (
-                        <a href={app.link} target="_blank" rel="noreferrer" className="table-link" onClick={(e) => e.stopPropagation()}>
-                          Open
-                        </a>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                    <td>
-                      <button
-                        type="button"
-                        className="action-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onAddApplication?.({
-                            friendName: app.appliedBy,
-                            job: {
-                              company: selectedCard.company,
-                              role: app.role,
-                              date_saved: app.dateIso,
-                              applied_at: app.dateIso,
-                              job_link: app.link || null,
-                              job_application_id: null,
-                              oa_deadline_date: null,
-                              oa_status: null,
-                              referral_status: null,
-                              application_status: null,
-                              notes: null,
-                            },
-                          });
-                        }}
-                      >
-                        Add Application
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ) : null}
     </section>
   );
 }
