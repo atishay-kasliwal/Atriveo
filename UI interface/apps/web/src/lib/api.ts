@@ -175,7 +175,7 @@ export function getDashboardSummary(days?: number) {
   // Anchor "today" to the user's local timezone so charts/KPIs use local days.
   search.set("anchorDay", getLocalISODate());
   const q = search.toString();
-  return request<DashboardSummary>(`/api/dashboard/summary${q ? `?${q}` : ""}`);
+  return request<DashboardSummary>(`/api/dashboard/summary${q ? `?${q}` : ""}`, { cache: "no-store" });
 }
 
 export type GetJobsParams = {
@@ -591,7 +591,7 @@ export type TargetProgress = {
 export function getTargetProgress() {
   const search = new URLSearchParams();
   search.set("anchorDay", getLocalISODate());
-  return request<TargetProgress>(`/api/targets/progress?${search.toString()}`);
+  return request<TargetProgress>(`/api/targets/progress?${search.toString()}`, { cache: "no-store" });
 }
 
 export function updateTargets(payload: {

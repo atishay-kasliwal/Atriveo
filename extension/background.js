@@ -860,6 +860,12 @@ const submitApplication = async ({ url, keyword_match, referral_name, applicatio
     [STORAGE_KEYS.LAST_UPDATED]: Date.now()
   });
 
+  try {
+    const bc = new BroadcastChannel("atriveo-sync");
+    bc.postMessage({ type: "job-added" });
+    bc.close();
+  } catch (_) { /* BroadcastChannel not available */ }
+
   return { created, record: updatedRecord };
 };
 

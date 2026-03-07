@@ -324,6 +324,19 @@ export default function Layout({ userEmail, userFirstName, userLastName, onLogou
   }, [showQuickAdd, showPendingTask, showNoteModal]);
 
   useEffect(() => {
+    let bc: BroadcastChannel | null = null;
+    try {
+      bc = new BroadcastChannel("atriveo-sync");
+      bc.onmessage = (event) => {
+        if (event.data?.type === "job-added") {
+          window.dispatchEvent(new CustomEvent("dashboard-refresh"));
+        }
+      };
+    } catch (_) { /* BroadcastChannel not supported */ }
+    return () => { bc?.close(); };
+  }, []);
+
+  useEffect(() => {
     function onOpenFriendManager() {
       openFriendModal();
     }
