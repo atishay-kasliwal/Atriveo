@@ -59,8 +59,14 @@ jobs:
         working-directory: "UI interface"
         env:
           VITE_API_URL: ${{ secrets.PRODUCTION_API_URL }}
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.PRODUCTION_GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          VITE_GA_MEASUREMENT_ID: ${{ secrets.VITE_GA_MEASUREMENT_ID }}
         run: |
-          VITE_API_URL="${VITE_API_URL:-https://job-tracker-api.katishay.workers.dev}" npm run build:web
+          VITE_API_URL="${VITE_API_URL:-https://job-tracker-api.katishay.workers.dev}" \
+          VITE_GOOGLE_CLIENT_ID="${VITE_GOOGLE_CLIENT_ID:-$GOOGLE_CLIENT_ID}" \
+          VITE_GA_MEASUREMENT_ID="${VITE_GA_MEASUREMENT_ID:-}" \
+          npm run build:web
 
       - name: Deploy frontend to Cloudflare Pages (master)
         working-directory: "UI interface"
