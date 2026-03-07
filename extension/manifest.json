@@ -25,9 +25,15 @@
     "https://*.workable.com/*",
     "https://*.jobscore.com/*",
     "https://*.clearcompany.com/*",
+    "https://*.njoyn.com/*",
+    "https://*.linkedin.com/*",
+    "https://*.avature.net/*",
+    "https://*.amazon.jobs/*",
+    "https://*.ultipro.com/*",
     "https://job-tracker-api.katishay.workers.dev/*",
     "https://www.atriveo.com/*",
-    "https://atriveo.com/*"
+    "https://atriveo.com/*",
+    "https://*.atriveo.com/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -58,7 +64,12 @@
         "https://*.recruitee.com/*",
         "https://*.workable.com/*",
         "https://*.jobscore.com/*",
-        "https://*.clearcompany.com/*"
+        "https://*.clearcompany.com/*",
+        "https://*.njoyn.com/*",
+        "https://*.linkedin.com/*",
+        "https://*.avature.net/*",
+        "https://*.amazon.jobs/*",
+        "https://*.ultipro.com/*"
       ],
       "js": [
         "utils/extractText.js",
@@ -67,6 +78,10 @@
         "content-scripts/lever.js",
         "content-scripts/applytojob.js",
         "content-scripts/ashby.js",
+        "content-scripts/njoyn.js",
+        "content-scripts/linkedin.js",
+        "content-scripts/amazon-jobs.js",
+        "content-scripts/ultipro.js",
         "content-scripts/generic-ats.js",
         "content-scripts/detector.js"
       ],

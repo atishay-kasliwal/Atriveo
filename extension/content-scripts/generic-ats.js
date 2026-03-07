@@ -15,7 +15,8 @@
     "recruitee",
     "workable",
     "jobscore",
-    "clearcompany"
+    "clearcompany",
+    "avature"
   ];
 
   const extractGenericAtsJob = (atsPlatform) => {

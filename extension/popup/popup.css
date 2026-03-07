@@ -23,6 +23,7 @@ body {
   margin: 0;
   width: 372px;
   max-width: 380px;
+  padding: 6px;
   font-family: Inter, system-ui, -apple-system, sans-serif;
   background: linear-gradient(165deg, var(--bg-start) 0%, var(--bg-end) 100%);
   color: var(--text-primary);
@@ -30,13 +31,35 @@ body {
 
 .popup {
   padding: 16px;
+  position: relative;
+  border-radius: 16px;
+  border: 1px solid rgba(203, 213, 225, 0.68);
+  background: linear-gradient(165deg, rgba(249, 252, 255, 0.96) 0%, rgba(240, 246, 255, 0.94) 100%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.82) inset,
+    0 0 0 1px rgba(241, 245, 249, 0.9),
+    0 3px 10px rgba(15, 23, 42, 0.04);
+  backdrop-filter: blur(2px);
 }
 
 .popup.success-only {
-  min-height: 170px;
+  min-height: 190px;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+}
+
+.popup.success-only::before {
+  content: "";
+  position: absolute;
+  width: 220px;
+  height: 220px;
+  border-radius: 999px;
+  right: -80px;
+  top: -110px;
+  background: radial-gradient(circle at center, rgba(22, 163, 74, 0.18) 0%, rgba(22, 163, 74, 0) 70%);
+  pointer-events: none;
 }
 
 .popup.success-only .popup-header,
@@ -47,12 +70,52 @@ body {
 }
 
 .popup.success-only .action-status {
+  position: relative;
+  z-index: 1;
   min-height: 0;
   margin: 0;
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid #bae6c6;
+  background: linear-gradient(145deg, #f6fffa 0%, #ecfff4 100%);
+  color: #066e42;
   font-size: 16px;
-  font-weight: 600;
-  text-align: center;
-  color: var(--success);
+  font-weight: 650;
+  text-align: left;
+  line-height: 1.35;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  box-shadow: 0 14px 30px rgba(6, 110, 66, 0.16);
+  animation: success-in 220ms ease-out;
+}
+
+.popup.success-only .action-status::before {
+  content: "✓";
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 800;
+  color: #ffffff;
+  background: linear-gradient(145deg, #22c55e 0%, #16a34a 100%);
+  box-shadow: 0 6px 14px rgba(22, 163, 74, 0.32);
+  flex-shrink: 0;
+}
+
+@keyframes success-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .popup-header {

@@ -23,6 +23,8 @@ Current ATS coverage:
 - Workable
 - JobScore
 - ClearCompany
+- LinkedIn Jobs
+- Avature
 
 ## Backend Contract (Locked)
 

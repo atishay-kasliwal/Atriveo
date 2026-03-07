@@ -17,7 +17,8 @@ const WEB_LOGIN_URL = "https://www.atriveo.com/";
 const WEB_SESSION_KEY = "dashboard_auth_session";
 const WEB_TAB_PATTERNS = [
   "https://www.atriveo.com/*",
-  "https://atriveo.com/*"
+  "https://atriveo.com/*",
+  "https://*.atriveo.com/*"
 ];
 const asText = (value) => {
   const text = String(value || "").trim();
@@ -48,7 +49,12 @@ const inferAtsPlatformFromUrl = (url = "") => {
     { token: "recruitee.com", platform: "recruitee" },
     { token: "workable.com", platform: "workable" },
     { token: "jobscore.com", platform: "jobscore" },
-    { token: "clearcompany.com", platform: "clearcompany" }
+    { token: "clearcompany.com", platform: "clearcompany" },
+    { token: "njoyn.com", platform: "njoyn" },
+    { token: "linkedin.com", platform: "linkedin" },
+    { token: "avature.net", platform: "avature" },
+    { token: "amazon.jobs", platform: "amazonjobs" },
+    { token: "ultipro.com", platform: "ultipro" }
   ];
 
   for (const matcher of platformMatchers) {
@@ -252,21 +258,44 @@ const openLoginPage = async () => {
 const readSessionFromTab = async (tabId) => {
   const results = await chrome.scripting.executeScript({
     target: { tabId },
-    func: (storageKey) => {
+    func: (storageKeys) => {
       try {
-        const raw = window.localStorage.getItem(storageKey);
-        if (!raw) return null;
-        const parsed = JSON.parse(raw);
-        if (!parsed?.token) return null;
-        return {
-          token: String(parsed.token),
-          user: parsed.user || null
-        };
+        for (const storageKey of storageKeys || []) {
+          const raw = window.localStorage.getItem(storageKey);
+          if (!raw) continue;
+
+          const parsed = JSON.parse(raw);
+          if (!parsed?.token) continue;
+
+          return {
+            token: String(parsed.token),
+            user: parsed.user || null
+          };
+        }
       } catch {
         return null;
       }
+
+      try {
+        for (const storageKey of storageKeys || []) {
+          const raw = window.sessionStorage.getItem(storageKey);
+          if (!raw) continue;
+
+          const parsed = JSON.parse(raw);
+          if (!parsed?.token) continue;
+
+          return {
+            token: String(parsed.token),
+            user: parsed.user || null
+          };
+        }
+      } catch {
+        return null;
+      }
+
+      return null;
     },
-    args: [WEB_SESSION_KEY]
+    args: [[WEB_SESSION_KEY, "auth_session", "dashboard_session"]]
   });
 
   return results?.[0]?.result || null;
@@ -593,6 +622,19 @@ const persistJob = async (incomingJob) => {
   const existing = await chrome.storage.local.get([STORAGE_KEYS.JOBS_BY_URL]);
   const jobsByUrl = existing[STORAGE_KEYS.JOBS_BY_URL] || {};
   const existingRecord = jobsByUrl[extractedJob.url] || null;
+  const hasCoreFields = Boolean(extractedJob.job_title && extractedJob.company && extractedJob.url);
+
+  // Ignore partial extractor payloads; detector will keep retrying until core fields are present.
+  if (!hasCoreFields) {
+    if (existingRecord) {
+      const existingPrepared = prepareBackendPayload(
+        existingRecord.extracted_job || {},
+        existingRecord.new_application_payload || {}
+      );
+      return { record: existingRecord, preparedPayload: existingPrepared, skipped: true };
+    }
+    return { record: null, preparedPayload: null, skipped: true };
+  }
 
   const defaultPayload = buildNewApplicationPayload(extractedJob);
   const newApplicationPayload = sanitizeNewApplicationPayload(
