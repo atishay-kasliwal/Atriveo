@@ -61,10 +61,14 @@ jobs:
           VITE_API_URL: ${{ secrets.PRODUCTION_API_URL }}
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.PRODUCTION_GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_IDS: ${{ secrets.GOOGLE_CLIENT_IDS }}
+          PRODUCTION_GOOGLE_CLIENT_IDS: ${{ secrets.PRODUCTION_GOOGLE_CLIENT_IDS }}
           VITE_GA_MEASUREMENT_ID: ${{ secrets.VITE_GA_MEASUREMENT_ID }}
         run: |
+          RAW_GOOGLE_CLIENT_IDS="${VITE_GOOGLE_CLIENT_ID:-${GOOGLE_CLIENT_ID:-${PRODUCTION_GOOGLE_CLIENT_IDS:-${GOOGLE_CLIENT_IDS:-}}}}"
+          RESOLVED_GOOGLE_CLIENT_ID="$(printf '%s' "${RAW_GOOGLE_CLIENT_IDS}" | awk -F',' '{gsub(/^[ \t]+|[ \t]+$/, "", $1); print $1}')"
           VITE_API_URL="${VITE_API_URL:-https://job-tracker-api.katishay.workers.dev}" \
-          VITE_GOOGLE_CLIENT_ID="${VITE_GOOGLE_CLIENT_ID:-$GOOGLE_CLIENT_ID}" \
+          VITE_GOOGLE_CLIENT_ID="${RESOLVED_GOOGLE_CLIENT_ID}" \
           VITE_GA_MEASUREMENT_ID="${VITE_GA_MEASUREMENT_ID:-}" \
           npm run build:web
 
