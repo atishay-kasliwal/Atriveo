@@ -25,6 +25,12 @@ const asText = (value) => {
   return text === "-" ? "" : text;
 };
 
+const getLocalISODate = (date = new Date()) => {
+  const local = new Date(date);
+  local.setMinutes(local.getMinutes() - local.getTimezoneOffset());
+  return local.toISOString().slice(0, 10);
+};
+
 const inferAtsPlatformFromUrl = (url = "") => {
   const source = asText(url).toLowerCase();
   if (!source) return "";
@@ -529,6 +535,7 @@ const buildExtensionSubmissionBody = (record, applicationPayload) => {
     payload_version: EXTENSION_CONTRACT.version,
     source: EXTENSION_CONTRACT.source,
     submitted_at: new Date().toISOString(),
+    submitted_local_date: getLocalISODate(),
     extracted_job: {
       job_title: asText(extracted.job_title),
       company: asText(extracted.company),
@@ -574,7 +581,7 @@ const buildLegacyJobsSubmissionBody = (record, applicationPayload) => {
     application_status: "Applied",
     referred_by_name: referralName || undefined,
     notes: asText(applicationPayload.notes) || undefined,
-    date_saved: new Date().toISOString().slice(0, 10)
+    date_saved: getLocalISODate()
   };
 };
 

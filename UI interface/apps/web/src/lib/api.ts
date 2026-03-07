@@ -493,7 +493,8 @@ export function getNetworkTrend(days = 10) {
   search.set("days", String(days));
   search.set("anchorDay", getLocalISODate());
   return request<{ days: number; anchorDay: string | null; data: NetworkTrendFriend[] }>(
-    `/api/network/trend?${search.toString()}`
+    `/api/network/trend?${search.toString()}`,
+    { cache: "no-store" }
   );
 }
 
@@ -531,7 +532,8 @@ export function getNetworkToday() {
   const search = new URLSearchParams();
   search.set("anchorDay", getLocalISODate());
   return request<{ anchorDay: string | null; data: NetworkTodayFriend[] }>(
-    `/api/network/today?${search.toString()}`
+    `/api/network/today?${search.toString()}`,
+    { cache: "no-store" }
   );
 }
 
@@ -577,7 +579,8 @@ export function getNetworkDeadlines() {
   const search = new URLSearchParams();
   search.set("anchorDay", getLocalISODate());
   return request<{ anchorDay: string | null; data: NetworkDeadlineRecord[] }>(
-    `/api/network/deadlines?${search.toString()}`
+    `/api/network/deadlines?${search.toString()}`,
+    { cache: "no-store" }
   );
 }
 
@@ -614,7 +617,7 @@ export function getJobsTrend(days?: number) {
   const search = new URLSearchParams();
   if (days) search.set("days", String(days));
   search.set("anchorDay", getLocalISODate());
-  return request<{ data: JobsTrendData }>(`/api/jobs/trend?${search.toString()}`);
+  return request<{ data: JobsTrendData }>(`/api/jobs/trend?${search.toString()}`, { cache: "no-store" });
 }
 
 export type ReferralsTrendData = Array<{ day: string; requested: number; received: number }>;
@@ -623,5 +626,5 @@ export function getReferralsTrend(days?: number) {
   const search = new URLSearchParams();
   if (days) search.set("days", String(days));
   search.set("anchorDay", getLocalISODate());
-  return request<{ data: ReferralsTrendData }>(`/api/referrals/trend?${search.toString()}`);
+  return request<{ data: ReferralsTrendData }>(`/api/referrals/trend?${search.toString()}`, { cache: "no-store" });
 }
