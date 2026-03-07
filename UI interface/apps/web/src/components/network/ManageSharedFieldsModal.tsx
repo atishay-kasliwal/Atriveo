@@ -119,7 +119,6 @@ export default function ManageSharedFieldsModal({
   }, [open, onClose, saving]);
 
   const requiredSet = useMemo(() => new Set(requiredFields), [requiredFields]);
-
   const alwaysShared = ALWAYS_SHARED_ORDER.filter((key) => requiredSet.has(key));
   const optional = OPTIONAL_ORDER.filter((key) => !requiredSet.has(key));
 
@@ -250,7 +249,7 @@ export default function ManageSharedFieldsModal({
                     </li>
                   ))}
                   {OPTIONAL_ORDER.map((key) => (
-                    <li key={`friend-${key}`} className={visibility[key] ? "is-enabled" : ""}>
+                    <li key={`friend-${key}`}>
                       <span>{FIELD_META[key].label}</span>
                     </li>
                   ))}
@@ -260,7 +259,8 @@ export default function ManageSharedFieldsModal({
 
             <p className="network-shared-fields-explainer">
               Locked fields are always shared. Optional fields become visible only
-              when both you and your friend enable them.
+              when both you and your friend enable them. Each friend controls
+              their own optional fields independently.
             </p>
           </aside>
         </div>

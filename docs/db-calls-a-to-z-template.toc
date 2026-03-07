@@ -1,0 +1,123 @@
+\contentsline {section}{\numberline {1}How to Use This Template}{4}{section.1}%
+\contentsline {section}{\numberline {2}System Sync Diagram (High-Level)}{4}{section.2}%
+\contentsline {section}{\numberline {3}Entity Sync Matrix}{4}{section.3}%
+\contentsline {section}{\numberline {4}DB Call Inventory Summary}{5}{section.4}%
+\contentsline {section}{\numberline {5}DB Calls A--Z (Detailed Template)}{12}{section.5}%
+\contentsline {subsection}{\numberline {5.1}DB-001 - authMiddleware}{12}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}DB-002 - createSession}{13}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}DB-003 - DELETE /api/jobs/:id}{13}{subsection.5.3}%
+\contentsline {subsection}{\numberline {5.4}DB-004 - DELETE /api/notes/:id}{14}{subsection.5.4}%
+\contentsline {subsection}{\numberline {5.5}DB-005 - DELETE /api/oa/archive/:id}{14}{subsection.5.5}%
+\contentsline {subsection}{\numberline {5.6}DB-006 - DELETE /api/referrals/:id}{15}{subsection.5.6}%
+\contentsline {subsection}{\numberline {5.7}DB-007 - ensureAcceptedFriendship}{15}{subsection.5.7}%
+\contentsline {subsection}{\numberline {5.8}DB-008 - ensureOwnerUser}{16}{subsection.5.8}%
+\contentsline {subsection}{\numberline {5.9}DB-009 - ensureOwnerUser}{17}{subsection.5.9}%
+\contentsline {subsection}{\numberline {5.10}DB-010 - expectedJobsTrend}{17}{subsection.5.10}%
+\contentsline {subsection}{\numberline {5.11}DB-011 - expectedReferralsTrend}{18}{subsection.5.11}%
+\contentsline {subsection}{\numberline {5.12}DB-012 - expectedSummary}{18}{subsection.5.12}%
+\contentsline {subsection}{\numberline {5.13}DB-013 - expectedSummary}{19}{subsection.5.13}%
+\contentsline {subsection}{\numberline {5.14}DB-014 - expectedSummary}{19}{subsection.5.14}%
+\contentsline {subsection}{\numberline {5.15}DB-015 - expectedSummary}{20}{subsection.5.15}%
+\contentsline {subsection}{\numberline {5.16}DB-016 - expectedSummary}{21}{subsection.5.16}%
+\contentsline {subsection}{\numberline {5.17}DB-017 - expectedSummary}{21}{subsection.5.17}%
+\contentsline {subsection}{\numberline {5.18}DB-018 - expectedSummary}{22}{subsection.5.18}%
+\contentsline {subsection}{\numberline {5.19}DB-019 - expectedSummary}{22}{subsection.5.19}%
+\contentsline {subsection}{\numberline {5.20}DB-020 - expectedSummary}{23}{subsection.5.20}%
+\contentsline {subsection}{\numberline {5.21}DB-021 - expectedSummary}{23}{subsection.5.21}%
+\contentsline {subsection}{\numberline {5.22}DB-022 - expectedSummary}{24}{subsection.5.22}%
+\contentsline {subsection}{\numberline {5.23}DB-023 - expectedSummary}{25}{subsection.5.23}%
+\contentsline {subsection}{\numberline {5.24}DB-024 - expectedSummary}{25}{subsection.5.24}%
+\contentsline {subsection}{\numberline {5.25}DB-025 - expectedSummary}{26}{subsection.5.25}%
+\contentsline {subsection}{\numberline {5.26}DB-026 - firstLine}{26}{subsection.5.26}%
+\contentsline {subsection}{\numberline {5.27}DB-027 - GET /api/dashboard/summary}{27}{subsection.5.27}%
+\contentsline {subsection}{\numberline {5.28}DB-028 - GET /api/dashboard/summary}{27}{subsection.5.28}%
+\contentsline {subsection}{\numberline {5.29}DB-029 - GET /api/dashboard/summary}{28}{subsection.5.29}%
+\contentsline {subsection}{\numberline {5.30}DB-030 - GET /api/dashboard/summary}{29}{subsection.5.30}%
+\contentsline {subsection}{\numberline {5.31}DB-031 - GET /api/dashboard/summary}{29}{subsection.5.31}%
+\contentsline {subsection}{\numberline {5.32}DB-032 - GET /api/dashboard/summary}{30}{subsection.5.32}%
+\contentsline {subsection}{\numberline {5.33}DB-033 - GET /api/dashboard/summary}{30}{subsection.5.33}%
+\contentsline {subsection}{\numberline {5.34}DB-034 - GET /api/dashboard/summary}{31}{subsection.5.34}%
+\contentsline {subsection}{\numberline {5.35}DB-035 - GET /api/dashboard/summary}{31}{subsection.5.35}%
+\contentsline {subsection}{\numberline {5.36}DB-036 - GET /api/dashboard/summary}{32}{subsection.5.36}%
+\contentsline {subsection}{\numberline {5.37}DB-037 - GET /api/dashboard/summary}{33}{subsection.5.37}%
+\contentsline {subsection}{\numberline {5.38}DB-038 - GET /api/dashboard/summary}{33}{subsection.5.38}%
+\contentsline {subsection}{\numberline {5.39}DB-039 - GET /api/dashboard/summary}{34}{subsection.5.39}%
+\contentsline {subsection}{\numberline {5.40}DB-040 - GET /api/dashboard/summary}{34}{subsection.5.40}%
+\contentsline {subsection}{\numberline {5.41}DB-041 - GET /api/dashboard/summary}{35}{subsection.5.41}%
+\contentsline {subsection}{\numberline {5.42}DB-042 - GET /api/dashboard/summary}{36}{subsection.5.42}%
+\contentsline {subsection}{\numberline {5.43}DB-043 - GET /api/dashboard/summary}{36}{subsection.5.43}%
+\contentsline {subsection}{\numberline {5.44}DB-044 - GET /api/jobs}{37}{subsection.5.44}%
+\contentsline {subsection}{\numberline {5.45}DB-045 - GET /api/jobs}{37}{subsection.5.45}%
+\contentsline {subsection}{\numberline {5.46}DB-046 - GET /api/jobs}{38}{subsection.5.46}%
+\contentsline {subsection}{\numberline {5.47}DB-047 - GET /api/jobs}{39}{subsection.5.47}%
+\contentsline {subsection}{\numberline {5.48}DB-048 - GET /api/jobs}{39}{subsection.5.48}%
+\contentsline {subsection}{\numberline {5.49}DB-049 - GET /api/jobs/trend}{40}{subsection.5.49}%
+\contentsline {subsection}{\numberline {5.50}DB-050 - GET /api/jobs/trend}{40}{subsection.5.50}%
+\contentsline {subsection}{\numberline {5.51}DB-051 - GET /api/jobs/trend}{41}{subsection.5.51}%
+\contentsline {subsection}{\numberline {5.52}DB-052 - GET /api/jobs/trend}{41}{subsection.5.52}%
+\contentsline {subsection}{\numberline {5.53}DB-053 - GET /api/jobs/trend}{42}{subsection.5.53}%
+\contentsline {subsection}{\numberline {5.54}DB-054 - GET /api/notes}{43}{subsection.5.54}%
+\contentsline {subsection}{\numberline {5.55}DB-055 - GET /api/oa/active}{43}{subsection.5.55}%
+\contentsline {subsection}{\numberline {5.56}DB-056 - GET /api/oa/active}{44}{subsection.5.56}%
+\contentsline {subsection}{\numberline {5.57}DB-057 - GET /api/oa/active}{44}{subsection.5.57}%
+\contentsline {subsection}{\numberline {5.58}DB-058 - GET /api/pending}{45}{subsection.5.58}%
+\contentsline {subsection}{\numberline {5.59}DB-059 - GET /api/pending}{45}{subsection.5.59}%
+\contentsline {subsection}{\numberline {5.60}DB-060 - GET /api/referrals}{46}{subsection.5.60}%
+\contentsline {subsection}{\numberline {5.61}DB-061 - GET /api/referrals/:id}{47}{subsection.5.61}%
+\contentsline {subsection}{\numberline {5.62}DB-062 - GET /api/referrals/trend}{47}{subsection.5.62}%
+\contentsline {subsection}{\numberline {5.63}DB-063 - GET /api/targets/progress}{48}{subsection.5.63}%
+\contentsline {subsection}{\numberline {5.64}DB-064 - GET /api/targets/progress}{48}{subsection.5.64}%
+\contentsline {subsection}{\numberline {5.65}DB-065 - GET /api/targets/progress}{49}{subsection.5.65}%
+\contentsline {subsection}{\numberline {5.66}DB-066 - main}{49}{subsection.5.66}%
+\contentsline {subsection}{\numberline {5.67}DB-067 - main}{50}{subsection.5.67}%
+\contentsline {subsection}{\numberline {5.68}DB-068 - main}{51}{subsection.5.68}%
+\contentsline {subsection}{\numberline {5.69}DB-069 - main}{51}{subsection.5.69}%
+\contentsline {subsection}{\numberline {5.70}DB-070 - main}{52}{subsection.5.70}%
+\contentsline {subsection}{\numberline {5.71}DB-071 - main}{52}{subsection.5.71}%
+\contentsline {subsection}{\numberline {5.72}DB-072 - main}{53}{subsection.5.72}%
+\contentsline {subsection}{\numberline {5.73}DB-073 - main}{53}{subsection.5.73}%
+\contentsline {subsection}{\numberline {5.74}DB-074 - main}{54}{subsection.5.74}%
+\contentsline {subsection}{\numberline {5.75}DB-075 - main}{55}{subsection.5.75}%
+\contentsline {subsection}{\numberline {5.76}DB-076 - main}{55}{subsection.5.76}%
+\contentsline {subsection}{\numberline {5.77}DB-077 - main}{56}{subsection.5.77}%
+\contentsline {subsection}{\numberline {5.78}DB-078 - main}{56}{subsection.5.78}%
+\contentsline {subsection}{\numberline {5.79}DB-079 - main}{57}{subsection.5.79}%
+\contentsline {subsection}{\numberline {5.80}DB-080 - PATCH /api/jobs/:id}{57}{subsection.5.80}%
+\contentsline {subsection}{\numberline {5.81}DB-081 - PATCH /api/notes/:id}{58}{subsection.5.81}%
+\contentsline {subsection}{\numberline {5.82}DB-082 - PATCH /api/oa/archive/:id}{59}{subsection.5.82}%
+\contentsline {subsection}{\numberline {5.83}DB-083 - PATCH /api/oa/archive/:id}{59}{subsection.5.83}%
+\contentsline {subsection}{\numberline {5.84}DB-084 - PATCH /api/pending/:id}{60}{subsection.5.84}%
+\contentsline {subsection}{\numberline {5.85}DB-085 - PATCH /api/referrals/:id}{60}{subsection.5.85}%
+\contentsline {subsection}{\numberline {5.86}DB-086 - POST /api/friends/:id/block}{61}{subsection.5.86}%
+\contentsline {subsection}{\numberline {5.87}DB-087 - POST /api/friends/:id/reject}{61}{subsection.5.87}%
+\contentsline {subsection}{\numberline {5.88}DB-088 - POST /api/friends/request}{62}{subsection.5.88}%
+\contentsline {subsection}{\numberline {5.89}DB-089 - POST /api/friends/request}{63}{subsection.5.89}%
+\contentsline {subsection}{\numberline {5.90}DB-090 - POST /api/friends/request}{63}{subsection.5.90}%
+\contentsline {subsection}{\numberline {5.91}DB-091 - POST /api/friends/request}{64}{subsection.5.91}%
+\contentsline {subsection}{\numberline {5.92}DB-092 - POST /api/jobs/import/csv}{64}{subsection.5.92}%
+\contentsline {subsection}{\numberline {5.93}DB-093 - POST /api/notes}{65}{subsection.5.93}%
+\contentsline {subsection}{\numberline {5.94}DB-094 - POST /api/oa/complete/:jobId}{65}{subsection.5.94}%
+\contentsline {subsection}{\numberline {5.95}DB-095 - POST /api/pending}{66}{subsection.5.95}%
+\contentsline {subsection}{\numberline {5.96}DB-096 - POST /api/referrals}{67}{subsection.5.96}%
+\contentsline {subsection}{\numberline {5.97}DB-097 - POST /auth/google}{67}{subsection.5.97}%
+\contentsline {subsection}{\numberline {5.98}DB-098 - POST /auth/google}{68}{subsection.5.98}%
+\contentsline {subsection}{\numberline {5.99}DB-099 - POST /auth/google}{68}{subsection.5.99}%
+\contentsline {subsection}{\numberline {5.100}DB-100 - POST /auth/signup}{69}{subsection.5.100}%
+\contentsline {subsection}{\numberline {5.101}DB-101 - POST /auth/signup}{70}{subsection.5.101}%
+\contentsline {subsection}{\numberline {5.102}DB-102 - query}{70}{subsection.5.102}%
+\contentsline {subsection}{\numberline {5.103}DB-103 - referralStatus}{71}{subsection.5.103}%
+\contentsline {subsection}{\numberline {5.104}DB-104 - referralStatus}{71}{subsection.5.104}%
+\contentsline {subsection}{\numberline {5.105}DB-105 - resolveScopedUserId}{72}{subsection.5.105}%
+\contentsline {subsection}{\numberline {5.106}DB-106 - resolveScopedUserId}{72}{subsection.5.106}%
+\contentsline {subsection}{\numberline {5.107}DB-107 - revokeSession}{73}{subsection.5.107}%
+\contentsline {subsection}{\numberline {5.108}DB-108 - seedJobs}{74}{subsection.5.108}%
+\contentsline {subsection}{\numberline {5.109}DB-109 - syncReferralsForUser}{74}{subsection.5.109}%
+\contentsline {subsection}{\numberline {5.110}DB-110 - syncReferralsForUser}{75}{subsection.5.110}%
+\contentsline {subsection}{\numberline {5.111}DB-111 - transaction}{75}{subsection.5.111}%
+\contentsline {subsection}{\numberline {5.112}DB-112 - upsertUser}{76}{subsection.5.112}%
+\contentsline {subsection}{\numberline {5.113}DB-113 - upsertUser}{77}{subsection.5.113}%
+\contentsline {section}{\numberline {6}Cross-Endpoint Sync Flows}{77}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Job Write to Dashboard Read}{77}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Referral Sync}{78}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}Friendship State Machine}{78}{subsection.6.3}%
+\contentsline {section}{\numberline {7}Release Checklist}{79}{section.7}%

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import Spinner from "../components/Spinner";
 import ManageSharedFieldsModal from "../components/network/ManageSharedFieldsModal";
@@ -329,6 +329,8 @@ export default function NetworkPage() {
   const [fieldVisibilityError, setFieldVisibilityError] = useState("");
   const [selectedWeeklyCompareKey, setSelectedWeeklyCompareKey] = useState("");
   const [showBadgeGallery, setShowBadgeGallery] = useState(false);
+  const todayApplicationsSectionRef = useRef<HTMLElement | null>(null);
+  const [todayApplicationsSectionHeight, setTodayApplicationsSectionHeight] = useState(0);
   const [fieldVisibility, setFieldVisibility] = useState<NetworkFieldVisibility>({
     share_company: true,
     share_role: true,
@@ -336,7 +338,7 @@ export default function NetworkPage() {
     share_oa_status: true,
     share_oa_deadline: true,
     share_referral_used: true,
-    share_notes: false,
+    share_notes: true,
     share_job_application_id: true,
   });
   const [requiredVisibilityFields, setRequiredVisibilityFields] = useState<Array<keyof NetworkFieldVisibility>>(
@@ -399,6 +401,11 @@ export default function NetworkPage() {
     window.addEventListener("dashboard-refresh", onRefresh);
     return () => window.removeEventListener("dashboard-refresh", onRefresh);
   }, [load]);
+
+  const privacyHiddenLabel = useCallback(
+    (key: keyof NetworkFieldVisibility) => (fieldVisibility[key] ? "Friend not sharing" : "Not shared"),
+    [fieldVisibility],
+  );
 
   function openFriendManager() {
     window.dispatchEvent(new CustomEvent("open-friend-manager"));
@@ -957,6 +964,31 @@ export default function NetworkPage() {
     return rows;
   }, [todayWithJobs]);
 
+  useEffect(() => {
+    const node = todayApplicationsSectionRef.current;
+    if (!node) return undefined;
+
+    const syncHeight = () => {
+      const nextHeight = Math.max(0, Math.round(node.getBoundingClientRect().height));
+      setTodayApplicationsSectionHeight((previous) => (previous === nextHeight ? previous : nextHeight));
+    };
+
+    syncHeight();
+    const onWindowResize = () => syncHeight();
+    window.addEventListener("resize", onWindowResize);
+
+    if (typeof ResizeObserver === "undefined") {
+      return () => window.removeEventListener("resize", onWindowResize);
+    }
+
+    const observer = new ResizeObserver(() => syncHeight());
+    observer.observe(node);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", onWindowResize);
+    };
+  }, []);
+
   const weeklySelfStreak = useMemo(() => {
     const selfRow = insightCharts.weeklyLeaderboard.find((row) => row.isSelf);
     if (!selfRow || !insightCharts.weeklyDailyRows.length) return null;
@@ -1054,6 +1086,10 @@ export default function NetworkPage() {
       isDefending,
     };
   }, [insightCharts.weeklyLeaderboard]);
+  const syncedSignalsSidebarStyle =
+    todayApplicationsSectionHeight > 0
+      ? { height: `${todayApplicationsSectionHeight}px`, maxHeight: `${todayApplicationsSectionHeight}px` }
+      : undefined;
   return (
     <>
       {error ? <div className="error">{error}</div> : null}
@@ -1494,7 +1530,7 @@ export default function NetworkPage() {
       </section>
 
       <div className="network-applications-row">
-        <section className="network-applications-main">
+        <section className="network-applications-main" ref={todayApplicationsSectionRef}>
           <div className="card network-shell-card is-open">
             <div className="network-main-head network-main-head--static">
               <h2>Today&apos;s Applications</h2>
@@ -1522,11 +1558,11 @@ export default function NetworkPage() {
                       <tr>
                         <th>#</th>
                         <th>Company / Position</th>
-                        <th>Date</th>
-                        <th>OA</th>
+                        <th>Applied Date</th>
+                        <th>OA Status</th>
                         <th>OA Deadline</th>
-                        <th>Job/App ID</th>
-                        <th>Referral</th>
+                        <th>Job/Application ID</th>
+                        <th>Referral Used</th>
                         <th>Notes</th>
                         <th>Link</th>
                         <th>Action</th>
@@ -1579,14 +1615,44 @@ export default function NetworkPage() {
                               {job.can_view_applied_at ? (
                                 formatTableDateTime(job.applied_at ?? job.date_saved)
                               ) : (
-                                <span className="network-not-shared">Not shared</span>
+                                <span className="network-not-shared">{privacyHiddenLabel("share_applied_at")}</span>
                               )}
                             </td>
-                            <td className="network-cell-oa">{job.can_view_oa_status ? normalizeOaStatus(job.oa_status) : <span className="network-not-shared">Not shared</span>}</td>
-                            <td className="network-cell-deadline">{job.can_view_oa_deadline ? (String(job.oa_deadline_date ?? "-") || "-") : <span className="network-not-shared">Not shared</span>}</td>
-                            <td className="network-cell-jobid">{job.can_view_job_application_id ? (String(job.job_application_id ?? "-") || "-") : <span className="network-not-shared">Not shared</span>}</td>
-                            <td className="network-cell-referral">{job.can_view_referral_used ? (String(job.referral_status ?? "-") || "-") : <span className="network-not-shared">Not shared</span>}</td>
-                            <td className="network-cell-notes">{job.can_view_notes ? (String(job.notes ?? "-") || "-") : <span className="network-not-shared">Not shared</span>}</td>
+                            <td className="network-cell-oa">
+                              {job.can_view_oa_status ? (
+                                normalizeOaStatus(job.oa_status)
+                              ) : (
+                                <span className="network-not-shared">{privacyHiddenLabel("share_oa_status")}</span>
+                              )}
+                            </td>
+                            <td className="network-cell-deadline">
+                              {job.can_view_oa_deadline ? (
+                                (String(job.oa_deadline_date ?? "-") || "-")
+                              ) : (
+                                <span className="network-not-shared">{privacyHiddenLabel("share_oa_deadline")}</span>
+                              )}
+                            </td>
+                            <td className="network-cell-jobid">
+                              {job.can_view_job_application_id ? (
+                                (String(job.job_application_id ?? "-") || "-")
+                              ) : (
+                                <span className="network-not-shared">{privacyHiddenLabel("share_job_application_id")}</span>
+                              )}
+                            </td>
+                            <td className="network-cell-referral">
+                              {job.can_view_referral_used ? (
+                                (String(job.referral_status ?? "-") || "-")
+                              ) : (
+                                <span className="network-not-shared">{privacyHiddenLabel("share_referral_used")}</span>
+                              )}
+                            </td>
+                            <td className="network-cell-notes">
+                              {job.can_view_notes ? (
+                                (String(job.notes ?? "-") || "-")
+                              ) : (
+                                <span className="network-not-shared">{privacyHiddenLabel("share_notes")}</span>
+                              )}
+                            </td>
                             <td className="network-cell-link">
                               {canOpenLink ? (
                                 <a
@@ -1643,7 +1709,7 @@ export default function NetworkPage() {
           )}
           </div>
         </section>
-        <div className="network-signals-sidebar">
+        <div className="network-signals-sidebar" style={syncedSignalsSidebarStyle}>
           <TargetSignalsCarousel
             todayData={todayData}
             useDemoFallback={useTargetDemoFallback}
