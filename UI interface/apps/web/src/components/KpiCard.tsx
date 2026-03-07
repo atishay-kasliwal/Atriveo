@@ -9,6 +9,7 @@ type Props = {
   sparkline?: number[];
   sparklineColor?: string;
   changeContext?: string;
+  changePercent?: number;
 };
 
 function Sparkline({
@@ -76,25 +77,38 @@ function Sparkline({
   );
 }
 
-export default function KpiCard({ label, value, accent, sparkline, sparklineColor, changeContext }: Props) {
+export default function KpiCard({ label, value, accent, sparkline, sparklineColor, changeContext, changePercent }: Props) {
   const displayValue = value !== undefined && value !== null ? value : 0;
   const className = accent === "red" ? "kpi-card kpi-card--red" : "kpi-card";
   const sparklineData = sparkline && sparkline.length > 1 ? sparkline : [0, 0];
-  const startValue = sparklineData[0] ?? 0;
-  const endValue = sparklineData[sparklineData.length - 1] ?? 0;
-  const delta = endValue - startValue;
+  const fallbackStartValue = sparklineData[0] ?? 0;
+  const fallbackEndValue = sparklineData[sparklineData.length - 1] ?? 0;
+  const fallbackDelta = fallbackEndValue - fallbackStartValue;
+  const resolvedPercentRaw =
+    typeof changePercent === "number" && Number.isFinite(changePercent)
+      ? Math.round(changePercent)
+      : fallbackStartValue === 0
+        ? fallbackEndValue === 0
+          ? 0
+          : 100
+        : Math.round((Math.abs(fallbackDelta) / Math.abs(fallbackStartValue)) * 100);
+  const resolvedPercent = Math.max(0, Math.min(100, Math.abs(resolvedPercentRaw)));
+  const resolvedDeltaSign =
+    typeof changePercent === "number" && Number.isFinite(changePercent)
+      ? Math.sign(changePercent)
+      : Math.sign(fallbackDelta);
+
   let trendClass = "kpi-change kpi-change--flat";
   let trendText = "0%";
-  if (startValue !== 0) {
-    const pct = Math.round((Math.abs(delta) / Math.abs(startValue)) * 100);
-    if (delta > 0) {
-      trendClass = "kpi-change kpi-change--up";
-      trendText = `↑ ${pct}%`;
-    } else if (delta < 0) {
-      trendClass = "kpi-change kpi-change--down";
-      trendText = `↓ ${pct}%`;
-    }
+
+  if (resolvedDeltaSign > 0) {
+    trendClass = "kpi-change kpi-change--up";
+    trendText = `↑ ${resolvedPercent}%`;
+  } else if (resolvedDeltaSign < 0) {
+    trendClass = "kpi-change kpi-change--down";
+    trendText = `↓ ${resolvedPercent}%`;
   }
+
   const contextText = changeContext?.trim() || "vs start of shown trend";
 
   return (
