@@ -338,11 +338,16 @@ export default function Layout({ userEmail, userFirstName, userLastName, onLogou
     function onOpenLogNoteModal() {
       openLogNoteModal();
     }
+    function onOpenImportCsvModal() {
+      openCsvModal("import");
+    }
     window.addEventListener("open-create-task-modal", onOpenCreateTaskModal);
     window.addEventListener("open-log-note-modal", onOpenLogNoteModal);
+    window.addEventListener("open-import-csv", onOpenImportCsvModal);
     return () => {
       window.removeEventListener("open-create-task-modal", onOpenCreateTaskModal);
       window.removeEventListener("open-log-note-modal", onOpenLogNoteModal);
+      window.removeEventListener("open-import-csv", onOpenImportCsvModal);
     };
   }, []);
 
@@ -820,24 +825,42 @@ export default function Layout({ userEmail, userFirstName, userLastName, onLogou
       {showCsvModal ? (
         <div className="modal-overlay" onClick={closeCsvModal}>
           <div className="modal modal--csv" onClick={(e) => e.stopPropagation()}>
-            <h3>{csvMode === "import" ? "Import Jobs CSV" : "Export Jobs CSV"}</h3>
+            <div className="csv-modal-head">
+              <h3>{csvMode === "import" ? "Import Jobs CSV" : "Export Jobs CSV"}</h3>
+              {csvMode === "import" ? (
+                <details className="csv-rules">
+                  <summary className="csv-info-btn" aria-label="View CSV import rules">i</summary>
+                  <div className="csv-rules-panel">
+                    <div className="csv-rules-copy">
+                      <p className="csv-helper">Quick rules</p>
+                      <ul>
+                        <li>Use CSV only (max 10 MB).</li>
+                        <li>Required per row: <code>role</code>, <code>company</code>, and one date field.</li>
+                        <li>Date field: <code>date_saved</code> (YYYY-MM-DD) or <code>applied_at</code> (ISO timestamp).</li>
+                        <li>If only <code>date_saved</code> is sent, time defaults to 12:07 AM.</li>
+                        <li>Optional fields auto-default when blank/invalid.</li>
+                      </ul>
+                    </div>
+                  </div>
+                </details>
+              ) : null}
+            </div>
             {csvMode === "import" ? (
               <form className="form" onSubmit={onImportCsv}>
-                <p className="csv-helper">
-                  Upload must be CSV, up to 10 MB.
-                  Mandatory per row: <code>role</code>, <code>company</code>, and at least one of <code>date_saved</code> (YYYY-MM-DD) or <code>applied_at</code> (ISO timestamp).
-                  Include both when possible to preserve exact application time and stable sorting.
-                  If only <code>date_saved</code> is provided, import defaults time to 12:07 AM.
-                  Optional fields auto-default when blank or invalid.
-                  Allowed values:
-                  <code>keyword_matching</code> = Strong/Medium/Weak,
-                  <code>oa_status</code> = Yes/No,
-                  <code>oa_deadline_date</code> = YYYY-MM-DD (optional),
-                  <code>job_application_id</code> = optional text (defaults to -),
-                  <code>referral_status</code> = Requested/Yes/No,
-                  <code>response_status</code> = Review/Screening/Interview/Rejected/Offer/No Response,
-                  <code>application_status</code> = Applied/Review/Interview/Rejected/Offer.
-                </p>
+                <div className="csv-import-headline">
+                  <div className="csv-required-pill">
+                    <p className="csv-required-label">Required headers</p>
+                    <p className="csv-required-item">
+                      Company Name: <code>company</code>
+                    </p>
+                    <p className="csv-required-item">
+                      Application Title: <code>role</code>
+                    </p>
+                    <p className="csv-required-item">
+                      Applied Date: <code>date_saved</code>
+                    </p>
+                  </div>
+                </div>
                 <input
                   type="file"
                   accept=".csv,text/csv"
@@ -849,10 +872,10 @@ export default function Layout({ userEmail, userFirstName, userLastName, onLogou
                 {csvError ? <div className="auth-error">{csvError}</div> : null}
                 {csvSuccess ? <div className="csv-success">{csvSuccess}</div> : null}
                 <div className="modal-actions">
-                  <button type="button" className="action-btn" onClick={closeCsvModal} disabled={csvBusy}>
+                  <button type="button" className="jobs-search-btn csv-action-btn" onClick={closeCsvModal} disabled={csvBusy}>
                     Close
                   </button>
-                  <button type="submit" disabled={csvBusy || !csvFile}>
+                  <button type="submit" className="jobs-search-btn csv-action-btn" disabled={csvBusy || !csvFile}>
                     {csvBusy ? "Importing..." : "Import CSV"}
                   </button>
                 </div>
@@ -876,10 +899,10 @@ export default function Layout({ userEmail, userFirstName, userLastName, onLogou
                 {csvError ? <div className="auth-error">{csvError}</div> : null}
                 {csvSuccess ? <div className="csv-success">{csvSuccess}</div> : null}
                 <div className="modal-actions">
-                  <button type="button" className="action-btn" onClick={closeCsvModal} disabled={csvBusy}>
+                  <button type="button" className="jobs-search-btn csv-action-btn" onClick={closeCsvModal} disabled={csvBusy}>
                     Close
                   </button>
-                  <button type="submit" disabled={csvBusy}>
+                  <button type="submit" className="jobs-search-btn csv-action-btn" disabled={csvBusy}>
                     {csvBusy ? "Exporting..." : "Export CSV"}
                   </button>
                 </div>

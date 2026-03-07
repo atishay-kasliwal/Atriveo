@@ -517,6 +517,7 @@ export type NetworkTodayJob = {
   can_view_oa_deadline: boolean;
   can_view_referral_used: boolean;
   can_view_notes: boolean;
+  can_view_job_application_id: boolean;
 };
 
 export type NetworkTodayFriend = {
@@ -542,6 +543,7 @@ export type NetworkFieldVisibility = {
   share_oa_deadline: boolean;
   share_referral_used: boolean;
   share_notes: boolean;
+  share_job_application_id: boolean;
 };
 
 export function getNetworkFieldVisibility() {

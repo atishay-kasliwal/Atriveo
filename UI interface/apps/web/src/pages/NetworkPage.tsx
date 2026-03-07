@@ -67,6 +67,7 @@ const REQUIRED_VISIBILITY_KEYS: Array<keyof NetworkFieldVisibility> = [
   "share_company",
   "share_role",
   "share_applied_at",
+  "share_job_application_id",
 ];
 
 const NETWORK_VISIBILITY_FIELDS: Array<{ key: keyof NetworkFieldVisibility; label: string }> = [
@@ -77,6 +78,7 @@ const NETWORK_VISIBILITY_FIELDS: Array<{ key: keyof NetworkFieldVisibility; labe
   { key: "share_oa_deadline", label: "OA Deadline" },
   { key: "share_referral_used", label: "Referral Used" },
   { key: "share_notes", label: "Notes" },
+  { key: "share_job_application_id", label: "Job/Application ID" },
 ];
 
 const OPTIONAL_SHARE_KEYS: Array<keyof NetworkFieldVisibility> = [
@@ -335,6 +337,7 @@ export default function NetworkPage() {
     share_oa_deadline: true,
     share_referral_used: true,
     share_notes: false,
+    share_job_application_id: true,
   });
   const [requiredVisibilityFields, setRequiredVisibilityFields] = useState<Array<keyof NetworkFieldVisibility>>(
     REQUIRED_VISIBILITY_KEYS,
@@ -371,11 +374,10 @@ export default function NetworkPage() {
         setFieldVisibility(visibilityRes.data);
       }
       if (visibilityRes?.required_fields?.length) {
-        setRequiredVisibilityFields(
-          visibilityRes.required_fields.filter((field): field is keyof NetworkFieldVisibility =>
-            NETWORK_VISIBILITY_FIELDS.some((item) => item.key === field),
-          ),
+        const fromApi = visibilityRes.required_fields.filter((field): field is keyof NetworkFieldVisibility =>
+          NETWORK_VISIBILITY_FIELDS.some((item) => item.key === field),
         );
+        setRequiredVisibilityFields([...new Set([...REQUIRED_VISIBILITY_KEYS, ...fromApi])]);
       }
       setTargetProgress(targetRes);
     } catch (e) {
@@ -424,11 +426,10 @@ export default function NetworkPage() {
       const nextVisibility = res?.data ?? fieldVisibility;
       if (res?.data) setFieldVisibility(res.data);
       if (res?.required_fields?.length) {
-        setRequiredVisibilityFields(
-          res.required_fields.filter((field): field is keyof NetworkFieldVisibility =>
-            NETWORK_VISIBILITY_FIELDS.some((item) => item.key === field),
-          ),
+        const fromApi = res.required_fields.filter((field): field is keyof NetworkFieldVisibility =>
+          NETWORK_VISIBILITY_FIELDS.some((item) => item.key === field),
         );
+        setRequiredVisibilityFields([...new Set([...REQUIRED_VISIBILITY_KEYS, ...fromApi])]);
       }
       const enabledAfter = OPTIONAL_SHARE_KEYS.filter((key) => Boolean(nextVisibility[key])).length;
       if (enabledAfter > enabledBefore) {
@@ -933,6 +934,29 @@ export default function NetworkPage() {
     });
     return rows;
   }, [todayData]);
+
+  const todayApplicationsFlat = useMemo(() => {
+    const rows: Array<{
+      job: (typeof todayWithJobs)[number]["jobs"][number];
+      friendName: string;
+      friendId: number;
+    }> = [];
+    todayWithJobs.forEach((friend) => {
+      const friendName = String(friend.friend_name || friend.friend_email);
+      friend.jobs.forEach((job) => {
+        rows.push({ job, friendName, friendId: friend.friend_id });
+      });
+    });
+    rows.sort((a, b) => {
+      const tsA = Date.parse(String(a.job.applied_at ?? a.job.date_saved ?? ""));
+      const tsB = Date.parse(String(b.job.applied_at ?? b.job.date_saved ?? ""));
+      const diff = (Number.isNaN(tsB) ? 0 : tsB) - (Number.isNaN(tsA) ? 0 : tsA);
+      if (diff !== 0) return diff;
+      return a.friendName.localeCompare(b.friendName);
+    });
+    return rows;
+  }, [todayWithJobs]);
+
   const weeklySelfStreak = useMemo(() => {
     const selfRow = insightCharts.weeklyLeaderboard.find((row) => row.isSelf);
     if (!selfRow || !insightCharts.weeklyDailyRows.length) return null;
@@ -1462,11 +1486,6 @@ export default function NetworkPage() {
                       ) : null}
                     </div>
                   </div>
-                  <TargetSignalsCarousel
-                    todayData={todayData}
-                    useDemoFallback={useTargetDemoFallback}
-                    onAddApplication={({ friendName, job }) => onSelectFriendJob(friendName, job)}
-                  />
                 </div>
               )}
             </div>
@@ -1474,10 +1493,11 @@ export default function NetworkPage() {
         </div>
       </section>
 
-      <section>
-        <div className="card network-shell-card is-open">
-          <div className="network-main-head network-main-head--static">
-            <h2>Today&apos;s Applications</h2>
+      <div className="network-applications-row">
+        <section className="network-applications-main">
+          <div className="card network-shell-card is-open">
+            <div className="network-main-head network-main-head--static">
+              <h2>Today&apos;s Applications</h2>
             <div className="network-main-right">
               <span className="pending-meta">Friends with activity today</span>
             </div>
@@ -1487,7 +1507,7 @@ export default function NetworkPage() {
             <Spinner />
           ) : (
             <div className="network-card-content">
-              {todayWithJobs.length === 0 ? (
+              {todayApplicationsFlat.length === 0 ? (
                 <div className="network-empty-state network-empty-state--today" role="status" aria-live="polite">
                   <div className="network-empty-state-icon" aria-hidden="true">
                     ◌
@@ -1496,138 +1516,141 @@ export default function NetworkPage() {
                   <p className="network-empty-state-copy">When friends add applications, they appear here automatically.</p>
                 </div>
               ) : (
-                <div className="network-today-grid">
-                  {todayWithJobs.map((friend) => (
-                    <div key={String(friend.friend_id)} className="network-today-card network-today-item">
-                      <div className="network-today-summary">
-                        <strong>{String(friend.friend_name || friend.friend_email)}</strong>
-                        <span className="network-today-summary-right">
-                          <span className="pending-meta">{friend.jobs.length} today</span>
-                        </span>
-                      </div>
-                      <div className="table-wrap">
-                        <table className="network-today-table">
-                          <thead>
-                            <tr>
-                              <th>#</th>
-                              <th>Company / Position</th>
-                              <th>Date</th>
-                              <th>OA</th>
-                              <th>OA Deadline</th>
-                              <th>Job/App ID</th>
-                              <th>Link</th>
-                              <th>Action</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {friend.jobs.map((job, idx) => {
-                              const canViewIdentity = Boolean(job.can_view_company && job.can_view_role);
-                              const canOpenLink = canViewIdentity && Boolean(job.job_link);
-                              const canPrefill = canViewIdentity;
-                              return (
-                                <tr
-                                  key={String(job.id)}
-                                  className="network-job-row"
-                                  onClick={() => {
-                                    if (!canPrefill) return;
-                                    onSelectFriendJob(String(friend.friend_name || friend.friend_email), {
-                                      company: job.company ?? null,
-                                      role: job.role ?? null,
-                                      date_saved: job.date_saved ?? null,
-                                      applied_at: job.applied_at ?? null,
-                                      job_link: job.job_link ?? null,
-                                      job_application_id: job.job_application_id ?? null,
-                                      oa_deadline_date: job.oa_deadline_date ?? null,
-                                      oa_status: job.oa_status ?? null,
-                                      referral_status: job.referral_status ?? null,
-                                      application_status: job.application_status ?? null,
-                                      notes: job.notes ?? null,
-                                    });
-                                  }}
+                <div className="table-wrap">
+                  <table className="network-today-table">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Company / Position</th>
+                        <th>Date</th>
+                        <th>OA</th>
+                        <th>OA Deadline</th>
+                        <th>Job/App ID</th>
+                        <th>Referral</th>
+                        <th>Notes</th>
+                        <th>Link</th>
+                        <th>Action</th>
+                        <th>Friend</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {todayApplicationsFlat.map((row, idx) => {
+                        const { job, friendName } = row;
+                        const canViewIdentity = Boolean(job.can_view_company && job.can_view_role);
+                        const canOpenLink = canViewIdentity && Boolean(job.job_link);
+                        const canPrefill = canViewIdentity;
+                        return (
+                          <tr
+                            key={`${row.friendId}-${job.id}`}
+                            className="network-job-row"
+                            onClick={() => {
+                              if (!canPrefill) return;
+                              onSelectFriendJob(friendName, {
+                                company: job.company ?? null,
+                                role: job.role ?? null,
+                                date_saved: job.date_saved ?? null,
+                                applied_at: job.applied_at ?? null,
+                                job_link: job.job_link ?? null,
+                                job_application_id: job.job_application_id ?? null,
+                                oa_deadline_date: job.oa_deadline_date ?? null,
+                                oa_status: job.oa_status ?? null,
+                                referral_status: job.referral_status ?? null,
+                                application_status: job.application_status ?? null,
+                                notes: job.notes ?? null,
+                              });
+                            }}
+                          >
+                            <td className="network-cell-index">{idx + 1}</td>
+                            <td className="network-cell-company-role">
+                              {canViewIdentity ? (
+                                <div className="job-main">
+                                  <div className="job-company" title={String(job.company ?? "—")}>
+                                    {String(job.company ?? "—")}
+                                  </div>
+                                  <div className="job-role" title={String(job.role ?? "—")}>
+                                    {String(job.role ?? "—")}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="network-not-shared">Not shared</span>
+                              )}
+                            </td>
+                            <td className="network-cell-date">
+                              {job.can_view_applied_at ? (
+                                formatTableDateTime(job.applied_at ?? job.date_saved)
+                              ) : (
+                                <span className="network-not-shared">Not shared</span>
+                              )}
+                            </td>
+                            <td className="network-cell-oa">{job.can_view_oa_status ? normalizeOaStatus(job.oa_status) : <span className="network-not-shared">Not shared</span>}</td>
+                            <td className="network-cell-deadline">{job.can_view_oa_deadline ? (String(job.oa_deadline_date ?? "-") || "-") : <span className="network-not-shared">Not shared</span>}</td>
+                            <td className="network-cell-jobid">{job.can_view_job_application_id ? (String(job.job_application_id ?? "-") || "-") : <span className="network-not-shared">Not shared</span>}</td>
+                            <td className="network-cell-referral">{job.can_view_referral_used ? (String(job.referral_status ?? "-") || "-") : <span className="network-not-shared">Not shared</span>}</td>
+                            <td className="network-cell-notes">{job.can_view_notes ? (String(job.notes ?? "-") || "-") : <span className="network-not-shared">Not shared</span>}</td>
+                            <td className="network-cell-link">
+                              {canOpenLink ? (
+                                <a
+                                  href={String(job.job_link)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="network-link-chip"
+                                  onClick={(e) => e.stopPropagation()}
                                 >
-                                  <td className="network-cell-index">{idx + 1}</td>
-                                  <td className="network-cell-company-role">
-                                    {canViewIdentity ? (
-                                      <div className="job-main">
-                                        <div className="job-company" title={String(job.company ?? "—")}>
-                                          {String(job.company ?? "—")}
-                                        </div>
-                                        <div className="job-role" title={String(job.role ?? "—")}>
-                                          {String(job.role ?? "—")}
-                                        </div>
-                                      </div>
-                                    ) : (
-                                      <span className="network-not-shared">Not shared</span>
-                                    )}
-                                  </td>
-                                  <td className="network-cell-date">
-                                    {job.can_view_applied_at ? (
-                                      formatTableDateTime(job.applied_at ?? job.date_saved)
-                                    ) : (
-                                      <span className="network-not-shared">Not shared</span>
-                                    )}
-                                  </td>
-                                  <td className="network-cell-oa">{job.can_view_oa_status ? normalizeOaStatus(job.oa_status) : <span className="network-not-shared">Not shared</span>}</td>
-                                  <td className="network-cell-deadline">{job.can_view_oa_deadline ? (String(job.oa_deadline_date ?? "-") || "-") : <span className="network-not-shared">Not shared</span>}</td>
-                                  <td className="network-cell-jobid">{canViewIdentity ? (String(job.job_application_id ?? "-") || "-") : <span className="network-not-shared">Not shared</span>}</td>
-                                  <td className="network-cell-link">
-                                    {canOpenLink ? (
-                                      <a
-                                        href={String(job.job_link)}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="network-link-chip"
-                                        onClick={(e) => e.stopPropagation()}
-                                      >
-                                        Open
-                                      </a>
-                                    ) : canViewIdentity ? (
-                                      "—"
-                                    ) : (
-                                      <span className="network-not-shared">Not shared</span>
-                                    )}
-                                  </td>
-                                  <td className="network-cell-action">
-                                    <button
-                                      type="button"
-                                      className="action-btn network-add-btn"
-                                      disabled={!canPrefill}
-                                      title={canPrefill ? "Add this application to your list" : "Friend has not shared enough fields for prefill"}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (!canPrefill) return;
-                                        onSelectFriendJob(String(friend.friend_name || friend.friend_email), {
-                                          company: job.company ?? null,
-                                          role: job.role ?? null,
-                                          date_saved: job.date_saved ?? null,
-                                          applied_at: job.applied_at ?? null,
-                                          job_link: job.job_link ?? null,
-                                          job_application_id: job.job_application_id ?? null,
-                                          oa_deadline_date: job.oa_deadline_date ?? null,
-                                          oa_status: job.oa_status ?? null,
-                                          referral_status: job.referral_status ?? null,
-                                          application_status: job.application_status ?? null,
-                                          notes: job.notes ?? null,
-                                        });
-                                      }}
-                                    >
-                                      Add Application
-                                    </button>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  ))}
+                                  Open
+                                </a>
+                              ) : canViewIdentity ? (
+                                "—"
+                              ) : (
+                                <span className="network-not-shared">Not shared</span>
+                              )}
+                            </td>
+                            <td className="network-cell-action">
+                              <button
+                                type="button"
+                                className="action-btn network-add-btn"
+                                disabled={!canPrefill}
+                                title={canPrefill ? "Add this application to your list" : "Friend has not shared enough fields for prefill"}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (!canPrefill) return;
+                                  onSelectFriendJob(friendName, {
+                                    company: job.company ?? null,
+                                    role: job.role ?? null,
+                                    date_saved: job.date_saved ?? null,
+                                    applied_at: job.applied_at ?? null,
+                                    job_link: job.job_link ?? null,
+                                    job_application_id: job.job_application_id ?? null,
+                                    oa_deadline_date: job.oa_deadline_date ?? null,
+                                    oa_status: job.oa_status ?? null,
+                                    referral_status: job.referral_status ?? null,
+                                    application_status: job.application_status ?? null,
+                                    notes: job.notes ?? null,
+                                  });
+                                }}
+                              >
+                                Add Application
+                              </button>
+                            </td>
+                            <td className="network-cell-friend">{friendName}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>
           )}
+          </div>
+        </section>
+        <div className="network-signals-sidebar">
+          <TargetSignalsCarousel
+            todayData={todayData}
+            useDemoFallback={useTargetDemoFallback}
+            onAddApplication={({ friendName, job }) => onSelectFriendJob(friendName, job)}
+          />
         </div>
-      </section>
+      </div>
 
       </div>
 

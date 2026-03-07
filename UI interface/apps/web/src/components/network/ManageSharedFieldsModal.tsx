@@ -33,12 +33,17 @@ const FIELD_META: Record<
     label: "Notes",
     description: "Share personal notes about the application",
   },
+  share_job_application_id: {
+    label: "Job/Application ID",
+    description: "Let friends see your job or application IDs for reference",
+  },
 };
 
 const ALWAYS_SHARED_ORDER: Array<keyof NetworkFieldVisibility> = [
   "share_company",
   "share_role",
   "share_applied_at",
+  "share_job_application_id",
 ];
 
 const OPTIONAL_ORDER: Array<keyof NetworkFieldVisibility> = [
@@ -231,18 +236,6 @@ export default function ManageSharedFieldsModal({
                   ))}
                 </ul>
               </section>
-
-              <div className="network-shared-fields-connectors" aria-hidden="true">
-                {OPTIONAL_ORDER.map((key) => (
-                  <div
-                    key={`link-${key}`}
-                    className={`network-shared-fields-connector${visibility[key] ? " is-enabled" : ""}`}
-                  >
-                    <span>{FIELD_META[key].label}</span>
-                    <i />
-                  </div>
-                ))}
-              </div>
 
               <section
                 className="network-shared-fields-user-card"

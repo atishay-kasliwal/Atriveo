@@ -51,7 +51,7 @@ const GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo";
 
 const MAX_FRIENDS = 10;
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
-const NETWORK_REQUIRED_VISIBILITY_FIELDS = ["share_company", "share_role", "share_applied_at"] as const;
+const NETWORK_REQUIRED_VISIBILITY_FIELDS = ["share_company", "share_role", "share_applied_at", "share_job_application_id"] as const;
 
 function parseAnchorDay(rawAnchor: string | undefined): string | null {
   return rawAnchor && ISO_DATE_REGEX.test(rawAnchor) ? rawAnchor : null;
@@ -65,6 +65,7 @@ type UserFieldVisibility = {
   share_oa_deadline: boolean;
   share_referral_used: boolean;
   share_notes: boolean;
+  share_job_application_id: boolean;
 };
 
 const DEFAULT_USER_FIELD_VISIBILITY: UserFieldVisibility = {
@@ -74,7 +75,8 @@ const DEFAULT_USER_FIELD_VISIBILITY: UserFieldVisibility = {
   share_oa_status: true,
   share_oa_deadline: true,
   share_referral_used: true,
-  share_notes: false,
+  share_notes: true,
+  share_job_application_id: true,
 };
 
 function toBoolean(value: unknown, fallback: boolean): boolean {
@@ -95,6 +97,7 @@ function normalizeUserFieldVisibility(row: Record<string, unknown> | undefined):
     share_oa_deadline: toBoolean(row?.share_oa_deadline, DEFAULT_USER_FIELD_VISIBILITY.share_oa_deadline),
     share_referral_used: toBoolean(row?.share_referral_used, DEFAULT_USER_FIELD_VISIBILITY.share_referral_used),
     share_notes: toBoolean(row?.share_notes, DEFAULT_USER_FIELD_VISIBILITY.share_notes),
+    share_job_application_id: toBoolean(row?.share_job_application_id, DEFAULT_USER_FIELD_VISIBILITY.share_job_application_id),
   };
 }
 
@@ -104,6 +107,7 @@ function applyRequiredVisibilityFields(visibility: UserFieldVisibility): UserFie
     share_company: true,
     share_role: true,
     share_applied_at: true,
+    share_job_application_id: true,
   };
 }
 
@@ -115,7 +119,7 @@ async function ensureUserFieldVisibility(env: Bindings, userId: number): Promise
     VALUES ($1)
     ON CONFLICT (user_id) DO UPDATE
       SET user_id = EXCLUDED.user_id
-    RETURNING share_company, share_role, share_applied_at, share_oa_status, share_oa_deadline, share_referral_used, share_notes
+    RETURNING share_company, share_role, share_applied_at, share_oa_status, share_oa_deadline, share_referral_used, share_notes, share_job_application_id
     `,
     [userId],
   );
@@ -893,6 +897,7 @@ const networkFieldVisibilityUpdateInput = z.object({
   share_oa_deadline: z.boolean().optional(),
   share_referral_used: z.boolean().optional(),
   share_notes: z.boolean().optional(),
+  share_job_application_id: z.boolean().optional(),
 });
 
 app.get("/api/network/field-visibility", async (c) => {
@@ -924,9 +929,10 @@ app.patch("/api/network/field-visibility", async (c) => {
       share_oa_deadline = $6,
       share_referral_used = $7,
       share_notes = $8,
+      share_job_application_id = $9,
       updated_at = NOW()
     WHERE user_id = $1
-    RETURNING share_company, share_role, share_applied_at, share_oa_status, share_oa_deadline, share_referral_used, share_notes
+    RETURNING share_company, share_role, share_applied_at, share_oa_status, share_oa_deadline, share_referral_used, share_notes, share_job_application_id
     `,
     [
       userId,
@@ -937,6 +943,7 @@ app.patch("/api/network/field-visibility", async (c) => {
       next.share_oa_deadline,
       next.share_referral_used,
       next.share_notes,
+      next.share_job_application_id,
     ],
   );
 
@@ -1078,6 +1085,7 @@ app.get("/api/network/today", async (c) => {
     can_view_oa_deadline: boolean;
     can_view_referral_used: boolean;
     can_view_notes: boolean;
+    can_view_job_application_id: boolean;
   }>(
     c.env,
     `
@@ -1089,7 +1097,8 @@ app.get("/api/network/today", async (c) => {
         COALESCE(v.share_oa_status, TRUE) AS share_oa_status,
         COALESCE(v.share_oa_deadline, TRUE) AS share_oa_deadline,
         COALESCE(v.share_referral_used, TRUE) AS share_referral_used,
-        COALESCE(v.share_notes, FALSE) AS share_notes
+        COALESCE(v.share_notes, TRUE) AS share_notes,
+        COALESCE(v.share_job_application_id, TRUE) AS share_job_application_id
       FROM (SELECT 1) seed
       LEFT JOIN user_field_visibility v ON v.user_id = $1
     ),
@@ -1146,10 +1155,7 @@ app.get("/api/network/today", async (c) => {
       END AS oa_status,
       CASE
         WHEN j.id IS NULL THEN NULL
-        WHEN fr.friend_id = $1 OR (
-          (vv.share_company AND COALESCE(ov.share_company, TRUE))
-          AND (vv.share_role AND COALESCE(ov.share_role, TRUE))
-        ) THEN j.job_application_id
+        WHEN fr.friend_id = $1 OR (vv.share_job_application_id AND COALESCE(ov.share_job_application_id, TRUE)) THEN j.job_application_id
         ELSE NULL
       END AS job_application_id,
       CASE
@@ -1167,7 +1173,7 @@ app.get("/api/network/today", async (c) => {
       END AS job_link,
       CASE
         WHEN j.id IS NULL THEN NULL
-        WHEN fr.friend_id = $1 OR (vv.share_notes AND COALESCE(ov.share_notes, FALSE)) THEN j.notes
+        WHEN fr.friend_id = $1 OR (vv.share_notes AND COALESCE(ov.share_notes, TRUE)) THEN j.notes
         ELSE NULL
       END AS notes,
       CASE
@@ -1203,8 +1209,13 @@ app.get("/api/network/today", async (c) => {
       CASE
         WHEN j.id IS NULL THEN FALSE
         WHEN fr.friend_id = $1 THEN TRUE
-        ELSE (vv.share_notes AND COALESCE(ov.share_notes, FALSE))
-      END AS can_view_notes
+        ELSE (vv.share_notes AND COALESCE(ov.share_notes, TRUE))
+      END AS can_view_notes,
+      CASE
+        WHEN j.id IS NULL THEN FALSE
+        WHEN fr.friend_id = $1 THEN TRUE
+        ELSE (vv.share_job_application_id AND COALESCE(ov.share_job_application_id, TRUE))
+      END AS can_view_job_application_id
     FROM friends fr
     CROSS JOIN viewer_visibility vv
     LEFT JOIN user_field_visibility ov ON ov.user_id = fr.friend_id
@@ -1250,6 +1261,7 @@ app.get("/api/network/today", async (c) => {
       can_view_oa_deadline: boolean;
       can_view_referral_used: boolean;
       can_view_notes: boolean;
+      can_view_job_application_id: boolean;
     }>;
   }>();
 
@@ -1284,6 +1296,7 @@ app.get("/api/network/today", async (c) => {
         can_view_oa_deadline: toBoolean(row.can_view_oa_deadline, false),
         can_view_referral_used: toBoolean(row.can_view_referral_used, false),
         can_view_notes: toBoolean(row.can_view_notes, false),
+        can_view_job_application_id: toBoolean(row.can_view_job_application_id, false),
       });
     }
   }

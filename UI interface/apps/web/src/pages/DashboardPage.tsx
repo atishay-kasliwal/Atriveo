@@ -112,6 +112,13 @@ const CHART_COLORS = {
   movingAverage: "color-mix(in srgb, var(--text-muted) 74%, transparent)",
 };
 
+function percentChange(current: number, previous: number): number {
+  if (!Number.isFinite(current) || !Number.isFinite(previous)) return 0;
+  if (previous === 0) return current === 0 ? 0 : 100;
+  const raw = Math.round(((current - previous) / Math.abs(previous)) * 100);
+  return Math.max(-100, Math.min(100, raw));
+}
+
 const WEEK_COLORS = [
   ENTERPRISE_SERIES_COLORS[0],
   ENTERPRISE_SERIES_COLORS[1],
@@ -795,6 +802,93 @@ export default function DashboardPage() {
     return `${cur}/${target}`;
   }, [targetProgress]);
 
+  const kpiComparisons = useMemo(() => {
+    const daily = summary.dailyTrend ?? [];
+    const weekly = summary.weeklyTrend ?? [];
+    const referralDaily = summary.referralDailyTrend ?? [];
+    const rejectedDaily = summary.rejectedDailyTrend ?? [];
+    const todayIso = daily.length ? String(daily[daily.length - 1].day) : "";
+    const yesterdayIso = todayIso ? isoDayAddDays(todayIso, -1) : "";
+
+    const jobsCurrent = derivedKpis.jobs;
+    const jobs14dAgo =
+      daily.length > 14
+        ? Math.max(0, jobsCurrent - daily.slice(-14).reduce((sum, row) => sum + Number(row.total ?? 0), 0))
+        : 0;
+
+    const jobsToday = derivedKpis.jobsToday;
+    const jobsYesterday = yesterdayIso ? Number(daily.find((row) => String(row.day) === yesterdayIso)?.total ?? 0) : 0;
+
+    const thisWeek = derivedKpis.jobsThisWeek;
+    const lastWeek = weekly.length > 1 ? Number(weekly[weekly.length - 2].total ?? 0) : 0;
+
+    const thisMonth = derivedKpis.jobsThisMonth;
+    const lastMonthMtd = mtdCompare?.[1]?.total ?? 0;
+
+    const referralCurrent = derivedKpis.jobsWithReferral;
+    const referral14dAgo =
+      referralDaily.length > 14
+        ? Math.max(0, referralCurrent - referralDaily.slice(-14).reduce((sum, row) => sum + Number(row.total ?? 0), 0))
+        : 0;
+
+    const rejectedCurrent = derivedKpis.rejected;
+    const rejected14dAgo =
+      rejectedDaily.length > 14
+        ? Math.max(0, rejectedCurrent - rejectedDaily.slice(-14).reduce((sum, row) => sum + Number(row.total ?? 0), 0))
+        : 0;
+
+    const monthlyCurrent = targetProgress?.monthly.current ?? 0;
+    const monthlyTargetRaw = targetProgress?.monthly.target;
+    const monthlyTarget = monthlyTargetRaw == null || monthlyTargetRaw <= 0 ? DEFAULT_TARGETS.monthly : monthlyTargetRaw;
+    const monthlyPctNow = monthlyTarget > 0 ? (monthlyCurrent / monthlyTarget) * 100 : 0;
+    const monthlyPctLastPace = monthlyTarget > 0 ? (lastMonthMtd / monthlyTarget) * 100 : 0;
+
+    return {
+      jobs: {
+        pct: percentChange(jobsCurrent, jobs14dAgo),
+        context: "vs 14 days ago",
+      },
+      jobsThisMonth: {
+        pct: percentChange(thisMonth, lastMonthMtd),
+        context: "vs same days last month",
+      },
+      jobsThisWeek: {
+        pct: percentChange(thisWeek, lastWeek),
+        context: "vs last week",
+      },
+      jobsToday: {
+        pct: percentChange(jobsToday, jobsYesterday),
+        context: "vs yesterday",
+      },
+      jobsWithReferral: {
+        pct: percentChange(referralCurrent, referral14dAgo),
+        context: "vs 14 days ago",
+      },
+      monthlyTarget: {
+        pct: percentChange(monthlyPctNow, monthlyPctLastPace),
+        context: "vs last-month pace",
+      },
+      rejected: {
+        pct: percentChange(rejectedCurrent, rejected14dAgo),
+        context: "vs 14 days ago",
+      },
+    };
+  }, [
+    summary.dailyTrend,
+    summary.weeklyTrend,
+    summary.referralDailyTrend,
+    summary.rejectedDailyTrend,
+    derivedKpis.jobs,
+    derivedKpis.jobsToday,
+    derivedKpis.jobsThisWeek,
+    derivedKpis.jobsThisMonth,
+    derivedKpis.jobsWithReferral,
+    derivedKpis.rejected,
+    mtdCompare,
+    targetProgress?.monthly.current,
+    targetProgress?.monthly.target,
+  ]);
+
   const effectiveTargets = useMemo(() => {
     const dailyRaw = targetProgress?.daily.target;
     const weeklyRaw = targetProgress?.weekly.target;
@@ -926,48 +1020,67 @@ export default function DashboardPage() {
         </div>
       ) : null}
 
+      <section className="dashboard-actions dashboard-actions--top-right">
+        <button type="button" className="jobs-search-btn dashboard-set-target-btn" onClick={() => setShowTargetModal(true)}>
+          Set Target
+        </button>
+        <button
+          type="button"
+          className="jobs-search-btn dashboard-set-target-btn"
+          onClick={() => window.dispatchEvent(new CustomEvent("open-import-csv"))}
+        >
+          Import CSV
+        </button>
+      </section>
+
       <section className="kpi-grid">
         <KpiCard
           label="Applications till now"
           value={derivedKpis.jobs}
           sparkline={kpiSparklineByMetric.total}
           sparklineColor={KPI_SPARKLINE_COLORS.primaryBlue}
-          changeContext="vs 14 days ago"
+          changePercent={kpiComparisons.jobs.pct}
+          changeContext={kpiComparisons.jobs.context}
         />
         <KpiCard
           label="Applications this month"
           value={derivedKpis.jobsThisMonth}
           sparkline={kpiSparklineByMetric.thisMonth}
           sparklineColor={KPI_SPARKLINE_COLORS.skyBlue}
-          changeContext="vs month start"
+          changePercent={kpiComparisons.jobsThisMonth.pct}
+          changeContext={kpiComparisons.jobsThisMonth.context}
         />
         <KpiCard
           label="Applications this week"
           value={derivedKpis.jobsThisWeek}
           sparkline={kpiSparklineByMetric.thisWeek}
           sparklineColor={KPI_SPARKLINE_COLORS.teal}
-          changeContext="vs week start (Mon)"
+          changePercent={kpiComparisons.jobsThisWeek.pct}
+          changeContext={kpiComparisons.jobsThisWeek.context}
         />
         <KpiCard
           label="Applications today"
           value={derivedKpis.jobsToday}
           sparkline={kpiSparklineByMetric.todayWindow}
           sparklineColor={KPI_SPARKLINE_COLORS.green}
-          changeContext="vs 7-day trend start"
+          changePercent={kpiComparisons.jobsToday.pct}
+          changeContext={kpiComparisons.jobsToday.context}
         />
         <KpiCard
           label="Total applications with referral"
           value={derivedKpis.jobsWithReferral}
           sparkline={kpiSparklineByMetric.referral}
           sparklineColor={KPI_SPARKLINE_COLORS.lime}
-          changeContext="vs 14 days ago"
+          changePercent={kpiComparisons.jobsWithReferral.pct}
+          changeContext={kpiComparisons.jobsWithReferral.context}
         />
         <KpiCard
           label="Monthly target progress"
           value={monthlyTargetKpiValue}
           sparkline={kpiSparklineByMetric.thisMonth}
           sparklineColor={KPI_SPARKLINE_COLORS.amber}
-          changeContext="vs month start"
+          changePercent={kpiComparisons.monthlyTarget.pct}
+          changeContext={kpiComparisons.monthlyTarget.context}
         />
         <KpiCard
           label="Total rejects"
@@ -975,35 +1088,36 @@ export default function DashboardPage() {
           accent="red"
           sparkline={kpiSparklineByMetric.rejects}
           sparklineColor={KPI_SPARKLINE_COLORS.red}
-          changeContext="vs 14 days ago"
+          changePercent={kpiComparisons.rejected.pct}
+          changeContext={kpiComparisons.rejected.context}
         />
-      </section>
-      <section className="dashboard-actions">
-        <button type="button" className="quick-add-btn" onClick={() => setShowTargetModal(true)}>
-          Set Targets
-        </button>
-        <div className="dashboard-target-summary">
-          <span className="dashboard-target-chip">
-            <strong>{todayTargetLabel}</strong> {targetProgress?.daily.current ?? 0}/{effectiveTargets.daily}
-          </span>
-          <span className="dashboard-target-chip">
-            <strong>Weekly target</strong> {targetProgress?.weekly.current ?? 0}/{effectiveTargets.weekly}
-          </span>
-          <span className="dashboard-target-chip">
-            <strong>Monthly target</strong> {targetProgress?.monthly.current ?? 0}/{effectiveTargets.monthly}
-          </span>
-        </div>
       </section>
 
       {showTargetModal ? (
         <div className="modal-overlay" onClick={() => !isSavingTarget && setShowTargetModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Set Application Targets</h3>
-            <p className="modal-subtitle">Set your personal goals for daily, weekly, and monthly applications. Defaults are Daily 1, Weekly 7, Monthly 30.</p>
-            <form className="form" onSubmit={onSaveTargets}>
-              <div className="form-row">
+          <div className="modal modal--targets" onClick={(e) => e.stopPropagation()}>
+            <div className="targets-modal-head">
+              <h3>Set Application Targets</h3>
+              <p className="modal-subtitle targets-modal-subtitle">
+                Set your personal goals for daily, weekly, and monthly applications. Defaults are Daily 1, Weekly 7, Monthly 30.
+              </p>
+            </div>
+            <div className="dashboard-target-summary dashboard-target-summary--modal">
+              <span className="dashboard-target-chip">
+                <strong>{todayTargetLabel}</strong> {targetProgress?.daily.current ?? 0}/{effectiveTargets.daily}
+              </span>
+              <span className="dashboard-target-chip">
+                <strong>Weekly target</strong> {targetProgress?.weekly.current ?? 0}/{effectiveTargets.weekly}
+              </span>
+              <span className="dashboard-target-chip">
+                <strong>Monthly target</strong> {targetProgress?.monthly.current ?? 0}/{effectiveTargets.monthly}
+              </span>
+            </div>
+            <form className="form form--targets" onSubmit={onSaveTargets}>
+              <div className="form-row target-form-row">
                 <label className="form-label">Daily target</label>
                 <input
+                  className="target-form-input"
                   type="number"
                   min={0}
                   step={1}
@@ -1012,9 +1126,10 @@ export default function DashboardPage() {
                   placeholder="Default: 1"
                 />
               </div>
-              <div className="form-row">
+              <div className="form-row target-form-row">
                 <label className="form-label">Weekly target</label>
                 <input
+                  className="target-form-input"
                   type="number"
                   min={0}
                   step={1}
@@ -1023,9 +1138,10 @@ export default function DashboardPage() {
                   placeholder="Default: 7"
                 />
               </div>
-              <div className="form-row">
+              <div className="form-row target-form-row">
                 <label className="form-label">Monthly target</label>
                 <input
+                  className="target-form-input"
                   type="number"
                   min={0}
                   step={1}
@@ -1034,11 +1150,16 @@ export default function DashboardPage() {
                   placeholder="Default: 30"
                 />
               </div>
-              <div className="modal-actions">
-                <button type="button" className="action-btn" onClick={() => !isSavingTarget && setShowTargetModal(false)} disabled={isSavingTarget}>
+              <div className="modal-actions targets-modal-actions">
+                <button
+                  type="button"
+                  className="action-btn targets-cancel-btn"
+                  onClick={() => !isSavingTarget && setShowTargetModal(false)}
+                  disabled={isSavingTarget}
+                >
                   Cancel
                 </button>
-                <button type="submit" disabled={isSavingTarget}>
+                <button type="submit" className="targets-save-btn" disabled={isSavingTarget}>
                   {isSavingTarget ? "Saving..." : "Save Targets"}
                 </button>
               </div>
