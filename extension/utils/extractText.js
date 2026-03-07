@@ -428,7 +428,7 @@
     "smartrecruiters", "icims", "jobvite", "bamboohr",
     "jazzhr", "taleo", "successfactors", "adp",
     "paylocity", "teamtailor", "recruitee", "workable",
-    "jobscore", "clearcompany", "applytojob"
+    "jobscore", "clearcompany", "applytojob", "njoyn", "linkedin", "avature", "amazon.jobs", "ultipro"
   ]);
 
   const getHostnameLabel = () => {

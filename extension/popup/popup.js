@@ -33,7 +33,27 @@ const ATS_HOSTS = [
   "recruitee.com",
   "workable.com",
   "jobscore.com",
-  "clearcompany.com"
+  "clearcompany.com",
+  "njoyn.com",
+  "linkedin.com",
+  "avature.net",
+  "amazon.jobs",
+  "ultipro.com"
+];
+
+const CONTENT_SCRIPT_FILES = [
+  "utils/extractText.js",
+  "content-scripts/workday.js",
+  "content-scripts/greenhouse.js",
+  "content-scripts/lever.js",
+  "content-scripts/applytojob.js",
+  "content-scripts/ashby.js",
+  "content-scripts/njoyn.js",
+  "content-scripts/linkedin.js",
+  "content-scripts/amazon-jobs.js",
+  "content-scripts/ultipro.js",
+  "content-scripts/generic-ats.js",
+  "content-scripts/detector.js"
 ];
 
 let activeTab = null;
@@ -70,6 +90,14 @@ const tabMessage = (tabId, payload) =>
 const getActiveTab = async () => {
   const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
   return tabs[0] || null;
+};
+
+const ensureContentScripts = async (tabId) => {
+  if (typeof tabId !== "number") return;
+  await chrome.scripting.executeScript({
+    target: { tabId },
+    files: CONTENT_SCRIPT_FILES
+  });
 };
 
 const isSupportedUrl = (url) => {
@@ -223,11 +251,23 @@ const fetchRecordForTab = async (tab) => {
   const stored = await runtimeMessage({ type: "GET_JOB_FOR_URL", url: tab.url }).catch(() => null);
   if (stored?.record) return stored.record;
 
-  await tabMessage(tab.id, { type: "RUN_EXTRACTION" }).catch(() => null);
-  for (let attempt = 0; attempt < 4; attempt += 1) {
+  let extractionAttempted = false;
+  try {
+    await tabMessage(tab.id, { type: "RUN_EXTRACTION" });
+    extractionAttempted = true;
+  } catch {
+    // Content scripts may not be attached for already-open tabs after reload; inject and retry.
+    await ensureContentScripts(tab.id).catch(() => null);
+    await tabMessage(tab.id, { type: "RUN_EXTRACTION" }).catch(() => null);
+    extractionAttempted = true;
+  }
+
+  if (!extractionAttempted) return null;
+
+  for (let attempt = 0; attempt < 12; attempt += 1) {
     const refreshed = await runtimeMessage({ type: "GET_JOB_FOR_URL", url: tab.url }).catch(() => null);
     if (refreshed?.record) return refreshed.record;
-    await new Promise((resolve) => setTimeout(resolve, 120));
+    await new Promise((resolve) => setTimeout(resolve, 150));
   }
 
   return null;
@@ -333,7 +373,7 @@ const handleLogin = async () => {
     return;
   }
 
-  for (let attempt = 0; attempt < 2; attempt += 1) {
+  for (let attempt = 0; attempt < 6; attempt += 1) {
     const syncResult = await runtimeMessage({ type: "SYNC_WEB_SESSION" }).catch(() => null);
     if (syncResult?.ok && syncResult.authenticated) {
       authState = { authenticated: true, user: syncResult.user || null };
@@ -342,7 +382,7 @@ const handleLogin = async () => {
       updateActionButtonState();
       return;
     }
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    await new Promise((resolve) => setTimeout(resolve, 600));
   }
 
   setActionStatus("Complete login on atriveo.com, then click Login again.", "error", { autoClearMs: 5000 });
