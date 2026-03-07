@@ -492,7 +492,7 @@ export default function NetworkPage() {
       role: String(job.role ?? ""),
       date_saved: toDateInput(job.applied_at ?? job.date_saved),
       job_link: String(job.job_link ?? ""),
-      job_application_id: String(job.job_application_id ?? "-"),
+      job_application_id: String(job.job_application_id ?? ""),
       oa_deadline_date: toDateInput(job.oa_deadline_date),
       location_raw: "",
       oa_status: normalizeOaStatus(job.oa_status),

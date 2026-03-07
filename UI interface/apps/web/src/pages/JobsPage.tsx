@@ -345,7 +345,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
       company: String(job.company ?? ""),
       location_raw: String(job.location_raw ?? ""),
       job_link: String(job.job_link ?? ""),
-      job_application_id: String((job as any).job_application_id ?? "-"),
+      job_application_id: String((job as any).job_application_id ?? ""),
       oa_deadline_date: String((job as any).oa_deadline_date ?? ""),
       keyword_matching:
         String((job as any).keyword_matching ?? "Medium").trim().toLowerCase() === "week"

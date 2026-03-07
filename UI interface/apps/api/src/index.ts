@@ -2453,7 +2453,7 @@ async function createJobRecord(env: Bindings, input: CreateJobRecordInput): Prom
     env,
     `
     INSERT INTO jobs (user_id, source, role, company, location_raw, job_link, job_application_id, oa_deadline_date, keyword_matching, oa_status, referral_status, response_status, application_status, notes, date_saved)
-    VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7, '-'), $8::date, COALESCE($9, 'Medium'), COALESCE($10, 'No'), $11, $12, COALESCE($13, 'Applied'), $14, (COALESCE($15::date, CURRENT_DATE))::timestamp)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8::date, COALESCE($9, 'Medium'), COALESCE($10, 'No'), $11, $12, COALESCE($13, 'Applied'), $14, (COALESCE($15::date, CURRENT_DATE))::timestamp)
     RETURNING *
     `,
     [
