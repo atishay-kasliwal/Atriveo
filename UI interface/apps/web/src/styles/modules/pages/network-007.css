@@ -43,6 +43,10 @@
   color: #ecfeff;
 }
 
+.network-add-btn-text--short {
+  display: none;
+}
+
 .network-cell-deadline,
 .network-cell-jobid {
   overflow-wrap: anywhere;

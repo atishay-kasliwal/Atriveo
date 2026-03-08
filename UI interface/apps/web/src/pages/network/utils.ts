@@ -31,7 +31,7 @@ function parseIsoDay(day: string): { y: number; m: number; d: number } | null {
   return { y, m: month, d };
 }
 
-function utcDateFromIsoDay(day: string): Date | null {
+export function utcDateFromIsoDay(day: string): Date | null {
   const p = parseIsoDay(day);
   if (!p) return null;
   return new Date(Date.UTC(p.y, p.m - 1, p.d));

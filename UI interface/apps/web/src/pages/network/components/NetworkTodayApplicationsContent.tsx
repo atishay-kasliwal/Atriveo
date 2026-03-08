@@ -75,7 +75,7 @@ export default function NetworkTodayApplicationsContent({
 
   return (
     <div className="network-card-content">
-      <div className="table-wrap">
+      <div className="table-wrap network-today-wrap">
         <table className="network-today-table">
           <thead>
             <tr>
@@ -119,8 +119,8 @@ export default function NetworkTodayApplicationsContent({
                     });
                   }}
                 >
-                  <td className="network-cell-index">{idx + 1}</td>
-                  <td className="network-cell-company-role">
+                  <td className="network-cell-index" data-label="#">{idx + 1}</td>
+                  <td className="network-cell-company-role" data-label="Company">
                     {canViewIdentity ? (
                       <div className="job-main">
                         <div className="job-company" title={String(job.company ?? "—")}>
@@ -134,35 +134,35 @@ export default function NetworkTodayApplicationsContent({
                       <span className="network-not-shared">Not shared</span>
                     )}
                   </td>
-                  <td className="network-cell-date">
+                  <td className="network-cell-date" data-label="Applied">
                     {job.can_view_applied_at ? (
                       formatTableDateTime(job.applied_at ?? job.date_saved)
                     ) : (
                       <span className="network-not-shared">{privacyHiddenLabel("share_applied_at")}</span>
                     )}
                   </td>
-                  <td className="network-cell-oa">
+                  <td className="network-cell-oa" data-label="OA">
                     {job.can_view_oa_status ? (
                       normalizeOaStatus(job.oa_status)
                     ) : (
                       <span className="network-not-shared">{privacyHiddenLabel("share_oa_status")}</span>
                     )}
                   </td>
-                  <td className="network-cell-deadline">
+                  <td className="network-cell-deadline" data-label="Deadline">
                     {job.can_view_oa_deadline ? (
                       (String(job.oa_deadline_date ?? "-") || "-")
                     ) : (
                       <span className="network-not-shared">{privacyHiddenLabel("share_oa_deadline")}</span>
                     )}
                   </td>
-                  <td className="network-cell-jobid">
+                  <td className="network-cell-jobid" data-label="Job ID">
                     {job.can_view_job_application_id ? (
                       (String(job.job_application_id ?? "-") || "-")
                     ) : (
                       <span className="network-not-shared">{privacyHiddenLabel("share_job_application_id")}</span>
                     )}
                   </td>
-                  <td className="network-cell-referral">
+                  <td className="network-cell-referral" data-label="Referral">
                     {job.can_view_referral_used ? (
                       (String(job.referral_status ?? "-") || "-")
                     ) : (
@@ -176,7 +176,7 @@ export default function NetworkTodayApplicationsContent({
                       <span className="network-not-shared">{privacyHiddenLabel("share_notes")}</span>
                     )}
                   </td>
-                  <td className="network-cell-link">
+                  <td className="network-cell-link" data-label="Link">
                     {canOpenLink ? (
                       <a
                         href={String(job.job_link)}
@@ -193,7 +193,7 @@ export default function NetworkTodayApplicationsContent({
                       <span className="network-not-shared">Not shared</span>
                     )}
                   </td>
-                  <td className="network-cell-action">
+                  <td className="network-cell-action" data-label="">
                     <button
                       type="button"
                       className="action-btn network-add-btn"
@@ -217,10 +217,11 @@ export default function NetworkTodayApplicationsContent({
                         });
                       }}
                     >
-                      Add Application
+                      <span className="network-add-btn-text">Add Application</span>
+                      <span className="network-add-btn-text--short">Add</span>
                     </button>
                   </td>
-                  <td className="network-cell-friend">{friendName}</td>
+                  <td className="network-cell-friend" data-label="Friend">{friendName}</td>
                 </tr>
               );
             })}

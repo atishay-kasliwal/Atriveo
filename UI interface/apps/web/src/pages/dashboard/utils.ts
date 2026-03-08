@@ -5,7 +5,7 @@ export function percentChange(current: number, previous: number): number {
   return Math.max(-100, Math.min(100, raw));
 }
 
-function parseIsoDay(day: string): { y: number; m: number; d: number } | null {
+export function parseIsoDay(day: string): { y: number; m: number; d: number } | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day);
   if (!m) return null;
   const y = Number(m[1]);
@@ -15,7 +15,7 @@ function parseIsoDay(day: string): { y: number; m: number; d: number } | null {
   return { y, m: month, d };
 }
 
-function utcDateFromIsoDay(day: string): Date | null {
+export function utcDateFromIsoDay(day: string): Date | null {
   const p = parseIsoDay(day);
   if (!p) return null;
   return new Date(Date.UTC(p.y, p.m - 1, p.d));

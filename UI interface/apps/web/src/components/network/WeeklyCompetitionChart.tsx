@@ -122,7 +122,7 @@ export default function WeeklyCompetitionChart({
         const ringStroke = isFuture ? rgba("#FFFFFF", 0.42) : "#FFFFFF";
 
         return (
-          <g style={{ pointerEvents: "none" }}>
+          <g key={`dot-${series}-${idx}`} style={{ pointerEvents: "none" }}>
             {isToday && hasValue ? <circle cx={cx} cy={cy} r={radius + 4} fill={rgba(core, 0.24)} /> : null}
             <circle cx={cx} cy={cy} r={radius} fill={core} stroke={ringStroke} strokeWidth={isToday ? 2 : 1.4} />
           </g>
@@ -234,6 +234,7 @@ export default function WeeklyCompetitionChart({
           <Area type="monotone" dataKey="you" stroke="none" fill={`url(#userArea-${idBase})`} isAnimationActive={false} />
 
           <Line
+            key="line-friend"
             type="monotone"
             dataKey="friend"
             stroke="#F59E0B"
@@ -260,6 +261,7 @@ export default function WeeklyCompetitionChart({
             isAnimationActive={false}
           />
           <Line
+            key="line-you-glow"
             type="monotone"
             dataKey="you"
             stroke={`url(#userStroke-${idBase})`}

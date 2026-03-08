@@ -4,6 +4,7 @@
 @import "./styles/layout/site-shell.css";
 @import "./styles/layout/page-and-nav-core.css";
 @import "./styles/layout/nav-actions-avatar-dropdown-core.css";
+@import "./styles/layout/layout-mobile.css";
 
 @import "./styles/modules/shared/app-nav-001.css";
 @import "./styles/modules/shared/app-nav-002.css";
@@ -27,6 +28,7 @@
 @import "./styles/modules/pages/network-020.css";
 @import "./styles/modules/pages/network-021.css";
 @import "./styles/modules/pages/network-022.css";
+@import "./styles/modules/pages/network-mobile.css";
 @import "./styles/modules/pages/dashboard-023.css";
 @import "./styles/modules/pages/dashboard-024.css";
 @import "./styles/modules/pages/dashboard-025.css";

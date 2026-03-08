@@ -2,15 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Area,
   Bar,
-  BarChart,
   CartesianGrid,
-  Cell,
   ComposedChart,
   Legend,
   Line,
   LineChart,
   ReferenceDot,
-  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -39,8 +36,9 @@ import {
   trackPerformanceEvent,
   trackProductEvent,
 } from "../analytics/events";
-import MtdTooltip from "./dashboard/components/MtdTooltip";
 import ApplicationsTrendCard from "./dashboard/components/ApplicationsTrendCard";
+import MonthTargetViewCard from "./dashboard/components/MonthTargetViewCard";
+import DailyActivityHeatmapCard from "./dashboard/components/DailyActivityHeatmapCard";
 import {
   CHART_COLORS,
   DEFAULT_TARGETS,
@@ -56,7 +54,9 @@ import {
   formatMonth,
   formatWeek,
   isoDayAddDays,
+  parseIsoDay,
   percentChange,
+  utcDateFromIsoDay,
   weekStartIsoUtc,
 } from "./dashboard/utils";
 
@@ -984,127 +984,12 @@ export default function DashboardPage() {
       />
 
       <section className="chart-grid chart-grid-two chart-grid-70-30" style={{ gridTemplateColumns: "minmax(0, 7fr) minmax(0, 3fr)" }}>
-        <div className="card card-mtd">
-          <div className="chart-header">
-            <div className="chart-title-group">
-              <h2>Month Target View</h2>
-            </div>
-          </div>
-          {mtdStats ? (
-            <div className="mtd-stats">
-              <div>
-                <span className="mtd-label">This month total</span>
-                <strong>{Math.round(mtdStats.thisTotal)}</strong>
-                <span className="mtd-sub">Avg/day {mtdStats.thisAvg.toFixed(1)}</span>
-              </div>
-              <div>
-                <span className="mtd-label">Last month total</span>
-                <strong>{Math.round(mtdStats.lastTotal)}</strong>
-                <span className="mtd-sub">Avg/day {mtdStats.lastAvg.toFixed(1)}</span>
-              </div>
-              <div>
-                <span className="mtd-label">Best day (this)</span>
-                <strong>Day {mtdStats.bestThis.day} · {mtdStats.bestThis.value}</strong>
-              </div>
-              <div>
-                <span className="mtd-label">Best day (last)</span>
-                <strong>Day {mtdStats.bestLast.day} · {mtdStats.bestLast.value}</strong>
-              </div>
-            </div>
-          ) : null}
-          {mtdDailyCompare.length ? (
-            <div className="mtd-chart-body">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={mtdDailyCompare} margin={{ top: 8, right: 16, left: 8, bottom: 8 }} barCategoryGap="20%">
-                  <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
-                  <XAxis
-                    dataKey="day"
-                    stroke={CHART_COLORS.axis}
-                    tick={{ fill: CHART_COLORS.textSecondary, fontSize: 9, fontWeight: 400 }}
-                    axisLine={{ stroke: CHART_COLORS.axis, strokeWidth: 1 }}
-                    tickLine={false}
-                    interval={4}
-                  />
-                  <YAxis
-                    stroke={CHART_COLORS.axis}
-                    tick={{ fill: CHART_COLORS.textSecondary, fontSize: 10, fontWeight: 400 }}
-                    axisLine={false}
-                    tickLine={false}
-                    allowDecimals={false}
-                    width={32}
-                  />
-                  <ReferenceLine
-                    y={effectiveTargets.daily}
-                    stroke={CHART_COLORS.targetLine}
-                    strokeDasharray="4 4"
-                    label={{ value: `Target ${effectiveTargets.daily}`, fill: CHART_COLORS.textSecondary, fontSize: 10 }}
-                  />
-                  <Tooltip content={<MtdTooltip chartColors={CHART_COLORS} />} cursor={false} />
-                  <Bar
-                    dataKey="lastMonth"
-                    name="Last month"
-                    fill={CHART_COLORS.lastMonthBar}
-                    barSize={6}
-                    radius={[3, 3, 0, 0]}
-                    activeBar={false}
-                  />
-                  <Bar dataKey="thisMonth" name="This month" barSize={6} radius={[3, 3, 0, 0]} activeBar={false}>
-                    {mtdDailyCompare.map((row, idx) => (
-                      <Cell
-                        key={`mtd-this-${idx}`}
-                        fill={(row.thisMonth ?? 0) >= effectiveTargets.daily ? CHART_COLORS.trendLine : CHART_COLORS.accentSoft}
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <div className="chart-empty">No data yet</div>
-          )}
-        </div>
-        <div className="card card-heatmap">
-          <h2>Daily Activity</h2>
-          <p className="chart-subtitle">
-            {monthHeatmap ? `${MONTH_NAMES[monthHeatmap.month]} ${String(monthHeatmap.year).slice(2)}` : "This month"}
-          </p>
-          <div className="heatmap-weekdays">
-            {["S", "M", "T", "W", "T", "F", "S"].map((d) => (
-              <div key={d} className="heatmap-weekday">
-                {d}
-              </div>
-            ))}
-          </div>
-          <div className="heatmap-grid">
-            {monthHeatmap?.cells.map((cell, idx) => {
-              if (!cell.dayNum) return <div key={`empty-${idx}`} className="heatmap-cell heatmap-empty" />;
-              if (cell.dayNum > monthHeatmap.todayDay) {
-                return (
-                  <div key={cell.day} className="heatmap-cell heatmap-future" title={`${cell.day}: future`}>
-                    <span>{cell.dayNum}</span>
-                  </div>
-                );
-              }
-              // Keep a neutral-to-green default heatmap scale across themes.
-              // 0 -> neutral, 1-12 -> light green, 13-24 -> medium green, 25-35 -> strong green, >35 -> peak green.
-              let level = 0;
-              if (cell.value > 35) level = 4;
-              else if (cell.value >= 25) level = 3;
-              else if (cell.value >= 13) level = 2;
-              else if (cell.value >= 1) level = 1;
-              const isToday = monthHeatmap.todayIso === cell.day;
-              return (
-                <div
-                  key={cell.day}
-                  className={`heatmap-cell heatmap-${level}${isToday ? " heatmap-today" : ""}`}
-                  title={`${cell.day}: ${cell.value}`}
-                >
-                  <span>{cell.dayNum}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <MonthTargetViewCard
+          mtdStats={mtdStats}
+          mtdDailyCompare={mtdDailyCompare}
+          dailyTarget={effectiveTargets.daily}
+        />
+        <DailyActivityHeatmapCard monthHeatmap={monthHeatmap} />
       </section>
 
       {/* Bottom row: Pending / Referrals / OA / Notes */}
