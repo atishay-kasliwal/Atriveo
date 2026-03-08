@@ -1,21 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
-import {
-  Area,
-  Bar,
-  CartesianGrid,
-  Cell,
-  ComposedChart,
-  LabelList,
-  Line,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import Spinner from "../components/Spinner";
+import { useLocation } from "react-router-dom";
 import useConfirmDialog from "../components/ui/useConfirmDialog";
-import { formatTableDateTime } from "../lib/formatDate";
 import {
   deleteJob,
   deleteOaArchive,
@@ -32,272 +17,38 @@ import {
   trackFeatureEvent,
   trackProductEvent,
 } from "../analytics/events";
-
-const LIMIT = 25;
-const REFERRAL_OPTIONS = ["", "Requested", "Yes", "No"];
-
-function normalizeReferralStatus(value: unknown): "Requested" | "Yes" | "No" | "" {
-  const raw = String(value ?? "").trim().toLowerCase();
-  if (!raw) return "";
-  if (raw === "requested") return "Requested";
-  if (raw === "yes") return "Yes";
-  return "No";
-}
-
-function normalizeOaStatus(value: unknown): "Yes" | "No" {
-  const raw = String(value ?? "").trim().toLowerCase();
-  if (raw === "yes" || raw === "pending" || raw === "completed" || raw === "complete" || raw === "done" || raw === "missed" || raw === "missing" || raw === "overdue") return "Yes";
-  return "No";
-}
-
-function getOaResultLabel(row: Record<string, unknown>): "Pending" | "Completed" | "Missed" {
-  const explicit = String((row as any).oa_result ?? "").trim();
-  if (explicit === "Pending") return "Pending";
-  if (explicit === "Missed") return "Missed";
-  if (explicit === "Completed") return "Completed";
-  const source = String(row.source ?? "").toLowerCase();
-  if (source.includes("missed")) return "Missed";
-  const deadline = String(row.oa_deadline_date ?? "").trim();
-  if (deadline) {
-    const d = new Date(`${deadline}T00:00:00`);
-    if (!Number.isNaN(d.getTime())) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      if (d < today) return "Missed";
-    }
-  }
-  return "Completed";
-}
-
-type SortField = "date_saved" | "applied_at" | "company" | "role" | "referral_status" | "job_link";
-type SortOrder = "asc" | "desc";
-
-const BASE_SORT_CONFIG: { key: SortField; label: string }[] = [
-  { key: "applied_at", label: "Applied At" },
-  { key: "company", label: "Company" },
-  { key: "role", label: "Position" },
-  { key: "referral_status", label: "Referral" },
-  { key: "job_link", label: "Link" },
-];
-
-function compareJobs(
-  a: Record<string, unknown>,
-  b: Record<string, unknown>,
-  field: SortField,
-  order: SortOrder,
-  useArchiveDate: boolean,
-): number {
-  const avRaw = a[field];
-  const bvRaw = b[field];
-  const av =
-    field === "date_saved" && useArchiveDate
-      ? // prefer archive_date when present for archive view
-        ((a as any).archive_date ?? avRaw)
-      : avRaw;
-  const bv =
-    field === "date_saved" && useArchiveDate
-      ? ((b as any).archive_date ?? bvRaw)
-      : bvRaw;
-  const empty = (v: unknown) => v == null || v === "";
-  if (empty(av) && empty(bv)) return 0;
-  if (empty(av)) return order === "asc" ? 1 : -1;
-  if (empty(bv)) return order === "asc" ? -1 : 1;
-  if (field === "date_saved" || field === "applied_at") {
-    const da = new Date(String(av)).getTime();
-    const db = new Date(String(bv)).getTime();
-    return order === "asc" ? da - db : db - da;
-  }
-  const sa = String(av).toLowerCase();
-  const sb = String(bv).toLowerCase();
-  const cmp = sa.localeCompare(sb);
-  return order === "asc" ? cmp : -cmp;
-}
-
-// Theme-aware chart tokens used only on Jobs page charts.
-const CHART_COLORS = {
-  applied: "#2563eb",
-  rejected: "#0ea5e9",
-  grid: "var(--chart-grid)",
-  tooltipBg: "var(--chart-tooltip-bg)",
-  tooltipBorder: "var(--chart-tooltip-border)",
-  axis: "var(--chart-axis)",
-  text: "var(--chart-text)",
-  textSecondary: "var(--chart-text-secondary)",
-};
-
-const APPLICATION_PIPELINE_STAGES = ["Applied", "OA", "Interview", "Offer", "Archive"] as const;
-
-type ToolbarTimeRange = "0" | "7" | "14" | "21" | "30" | "all";
-type ToolbarBooleanFilter = "yes" | "no" | "all";
-type ToolbarStatusFilter = "active" | "archive" | "all";
-type ToolbarStageFilter = (typeof APPLICATION_PIPELINE_STAGES)[number] | "All";
-
-const TIME_OPTIONS: Array<{ value: ToolbarTimeRange; label: string }> = [
-  { value: "0", label: "Today" },
-  { value: "7", label: "Last 7 days" },
-  { value: "14", label: "Last 14 days" },
-  { value: "21", label: "Last 21 days" },
-  { value: "30", label: "Last 30 days" },
-  { value: "all", label: "All time" },
-];
-
-const REFERRAL_OPTIONS_TOOLBAR: Array<{ value: ToolbarBooleanFilter; label: string }> = [
-  { value: "yes", label: "With referral" },
-  { value: "no", label: "Without referral" },
-  { value: "all", label: "All" },
-];
-
-const OA_OPTIONS_TOOLBAR: Array<{ value: ToolbarBooleanFilter; label: string }> = [
-  { value: "yes", label: "Yes" },
-  { value: "no", label: "No" },
-  { value: "all", label: "All" },
-];
-
-const STATUS_OPTIONS_TOOLBAR: Array<{ value: ToolbarStatusFilter; label: string }> = [
-  { value: "active", label: "Active" },
-  { value: "archive", label: "Archive" },
-  { value: "all", label: "All" },
-];
-const STAGE_OPTIONS_TOOLBAR: Array<{ value: ToolbarStageFilter; label: string }> = [
-  { value: "All", label: "All" },
-  ...APPLICATION_PIPELINE_STAGES.map((stage) => ({ value: stage, label: stage })),
-];
-const TIME_CHIP_LABEL: Record<ToolbarTimeRange, string> = {
-  "0": "Today",
-  "7": "7d",
-  "14": "14d",
-  "21": "21d",
-  "30": "30d",
-  all: "All",
-};
-const BOOLEAN_CHIP_LABEL: Record<ToolbarBooleanFilter, string> = {
-  yes: "Yes",
-  no: "No",
-  all: "All",
-};
-const STATUS_CHIP_LABEL: Record<ToolbarStatusFilter, string> = {
-  active: "Active",
-  archive: "Archive",
-  all: "All",
-};
-const TIME_FILTER_SEQUENCE: ToolbarTimeRange[] = ["7", "14", "21", "30", "all", "0"];
-const REFERRAL_FILTER_SEQUENCE: ToolbarBooleanFilter[] = ["yes", "no", "all"];
-const OA_FILTER_SEQUENCE: ToolbarBooleanFilter[] = ["yes", "no", "all"];
-const STATUS_FILTER_SEQUENCE: ToolbarStatusFilter[] = ["active", "archive", "all"];
-const STAGE_FILTER_SEQUENCE: ToolbarStageFilter[] = ["All", ...APPLICATION_PIPELINE_STAGES];
-
-const ACTIVE_JOBS_SAMPLE_CARDS = [
-  {
-    company: "Google",
-    role: "Software Engineer, Core",
-    appliedOn: "2026-03-07",
-    appliedDate: "Mar 7, 2026",
-    owner: "Atishay Kasliwal",
-    statusMessage: "Due in 2 days",
-    referralUsed: true,
-    oaStatus: "Yes",
-    applicationStatus: "Active",
-    referredBy: "Alex Johnson",
-    jobId: "48293",
-    keywordMatch: 78,
-    progress: 1,
-  },
-  {
-    company: "Amazon",
-    role: "SDE I, Platform",
-    appliedOn: "2026-03-06",
-    appliedDate: "Mar 6, 2026",
-    owner: "Atishay Kasliwal",
-    statusMessage: "OA requested",
-    referralUsed: true,
-    oaStatus: "Yes",
-    applicationStatus: "Active",
-    referredBy: "Maya Patel",
-    jobId: "51982",
-    keywordMatch: 72,
-    progress: 2,
-  },
-  {
-    company: "Microsoft",
-    role: "Software Engineer, AI Infra",
-    appliedOn: "2026-03-05",
-    appliedDate: "Mar 5, 2026",
-    owner: "Atishay Kasliwal",
-    statusMessage: "Interview soon",
-    referralUsed: true,
-    oaStatus: "Yes",
-    applicationStatus: "Active",
-    referredBy: "Chris Lee",
-    jobId: "64012",
-    keywordMatch: 84,
-    progress: 2,
-  },
-  {
-    company: "Stripe",
-    role: "Backend Engineer",
-    appliedOn: "2026-03-04",
-    appliedDate: "Mar 4, 2026",
-    owner: "Atishay Kasliwal",
-    statusMessage: "Archived last week",
-    referralUsed: false,
-    oaStatus: "No",
-    applicationStatus: "Archive",
-    referredBy: "No referral",
-    jobId: "70354",
-    keywordMatch: 88,
-    progress: 4,
-  },
-];
-
-const ACTIVE_JOBS_PREMIUM_KPIS = {
-  monthly: {
-    label: "This month applications",
-    value: "68",
-    delta: "+12%",
-    status: "On track",
-    sparkPath: "M0 68 L24 58 L48 62 L72 41 L96 49 L120 34 L144 56 L168 46 L192 60 L216 44 L240 38",
-  },
-  oa: {
-    label: "OA completion rate",
-    value: "82%",
-    delta: "+4%",
-    status: "Healthy pipeline",
-    bars: [62, 44, 78, 53, 70, 82, 47],
-  },
-} as const;
-
-const ACTIVE_JOBS_REFERRAL_ROWS: Array<{
-  name: string;
-  company: string;
-  role: string;
-  stage: string;
-}> = [
-  { name: "Alex Shah", company: "Google", role: "SWE Core", stage: "OA" },
-  { name: "Maya Patel", company: "Amazon", role: "SDE I", stage: "Interview" },
-  { name: "Chris Lee", company: "Microsoft", role: "AI Infra", stage: "Applied" },
-  { name: "Rhea Singh", company: "Stripe", role: "Backend", stage: "Offer" },
-  { name: "Jordan Kim", company: "Datadog", role: "Platform", stage: "Applied" },
-];
-
-function parseIsoDay(day: string): { y: number; m: number; d: number } | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day);
-  if (!m) return null;
-  const y = Number(m[1]);
-  const month = Number(m[2]);
-  const d = Number(m[3]);
-  if (!y || month < 1 || month > 12 || d < 1 || d > 31) return null;
-  return { y, m: month, d };
-}
-
-function formatDayShort(day: string) {
-  try {
-    const p = parseIsoDay(day);
-    if (!p) return day;
-    return `${String(p.m).padStart(2, "0")}/${String(p.d).padStart(2, "0")}`;
-  } catch {
-    return day;
-  }
-}
+import {
+  ACTIVE_JOBS_REFERRAL_ROWS,
+  ACTIVE_JOBS_SAMPLE_CARDS,
+  APPLICATION_PIPELINE_STAGES,
+  BASE_SORT_CONFIG,
+  CARD_LIMIT,
+  LIMIT,
+} from "./jobs/constants";
+import ActiveJobsBoard from "./jobs/components/ActiveJobsBoard";
+import EditJobModal from "./jobs/components/EditJobModal";
+import EditOaModal from "./jobs/components/EditOaModal";
+import JobsTable from "./jobs/components/JobsTable";
+import OaArchiveTable from "./jobs/components/OaArchiveTable";
+import JobsTrendCharts from "./jobs/components/JobsTrendCharts";
+import type {
+  SortField,
+  SortOrder,
+  ToolbarBooleanFilter,
+  ToolbarStageFilter,
+  ToolbarStatusFilter,
+  ToolbarTimeRange,
+} from "./jobs/types";
+import {
+  capitalizeFirst,
+  formatDayShort,
+  getOaResultLabel,
+  normalizeOaStatus,
+  normalizeReferralStatus,
+} from "./jobs/utils/formatters";
+import { buildPaginationItems } from "./jobs/utils/pagination";
+import { compareJobs } from "./jobs/utils/sort";
+import { getKeywordMeta, getStatusMeta } from "./jobs/utils/tableMeta";
 
 export default function JobsPage({ statusFilter }: { statusFilter?: string } = {}) {
   const location = useLocation();
@@ -367,6 +118,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
   const [cardOaFilter, setCardOaFilter] = useState<ToolbarBooleanFilter>("yes");
   const [cardStatusFilter, setCardStatusFilter] = useState<ToolbarStatusFilter>("active");
   const [cardStageFilter, setCardStageFilter] = useState<ToolbarStageFilter>("All");
+  const [cardPage, setCardPage] = useState(1);
   const [referralSearch, setReferralSearch] = useState("");
   const [activeSmartView, setActiveSmartView] = useState<"default" | "interview" | "referral" | null>("default");
   const searchInputRef = useRef<HTMLInputElement | null>(null);
@@ -430,8 +182,28 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
   const filteredReferralRows = useMemo(() => {
     const query = referralSearch.trim().toLowerCase();
     if (!query) return ACTIVE_JOBS_REFERRAL_ROWS;
-    return ACTIVE_JOBS_REFERRAL_ROWS.filter((row) => `${row.name} ${row.company}`.toLowerCase().includes(query));
+    return ACTIVE_JOBS_REFERRAL_ROWS.filter((row) =>
+      `${row.name} ${row.company} ${row.role}`.toLowerCase().includes(query),
+    );
   }, [referralSearch]);
+
+  const totalCardPages = Math.max(1, Math.ceil(filteredSampleCards.length / CARD_LIMIT));
+  const safeCardPage = Math.min(cardPage, totalCardPages);
+  const pagedSampleCards = useMemo(() => {
+    const start = (safeCardPage - 1) * CARD_LIMIT;
+    return filteredSampleCards.slice(start, start + CARD_LIMIT);
+  }, [filteredSampleCards, safeCardPage]);
+  const cardStartIndex = (safeCardPage - 1) * CARD_LIMIT;
+  const hasCardPrev = safeCardPage > 1;
+  const hasCardNext = safeCardPage < totalCardPages;
+  const cardPaginationItems = useMemo(
+    () => buildPaginationItems(safeCardPage, totalCardPages),
+    [safeCardPage, totalCardPages],
+  );
+
+  useEffect(() => {
+    if (cardPage !== safeCardPage) setCardPage(safeCardPage);
+  }, [cardPage, safeCardPage]);
 
   useEffect(() => {
     function onSlashFocusSearch(event: KeyboardEvent) {
@@ -457,6 +229,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     setCardOaFilter("yes");
     setCardStatusFilter("active");
     setCardStageFilter("All");
+    setCardPage(1);
     setActiveSmartView("default");
   }
 
@@ -467,6 +240,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     setCardOaFilter("yes");
     setCardStatusFilter("active");
     setCardStageFilter("Interview");
+    setCardPage(1);
     setActiveSmartView("interview");
   }
 
@@ -477,6 +251,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     setCardOaFilter("all");
     setCardStatusFilter("active");
     setCardStageFilter("All");
+    setCardPage(1);
     setActiveSmartView("referral");
   }
 
@@ -487,13 +262,8 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     setCardOaFilter("all");
     setCardStatusFilter("all");
     setCardStageFilter("All");
+    setCardPage(1);
     setActiveSmartView(null);
-  }
-
-  function cycleInSequence<T extends string>(current: T, sequence: readonly T[]): T {
-    const idx = sequence.indexOf(current);
-    if (idx < 0) return sequence[0];
-    return sequence[(idx + 1) % sequence.length];
   }
 
   const load = useCallback(async () => {
@@ -801,312 +571,43 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     }
   }
 
-  function getStatusMeta(raw: string) {
-    const value = String(raw || "").trim().toLowerCase();
-    if (value === "rejected") return { label: "Rejected", cls: "status-chip status-chip--rejected" };
-    if (value === "under consideration") return { label: "Under review", cls: "status-chip status-chip--review" };
-    if (value === "open") return { label: "Open", cls: "status-chip status-chip--open" };
-    return { label: raw || "Applied", cls: "status-chip status-chip--applied" };
-  }
-
-  function getKeywordMeta(raw: string) {
-    const value = String(raw || "Medium").trim().toLowerCase();
-    if (value === "strong") return { label: "Strong", cls: "" };
-    if (value === "weak" || value === "week") return { label: "Weak", cls: "" };
-    return { label: "Medium", cls: "" };
-  }
-
-  function capitalizeFirst(value: string) {
-    if (!value) return value;
-    const normalized = value.toLowerCase();
-    return normalized.charAt(0).toUpperCase() + normalized.slice(1);
-  }
-
   if (statusFilter !== "rejected") {
     return (
-      <>
-        {error ? <div className="error">{error}</div> : null}
-        <section className="application-card-board active-jobs-demo-board">
-          <div className="active-jobs-layout">
-            <aside className="active-jobs-left-column">
-              <section className="application-card-toolbar active-jobs-main-toolbar">
-                <div className="application-card-toolbar-search-row">
-                  <label className="application-card-search-shell application-card-search-shell--main">
-                    <span className="application-card-search-icon" aria-hidden>
-                      <svg viewBox="0 0 20 20" fill="none" role="presentation" focusable="false">
-                        <circle cx="9" cy="9" r="5.5" stroke="currentColor" strokeWidth="1.8" />
-                        <path d="M13.5 13.5L17 17" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                      </svg>
-                    </span>
-                    <input
-                      ref={searchInputRef}
-                      type="search"
-                      className="application-card-search-input"
-                      placeholder="Search applications, company, role, referral, job ID..."
-                      value={cardSearch}
-                      onChange={(e) => {
-                        setCardSearch(e.target.value);
-                        setActiveSmartView(null);
-                      }}
-                      aria-label="Global search"
-                    />
-                    <kbd className="application-card-search-hint">⌘ K</kbd>
-                  </label>
-                </div>
-
-                <div className="application-card-toolbar-section-head">
-                  <p>Filter by</p>
-                  <span aria-hidden />
-                </div>
-
-                <div className="application-card-toolbar-filters-row" role="toolbar" aria-label="Quick filters">
-                  <button
-                    type="button"
-                    className={`filter-chip ${cardTimeRange !== "all" ? "is-active" : ""}`}
-                    onClick={() => {
-                      setCardTimeRange((curr) => cycleInSequence(curr, TIME_FILTER_SEQUENCE));
-                      setActiveSmartView(null);
-                    }}
-                  >
-                    <span className="filter-chip-value">Time: {TIME_CHIP_LABEL[cardTimeRange]}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`filter-chip ${cardReferralFilter !== "all" ? "is-active" : ""}`}
-                    onClick={() => {
-                      setCardReferralFilter((curr) => cycleInSequence(curr, REFERRAL_FILTER_SEQUENCE));
-                      setActiveSmartView(null);
-                    }}
-                  >
-                    <span className="filter-chip-value">
-                      Referral: {BOOLEAN_CHIP_LABEL[cardReferralFilter]}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`filter-chip ${cardOaFilter !== "all" ? "is-active" : ""}`}
-                    onClick={() => {
-                      setCardOaFilter((curr) => cycleInSequence(curr, OA_FILTER_SEQUENCE));
-                      setActiveSmartView(null);
-                    }}
-                  >
-                    <span className="filter-chip-value">OA: {BOOLEAN_CHIP_LABEL[cardOaFilter]}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`filter-chip ${cardStatusFilter !== "all" ? "is-active" : ""}`}
-                    onClick={() => {
-                      setCardStatusFilter((curr) => cycleInSequence(curr, STATUS_FILTER_SEQUENCE));
-                      setActiveSmartView(null);
-                    }}
-                  >
-                    <span className="filter-chip-value">Status: {STATUS_CHIP_LABEL[cardStatusFilter]}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`filter-chip ${cardStageFilter !== "All" ? "is-active" : ""}`}
-                    onClick={() => {
-                      setCardStageFilter((curr) => cycleInSequence(curr, STAGE_FILTER_SEQUENCE));
-                      setActiveSmartView(null);
-                    }}
-                  >
-                    <span className="filter-chip-value">Stage: {STAGE_OPTIONS_TOOLBAR.find((opt) => opt.value === cardStageFilter)?.label ?? "All"}</span>
-                  </button>
-                </div>
-
-                <div className="application-card-toolbar-secondary">
-                  <div className="application-card-toolbar-presets">
-                    <div className="application-card-toolbar-section-head application-card-toolbar-section-head--compact">
-                      <p>Smart Views</p>
-                      <span aria-hidden />
-                    </div>
-                    <div className="application-card-toolbar-preset-list">
-                      <button
-                        type="button"
-                        onClick={applyDefaultCardFilters}
-                        className={activeSmartView === "default" ? "is-selected" : ""}
-                      >
-                        Default Smart
-                      </button>
-                      <button
-                        type="button"
-                        onClick={applyInterviewScenario}
-                        className={activeSmartView === "interview" ? "is-selected" : ""}
-                      >
-                        Interview Focus
-                      </button>
-                      <button
-                        type="button"
-                        onClick={applyReferralScenario}
-                        className={activeSmartView === "referral" ? "is-selected" : ""}
-                      >
-                        Referral Tracker
-                      </button>
-                      <button type="button" onClick={clearCardFilters}>
-                        Clear All
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              <section className="active-jobs-side-panel active-jobs-kpi-panel">
-                <div className="active-jobs-side-heading">
-                  <h3>Live KPIs</h3>
-                  <span>Updated today</span>
-                </div>
-                <div className="active-jobs-kpi-premium-grid">
-                  <article className="active-jobs-kpi-premium-card is-line">
-                    <header className="active-jobs-kpi-premium-head">
-                      <p>{ACTIVE_JOBS_PREMIUM_KPIS.monthly.label}</p>
-                      <span className="active-jobs-kpi-pill">{ACTIVE_JOBS_PREMIUM_KPIS.monthly.delta}</span>
-                    </header>
-                    <p className="active-jobs-kpi-premium-value">{ACTIVE_JOBS_PREMIUM_KPIS.monthly.value}</p>
-                    <p className="active-jobs-kpi-premium-status">{ACTIVE_JOBS_PREMIUM_KPIS.monthly.status}</p>
-                    <svg viewBox="0 0 240 70" className="active-jobs-kpi-sparkline" aria-hidden>
-                      <path d={ACTIVE_JOBS_PREMIUM_KPIS.monthly.sparkPath} />
-                    </svg>
-                  </article>
-
-                  <article className="active-jobs-kpi-premium-card is-bars">
-                    <header className="active-jobs-kpi-premium-head">
-                      <p>{ACTIVE_JOBS_PREMIUM_KPIS.oa.label}</p>
-                      <span className="active-jobs-kpi-pill">{ACTIVE_JOBS_PREMIUM_KPIS.oa.delta}</span>
-                    </header>
-                    <p className="active-jobs-kpi-premium-value">{ACTIVE_JOBS_PREMIUM_KPIS.oa.value}</p>
-                    <p className="active-jobs-kpi-premium-status">{ACTIVE_JOBS_PREMIUM_KPIS.oa.status}</p>
-                    <div className="active-jobs-kpi-bars" aria-hidden>
-                      {ACTIVE_JOBS_PREMIUM_KPIS.oa.bars.map((height, idx) => (
-                        <span key={`kpi-bar-${idx}`} style={{ height: `${height}%` }} />
-                      ))}
-                    </div>
-                  </article>
-                </div>
-              </section>
-
-              <section className="active-jobs-side-panel">
-                <div className="active-jobs-side-heading">
-                  <h3>Referral Pulse</h3>
-                  <button type="button" className="active-jobs-link-btn">View all</button>
-                </div>
-                <label className="active-jobs-referral-search">
-                  <span className="active-jobs-referral-search-icon" aria-hidden>
-                    <svg viewBox="0 0 20 20" fill="none" role="presentation" focusable="false">
-                      <circle cx="9" cy="9" r="5.5" stroke="currentColor" strokeWidth="1.8" />
-                      <path d="M13.5 13.5L17 17" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                    </svg>
-                  </span>
-                  <input
-                    type="search"
-                    value={referralSearch}
-                    onChange={(e) => setReferralSearch(e.target.value)}
-                    placeholder="Search friend or company"
-                    aria-label="Search referral pulse"
-                  />
-                </label>
-                <div className="active-jobs-referral-table-wrap">
-                  <table className="active-jobs-referral-table">
-                    <tbody>
-                      {filteredReferralRows.map((row) => (
-                        <tr key={`${row.name}-${row.company}`}>
-                          <td>
-                            <div className="active-jobs-referral-person">
-                              <span className="active-jobs-referral-avatar" aria-hidden>
-                                {row.name.split(" ").map((part) => part[0]).join("").slice(0, 2)}
-                              </span>
-                              <div>
-                                <strong>{row.name}</strong>
-                                <span>{row.role}</span>
-                              </div>
-                            </div>
-                          </td>
-                          <td>{row.company}</td>
-                          <td>
-                            <span className="active-jobs-referral-stage">{row.stage}</span>
-                          </td>
-                        </tr>
-                      ))}
-                      {filteredReferralRows.length === 0 ? (
-                        <tr>
-                          <td className="active-jobs-referral-empty" colSpan={3}>
-                            No matching friend or company.
-                          </td>
-                        </tr>
-                      ) : null}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-            </aside>
-
-            <section className="active-jobs-main-column">
-              {filteredSampleCards.map((card) => (
-                <article key={`${card.company}-${card.role}`} className="application-card">
-                  <section className="application-card-summary">
-                    <header className="application-card-header">
-                      <span className="application-card-logo" aria-hidden>
-                        {card.company.slice(0, 2).toUpperCase()}
-                      </span>
-                      <div className="application-card-title">
-                        <h3>{card.company}</h3>
-                        <p className="application-card-role">{card.role}</p>
-                        <p className="application-card-meta">{card.appliedDate} · {card.owner}</p>
-                      </div>
-                    </header>
-
-                    <div className="application-card-pipeline" aria-label="Pipeline progress">
-                      <div className="application-card-pipeline-track" aria-hidden>
-                        {APPLICATION_PIPELINE_STAGES.map((stage, idx) => (
-                          <div key={`${card.company}-${stage}`} className="application-card-pipeline-step">
-                            <span className={`application-card-pipeline-node${idx <= card.progress ? " is-complete" : ""}`} />
-                            {idx < APPLICATION_PIPELINE_STAGES.length - 1 ? (
-                              <span className={`application-card-pipeline-line${idx < card.progress ? " is-complete" : ""}`} />
-                            ) : null}
-                          </div>
-                        ))}
-                      </div>
-                      <div
-                        className="application-card-pipeline-labels"
-                        style={{ gridTemplateColumns: `repeat(${APPLICATION_PIPELINE_STAGES.length}, minmax(0, 1fr))` }}
-                      >
-                        {APPLICATION_PIPELINE_STAGES.map((stage) => (
-                          <span key={`${card.company}-${stage}-label`}>{stage}</span>
-                        ))}
-                      </div>
-                    </div>
-
-                    <aside className="application-card-status">
-                      <p className="application-card-status-message">{card.statusMessage}</p>
-                      <button type="button" className="application-card-open-btn">Open</button>
-                    </aside>
-                  </section>
-
-                  <hr className="application-card-divider" />
-
-                  <div className="application-card-bottom">
-                    <section className="application-card-metadata" aria-label="Secondary metadata">
-                      <span className="application-card-tag">Referral: {card.referredBy}</span>
-                      <span className="application-card-tag"># Job ID: {card.jobId}</span>
-                      <span className="application-card-tag">Keyword Match: {card.keywordMatch}%</span>
-                      <span className="application-card-tag">Applied: {card.appliedDate}</span>
-                    </section>
-
-                    <footer className="application-card-actions">
-                      <button type="button">Edit</button>
-                      <button type="button">Archive</button>
-                      <button type="button" className="is-danger">Delete</button>
-                    </footer>
-                  </div>
-                </article>
-              ))}
-              {filteredSampleCards.length === 0 ? (
-                <div className="empty-state">No cards match your smart filters.</div>
-              ) : null}
-            </section>
-          </div>
-        </section>
-        {confirmDialog}
-      </>
+      <ActiveJobsBoard
+        error={error}
+        confirmDialog={confirmDialog}
+        searchInputRef={searchInputRef}
+        cardSearch={cardSearch}
+        setCardSearch={setCardSearch}
+        cardTimeRange={cardTimeRange}
+        setCardTimeRange={setCardTimeRange}
+        cardReferralFilter={cardReferralFilter}
+        setCardReferralFilter={setCardReferralFilter}
+        cardOaFilter={cardOaFilter}
+        setCardOaFilter={setCardOaFilter}
+        cardStatusFilter={cardStatusFilter}
+        setCardStatusFilter={setCardStatusFilter}
+        cardStageFilter={cardStageFilter}
+        setCardStageFilter={setCardStageFilter}
+        setCardPage={setCardPage}
+        referralSearch={referralSearch}
+        setReferralSearch={setReferralSearch}
+        activeSmartView={activeSmartView}
+        setActiveSmartView={setActiveSmartView}
+        applyDefaultCardFilters={applyDefaultCardFilters}
+        applyInterviewScenario={applyInterviewScenario}
+        applyReferralScenario={applyReferralScenario}
+        clearCardFilters={clearCardFilters}
+        filteredReferralRows={filteredReferralRows}
+        filteredSampleCardsLength={filteredSampleCards.length}
+        pagedSampleCards={pagedSampleCards}
+        cardStartIndex={cardStartIndex}
+        hasCardPrev={hasCardPrev}
+        hasCardNext={hasCardNext}
+        cardPaginationItems={cardPaginationItems}
+        safeCardPage={safeCardPage}
+        totalCardPages={totalCardPages}
+      />
     );
   }
 
@@ -1199,1007 +700,72 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     <>
       {error ? <div className="error">{error}</div> : null}
 
-      {/* Application Momentum Chart - temporarily disabled */}
-      {false && statusFilter !== "rejected" && (
-        <div className="card card-chart-trend trend-uniform-card" style={{ marginBottom: "24px" }}>
-          <div className="trend-uniform-head">
-            <h2>Application Momentum</h2>
-            <p>Last 30 days • Applications with rejection context</p>
-          </div>
-          <div className="trend-uniform-body">
-            {isLoadingTrend ? (
-              <div className="trend-uniform-loading">
-                <Spinner />
-              </div>
-            ) : !chartData.data || chartData.data.length === 0 ? (
-              <div className="chart-empty">No data available</div>
-            ) : (
-              <ResponsiveContainer width="100%" height={360}>
-                <ComposedChart
-                  data={chartData.data}
-                  margin={{ top: 20, right: 24, left: 8, bottom: 24 }}
-                  barCategoryGap="14%"
-                >
-                  <defs>
-                    <linearGradient id="areaGradient_applicationMomentum" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={CHART_COLORS.applied} stopOpacity={0.58} />
-                      <stop offset="55%" stopColor={CHART_COLORS.applied} stopOpacity={0.28} />
-                      <stop offset="95%" stopColor={CHART_COLORS.applied} stopOpacity={0} />
-                    </linearGradient>
-                    <filter id="lineGlow_applicationMomentum" x="-20%" y="-20%" width="140%" height="140%">
-                      <feDropShadow dx="0" dy="0" stdDeviation="2.2" floodColor={CHART_COLORS.applied} floodOpacity={0.42} />
-                    </filter>
-                  </defs>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke={CHART_COLORS.grid}
-                    horizontal={true}
-                    vertical={false}
-                  />
-                  <XAxis
-                    dataKey="dayLabel"
-                    stroke={CHART_COLORS.axis}
-                    tick={{ fill: CHART_COLORS.textSecondary, fontSize: 10, fontWeight: 400 }}
-                    axisLine={{ stroke: CHART_COLORS.axis, strokeWidth: 1 }}
-                    tickLine={false}
-                    height={32}
-                    interval="preserveStartEnd"
-                  />
-                  <YAxis
-                    stroke={CHART_COLORS.axis}
-                    tick={{ fill: CHART_COLORS.textSecondary, fontSize: 10, fontWeight: 400 }}
-                    axisLine={{ stroke: CHART_COLORS.axis, strokeWidth: 1 }}
-                    tickLine={false}
-                    allowDecimals={false}
-                    width={40}
-                    label={{ value: "Count", angle: -90, position: "insideLeft", fill: CHART_COLORS.textSecondary, fontSize: 11, style: { textAnchor: "middle" } }}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      background: CHART_COLORS.tooltipBg,
-                      border: `1px solid ${CHART_COLORS.tooltipBorder}`,
-                      borderRadius: 6,
-                      padding: "10px 14px",
-                    }}
-                    cursor={false}
-                    formatter={(value: number, name: string) => {
-                      if (name === "applied") {
-                        return [`${value}`, "Applied"];
-                      }
-                      if (name === "rejected") {
-                        return [`${value}`, "Rejected"];
-                      }
-                      return [value, name];
-                    }}
-                    labelStyle={{ color: CHART_COLORS.text, fontSize: 11, fontWeight: 500, marginBottom: 6 }}
-                    itemStyle={{ fontSize: 13, fontWeight: 600 }}
-                    labelFormatter={(label) => `Date: ${label}`}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="applied"
-                    stroke="none"
-                    fill={CHART_COLORS.applied}
-                    fillOpacity={0.12}
-                    baseValue={0}
-                    tooltipType="none"
-                    isAnimationActive={false}
-                    connectNulls={false}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="applied"
-                    stroke="none"
-                    fill="url(#areaGradient_applicationMomentum)"
-                    fillOpacity={1}
-                    baseValue={0}
-                    tooltipType="none"
-                    isAnimationActive={false}
-                    connectNulls={false}
-                  />
-                  <Bar
-                    dataKey="rejected"
-                    fill={CHART_COLORS.rejected}
-                    radius={[4, 4, 0, 0]}
-                    minPointSize={2}
-                    label={{
-                      position: "top",
-                      fill: CHART_COLORS.textSecondary,
-                      fontSize: 9,
-                      fontWeight: 400,
-                      formatter: (value: number) => (value > 0 ? String(value) : ""),
-                    }}
-                  >
-                    {chartData.data.map((entry, index) => {
-                      const hasRejection = entry.rejected > 0;
-                      return (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={CHART_COLORS.rejected}
-                          style={hasRejection ? { opacity: 1 } : { opacity: 0.3 }}
-                        />
-                      );
-                    })}
-                  </Bar>
-                  <Line
-                    type="monotone"
-                    dataKey="applied"
-                    stroke={CHART_COLORS.applied}
-                    strokeWidth={2.6}
-                    dot={{
-                      r: 3,
-                      fill: CHART_COLORS.applied,
-                      stroke: "var(--bg-card)",
-                      strokeWidth: 1.2,
-                      opacity: 1,
-                    }}
-                    activeDot={false}
-                    connectNulls={false}
-                    strokeDasharray="0"
-                    filter="url(#lineGlow_applicationMomentum)"
-                  >
-                    <LabelList
-                      dataKey="applied"
-                      position="top"
-                      offset={8}
-                      fill={CHART_COLORS.applied}
-                      fontSize={10}
-                      fontWeight={700}
-                      formatter={(value: number) => (value > 0 ? String(value) : "")}
-                    />
-                  </Line>
-                </ComposedChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-          <div className="trend-uniform-foot">
-            <span className="trend-uniform-foot-item trend-uniform-foot-item--applied">
-              {chartData.insights.maxApplied
-                ? `Peak: ${chartData.insights.maxApplied.value} applications on ${chartData.insights.maxApplied.day}`
-                : "Peak: -"}
-            </span>
-            <span className="trend-uniform-foot-item trend-uniform-foot-item--rejected">
-              • {chartData.insights.rejectionDays.length} day{chartData.insights.rejectionDays.length !== 1 ? "s" : ""} with rejection{chartData.insights.rejectionDays.length !== 1 ? "s" : ""}
-            </span>
-          </div>
-        </div>
-      )}
+      <JobsTrendCharts
+        statusFilter={statusFilter}
+        isLoadingTrend={isLoadingTrend}
+        chartData={chartData}
+      />
 
-      {/* Rejected Jobs Chart - Last 30 Days (only for archive tab) */}
-      {statusFilter === "rejected" && (
-        <div className="card card-chart-trend trend-uniform-card" style={{ marginBottom: "24px" }}>
-          <div className="trend-uniform-head">
-            <h2>Archive Trend</h2>
-            <p>Last 30 days • Daily rejected applications</p>
-          </div>
-          <div className="trend-uniform-body">
-            {isLoadingTrend ? (
-              <div className="trend-uniform-loading">
-                <Spinner />
-              </div>
-            ) : !chartData.data || chartData.data.length === 0 ? (
-              <div className="chart-empty">No data available</div>
-            ) : (
-              <ResponsiveContainer width="100%" height={360}>
-                <ComposedChart
-                  data={chartData.data}
-                  margin={{ top: 20, right: 24, left: 8, bottom: 24 }}
-                  barCategoryGap="14%"
-                >
-                  <defs>
-                    <linearGradient id="areaGradient_rejectedJobsTrend" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={CHART_COLORS.rejected} stopOpacity={0.56} />
-                      <stop offset="55%" stopColor={CHART_COLORS.rejected} stopOpacity={0.25} />
-                      <stop offset="95%" stopColor={CHART_COLORS.rejected} stopOpacity={0} />
-                    </linearGradient>
-                    <filter id="lineGlow_rejectedJobsTrend" x="-20%" y="-20%" width="140%" height="140%">
-                      <feDropShadow dx="0" dy="0" stdDeviation="2.2" floodColor={CHART_COLORS.rejected} floodOpacity={0.4} />
-                    </filter>
-                  </defs>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke={CHART_COLORS.grid}
-                    horizontal={true}
-                    vertical={false}
-                  />
-                  <XAxis
-                    dataKey="dayLabel"
-                    stroke={CHART_COLORS.axis}
-                    tick={{ fill: CHART_COLORS.textSecondary, fontSize: 10, fontWeight: 400 }}
-                    axisLine={{ stroke: CHART_COLORS.axis, strokeWidth: 1 }}
-                    tickLine={false}
-                    height={32}
-                    interval="preserveStartEnd"
-                  />
-                  <YAxis
-                    stroke={CHART_COLORS.axis}
-                    tick={{ fill: CHART_COLORS.textSecondary, fontSize: 10, fontWeight: 400 }}
-                    axisLine={{ stroke: CHART_COLORS.axis, strokeWidth: 1 }}
-                    tickLine={false}
-                    allowDecimals={false}
-                    width={40}
-                    label={{ value: "Rejected", angle: -90, position: "insideLeft", fill: CHART_COLORS.textSecondary, fontSize: 11, style: { textAnchor: "middle" } }}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      background: CHART_COLORS.tooltipBg,
-                      border: `1px solid ${CHART_COLORS.tooltipBorder}`,
-                      borderRadius: 6,
-                      padding: "10px 14px",
-                    }}
-                    cursor={false}
-                    labelStyle={{ color: CHART_COLORS.text, fontSize: 11, fontWeight: 500, marginBottom: 6 }}
-                    itemStyle={{ fontSize: 13, fontWeight: 600, color: CHART_COLORS.rejected }}
-                    labelFormatter={(label) => `Date: ${label}`}
-                    formatter={(value: number) => [`${value}`, "Rejected"]}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="rejected"
-                    stroke="none"
-                    fill={CHART_COLORS.rejected}
-                    fillOpacity={0.1}
-                    baseValue={0}
-                    tooltipType="none"
-                    isAnimationActive={false}
-                    connectNulls={false}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="rejected"
-                    stroke="none"
-                    fill="url(#areaGradient_rejectedJobsTrend)"
-                    fillOpacity={1}
-                    baseValue={0}
-                    tooltipType="none"
-                    isAnimationActive={false}
-                    connectNulls={false}
-                  />
-                  <Bar
-                    dataKey="rejected"
-                    fill={CHART_COLORS.rejected}
-                    radius={[4, 4, 0, 0]}
-                    minPointSize={2}
-                  >
-                    {chartData.data.map((entry, index) => {
-                      const hasRejection = entry.rejected > 0;
-                      return (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={CHART_COLORS.rejected}
-                          style={hasRejection ? { opacity: 1 } : { opacity: 0.3 }}
-                        />
-                      );
-                    })}
-                  </Bar>
-                  <Line
-                    type="monotone"
-                    dataKey="rejected"
-                    stroke={CHART_COLORS.rejected}
-                    strokeWidth={2.6}
-                    dot={{
-                      r: 3,
-                      fill: CHART_COLORS.rejected,
-                      stroke: "var(--bg-card)",
-                      strokeWidth: 1.2,
-                      opacity: 1,
-                    }}
-                    activeDot={false}
-                    connectNulls={false}
-                    strokeDasharray="0"
-                    filter="url(#lineGlow_rejectedJobsTrend)"
-                    tooltipType="none"
-                  >
-                    <LabelList
-                      dataKey="rejected"
-                      position="top"
-                      offset={8}
-                      fill={CHART_COLORS.rejected}
-                      fontSize={10}
-                      fontWeight={700}
-                      formatter={(value: number) => (value > 0 ? String(value) : "")}
-                    />
-                  </Line>
-                </ComposedChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-          <div className="trend-uniform-foot">
-            <span className="trend-uniform-foot-item trend-uniform-foot-item--rejected">
-              {chartData.insights.maxRejected
-                ? `Peak: ${chartData.insights.maxRejected.value} rejections on ${chartData.insights.maxRejected.day}`
-                : "Peak: -"}
-            </span>
-            <span className="trend-uniform-foot-item trend-uniform-foot-item--muted">
-              • {chartData.insights.rejectionDays.length} day{chartData.insights.rejectionDays.length !== 1 ? "s" : ""} with rejection{chartData.insights.rejectionDays.length !== 1 ? "s" : ""}
-            </span>
-          </div>
-        </div>
-      )}
+      <JobsTable
+        isLoading={isLoading}
+        data={data}
+        sortedData={sortedData}
+        page={page}
+        limit={LIMIT}
+        totalPages={totalPages}
+        totalRows={totalRows}
+        hasPrev={hasPrev}
+        hasNext={hasNext}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+        sortConfig={sortConfig}
+        searchInput={searchInput}
+        statusFilter={statusFilter}
+        archivingId={archivingId}
+        deletingId={deletingId}
+        setSearchInput={setSearchInput}
+        setPage={setPage}
+        onSearch={onSearch}
+        handleSort={handleSort}
+        openEdit={openEdit}
+        onArchive={onArchive}
+        onDelete={onDelete}
+        getStatusMeta={getStatusMeta}
+        getKeywordMeta={getKeywordMeta}
+        capitalizeFirst={capitalizeFirst}
+        normalizeReferralStatus={normalizeReferralStatus}
+        normalizeOaStatus={normalizeOaStatus}
+      />
 
-      <div className="card" style={{ padding: "24px" }}>
-        <div className="jobs-header">
-          <h2>Jobs</h2>
-          <form className="jobs-search-row" onSubmit={onSearch}>
-            <input
-              className="jobs-search-input"
-              type="search"
-              placeholder="Search anything"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              aria-label="Search jobs by any field"
-            />
-            <button type="submit" className="jobs-search-btn">Search</button>
-          </form>
-        </div>
+      <OaArchiveTable
+        statusFilter={statusFilter}
+        oaArchiveError={oaArchiveError}
+        oaArchiveLoading={oaArchiveLoading}
+        oaArchiveData={oaArchiveData}
+        oaDeletingId={oaDeletingId}
+        openOaEdit={openOaEdit}
+        onDeleteOaRecord={onDeleteOaRecord}
+        capitalizeFirst={capitalizeFirst}
+        normalizeOaStatus={normalizeOaStatus}
+      />
 
-        {isLoading ? (
-          <Spinner />
-        ) : data.length === 0 ? (
-          <div className="empty-state">
-            No jobs found. Add one from the Dashboard.
-          </div>
-        ) : (
-          <>
-            <div className="table-wrap">
-              <table className="jobs-table">
-                <thead>
-                  <tr>
-                    <th>No.</th>
-                    <th>
-                      <button
-                        type="button"
-                        className="th-sort"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleSort("applied_at");
-                        }}
-                        title={sortBy === "applied_at" ? `${sortOrder === "asc" ? "A→Z" : "Z→A"} (click to reverse)` : "Sort by Applied At"}
-                      >
-                        {sortConfig.find((c) => c.key === "applied_at")?.label ?? "Applied At"}
-                        {sortBy === "applied_at" ? (
-                          <span className="th-sort-icon" aria-hidden>{sortOrder === "asc" ? " ↑" : " ↓"}</span>
-                        ) : null}
-                      </button>
-                    </th>
-                    <th>
-                      <button
-                        type="button"
-                        className="th-sort"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleSort("company");
-                        }}
-                        title="Sort by Company / Position"
-                      >
-                        Company / Position
-                        {sortBy === "company" ? (
-                          <span className="th-sort-icon" aria-hidden>{sortOrder === "asc" ? " ↑" : " ↓"}</span>
-                        ) : null}
-                      </button>
-                    </th>
-                    <th>
-                      <button
-                        type="button"
-                        className="th-sort"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleSort("referral_status");
-                        }}
-                        title="Sort by Referral"
-                      >
-                        Referral
-                        {sortBy === "referral_status" ? (
-                          <span className="th-sort-icon" aria-hidden>{sortOrder === "asc" ? " ↑" : " ↓"}</span>
-                        ) : null}
-                      </button>
-                    </th>
-                    <th>Referral Name</th>
-                    <th>Keyword Match</th>
-                    <th>OA</th>
-                    <th>OA Deadline</th>
-                    <th>Job/App ID</th>
-                    <th>
-                      <button
-                        type="button"
-                        className="th-sort"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleSort("job_link");
-                        }}
-                        title="Sort by Link"
-                      >
-                        Link
-                        {sortBy === "job_link" ? (
-                          <span className="th-sort-icon" aria-hidden>{sortOrder === "asc" ? " ↑" : " ↓"}</span>
-                        ) : null}
-                      </button>
-                    </th>
-                    <th>Application Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedData.map((j, idx) => (
-                    <tr
-                      key={String(j.id)}
-                      className={`tr-hover ${normalizeReferralStatus(j.referral_status) === "Yes" ? "data-referral" : ""} ${
-                        String(j.application_status ?? "") === "Rejected" ? "data-rejected" : ""
-                      } ${normalizeReferralStatus(j.referral_status) === "No" ? "data-no" : ""
-                      }`}
-                    >
-                      <td className="jobs-col-no">{(page - 1) * LIMIT + idx + 1}</td>
-                      <td>
-                        {formatTableDateTime(
-                          (j as any).applied_at
-                            ? (j as any).applied_at
-                            : (statusFilter === "rejected" ? ((j as any).archive_date ?? j.date_saved) : j.date_saved),
-                        )}
-                      </td>
-                      <td>
-                        <div className="job-main">
-                        <div className="job-company">{capitalizeFirst(String(j.company ?? "-"))}</div>
-                          <div className="job-role" title={String(j.role ?? "-")}>
-                            {String(j.role ?? "-")}
-                          </div>
-                        </div>
-                      </td>
-                      <td>{normalizeReferralStatus(j.referral_status) || "-"}</td>
-                      <td>{String((j as any).referred_by_name ?? "-") || "-"}</td>
-                      <td>
-                        <span className={getKeywordMeta(String((j as any).keyword_matching ?? "Medium")).cls}>
-                          {getKeywordMeta(String((j as any).keyword_matching ?? "Medium")).label}
-                        </span>
-                      </td>
-                      <td>{normalizeOaStatus((j as any).oa_status)}</td>
-                      <td>{String((j as any).oa_deadline_date ?? "-") || "-"}</td>
-                      <td>{String((j as any).job_application_id ?? "-")}</td>
-                      <td>
-                        {j.job_link ? (
-                          <a
-                            href={String(j.job_link)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="table-link"
-                          >
-                            Open
-                          </a>
-                        ) : (
-                          "-"
-                        )}
-                      </td>
-                      <td>
-                        <span className={getStatusMeta(String(j.application_status ?? "Applied")).cls}>
-                          {getStatusMeta(String(j.application_status ?? "Applied")).label}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="row-actions">
-                          <button type="button" className="action-btn" onClick={() => openEdit(j)}>
-                            Edit
-                          </button>
-                          {statusFilter !== "rejected" ? (
-                            <button
-                              type="button"
-                              className="action-btn"
-                              onClick={() => onArchive(j)}
-                              disabled={archivingId === j.id}
-                              title="Archive application"
-                              aria-label="Archive application"
-                            >
-                              {archivingId === j.id ? "…" : "Archive"}
-                            </button>
-                          ) : null}
-                          <button
-                            type="button"
-                            className="action-btn"
-                            onClick={() => onDelete(j)}
-                            disabled={deletingId === j.id}
-                            aria-label="Delete job"
-                          >
-                            {deletingId === j.id ? "…" : "🗑️"}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="pagination">
-              <button type="button" disabled={!hasPrev} onClick={() => setPage((p) => p - 1)}>
-                Prev
-              </button>
-              <span>Page {page} of {totalPages} • {totalRows} total</span>
-              <button type="button" disabled={!hasNext} onClick={() => setPage((p) => p + 1)}>
-                Next
-              </button>
-            </div>
-          </>
-        )}
-      </div>
+      <EditJobModal
+        editing={editing}
+        isSaving={isSaving}
+        editForm={editForm}
+        setEditing={setEditing}
+        setEditForm={setEditForm}
+        onSaveEdit={onSaveEdit}
+      />
 
-      {statusFilter === "rejected" ? (
-        <div className="card" style={{ padding: "24px", marginTop: "20px" }}>
-          <div className="jobs-header">
-            <h2>Online Assessment Records</h2>
-            <p className="chart-subtitle">Completed and missed OA archive</p>
-          </div>
-          {oaArchiveError ? <div className="error">{oaArchiveError}</div> : null}
-          {oaArchiveLoading ? (
-            <Spinner />
-          ) : oaArchiveData.length === 0 ? (
-            <div className="empty-state">No OA records yet. Mark "OA Done" from Dashboard to add records.</div>
-          ) : (
-            <div className="table-wrap">
-              <table className="jobs-table">
-                <thead>
-                  <tr>
-                    <th>No.</th>
-                    <th>Record Date</th>
-                    <th>Status</th>
-                    <th>Company / Position</th>
-                    <th>OA Deadline</th>
-                    <th>Job/App ID</th>
-                    <th>OA</th>
-                    <th>Link</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {oaArchiveData.map((row, idx) => (
-                    <tr key={`oa-archive-${String(row.id)}`} className="tr-hover">
-                      <td className="jobs-col-no">{idx + 1}</td>
-                      <td>{formatTableDateTime((row as any).oa_result_date ?? row.oa_completed_date)}</td>
-                      <td>{getOaResultLabel(row)}</td>
-                      <td>
-                        <div className="job-main">
-                          <div className="job-company">{capitalizeFirst(String(row.company ?? "-"))}</div>
-                          <div className="job-role" title={String(row.role ?? "-")}>
-                            {String(row.role ?? "-")}
-                          </div>
-                        </div>
-                      </td>
-                      <td>{String(row.oa_deadline_date ?? "-") || "-"}</td>
-                      <td>{String(row.job_application_id ?? "-") || "-"}</td>
-                      <td>{normalizeOaStatus(row.oa_status)}</td>
-                      <td>
-                        {row.job_link ? (
-                          <a
-                            href={String(row.job_link)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="table-link"
-                          >
-                            Open
-                          </a>
-                        ) : (
-                          "-"
-                        )}
-                      </td>
-                      <td>
-                        <div className="row-actions">
-                          <button type="button" className="action-btn" onClick={() => openOaEdit(row)}>
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            className="action-btn"
-                            onClick={() => onDeleteOaRecord(row)}
-                            disabled={oaDeletingId === row.id}
-                          >
-                            {oaDeletingId === row.id ? "…" : "🗑️"}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      ) : null}
-
-      {editing && (
-        <div className="modal-overlay modal-overlay--quickadd" onClick={() => !isSaving && setEditing(null)}>
-          <div className="modal modal--quickadd" onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              className="modal-close-x"
-              aria-label="Close"
-              onClick={() => !isSaving && setEditing(null)}
-              disabled={isSaving}
-            >
-              ×
-            </button>
-            <form className="new-app-form" onSubmit={onSaveEdit}>
-              <header className="new-app-header">
-                <h3>Edit Application</h3>
-                <p>Update this application using the same structure as Add Application.</p>
-              </header>
-
-              <section className="new-app-section">
-                <div className="new-app-section-header">
-                  <span className="new-app-section-icon">⌁</span>
-                  <h4>CORE DETAILS</h4>
-                </div>
-                <div className="new-app-grid-2">
-                  <label className="new-app-field">
-                    <span className="new-app-label">Company</span>
-                    <input
-                      className="new-app-input"
-                      placeholder="e.g. Stripe"
-                      value={editForm.company}
-                      onChange={(e) => setEditForm((p) => ({ ...p, company: e.target.value }))}
-                      autoFocus
-                    />
-                  </label>
-                  <label className="new-app-field">
-                    <span className="new-app-label">Position</span>
-                    <input
-                      className="new-app-input"
-                      placeholder="e.g. Software Engineer"
-                      value={editForm.role}
-                      onChange={(e) => setEditForm((p) => ({ ...p, role: e.target.value }))}
-                    />
-                  </label>
-                  <label className="new-app-field">
-                    <span className="new-app-label">Application Link</span>
-                    <input
-                      className="new-app-input"
-                      type="url"
-                      placeholder="https://..."
-                      value={editForm.job_link}
-                      onChange={(e) => setEditForm((p) => ({ ...p, job_link: e.target.value }))}
-                    />
-                  </label>
-                  <label className="new-app-field">
-                    <span className="new-app-label">Application ID</span>
-                    <input
-                      className="new-app-input"
-                      placeholder="Optional"
-                      value={editForm.job_application_id}
-                      onChange={(e) => setEditForm((p) => ({ ...p, job_application_id: e.target.value }))}
-                    />
-                  </label>
-                </div>
-              </section>
-
-              <section className="new-app-section">
-                <div className="new-app-section-header">
-                  <span className="new-app-section-icon">⌁</span>
-                  <h4>REFERRAL & OA</h4>
-                </div>
-                <div className="new-app-grid-2 new-app-grid-referral">
-                  <label className="new-app-field">
-                    <span className="new-app-label">Referral</span>
-                    <select
-                      className="new-app-input new-app-select"
-                      value={editForm.referral_status}
-                      onChange={(e) => setEditForm((p) => ({ ...p, referral_status: e.target.value }))}
-                    >
-                      {REFERRAL_OPTIONS.map((opt) => (
-                        <option key={opt || "empty"} value={opt}>
-                          {opt || "—"}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="new-app-field">
-                    <span className="new-app-label">Referral Name</span>
-                    <input
-                      className="new-app-input"
-                      placeholder="Optional"
-                      value={editForm.referred_by_name}
-                      onChange={(e) => setEditForm((p) => ({ ...p, referred_by_name: e.target.value }))}
-                    />
-                  </label>
-                  <label className="new-app-field">
-                    <span className="new-app-label">Online Assessment</span>
-                    <select
-                      className="new-app-input new-app-select"
-                      value={editForm.oa_status}
-                      onChange={(e) => setEditForm((p) => ({ ...p, oa_status: e.target.value }))}
-                    >
-                      <option value="Yes">Yes</option>
-                      <option value="No">No</option>
-                    </select>
-                  </label>
-                  <label className="new-app-field">
-                    <span className="new-app-label">OA Deadline</span>
-                    <input
-                      className="new-app-input"
-                      type="date"
-                      value={editForm.oa_deadline_date}
-                      onChange={(e) => setEditForm((p) => ({ ...p, oa_deadline_date: e.target.value }))}
-                    />
-                  </label>
-                </div>
-                <label className="new-app-field new-app-keyword-field">
-                  <span className="new-app-label">Keyword Matching</span>
-                  <div className="new-app-keyword-toggle">
-                    {(["Strong", "Medium", "Weak"] as const).map((level) => (
-                      <button
-                        key={level}
-                        type="button"
-                        className={editForm.keyword_matching === level ? "is-active" : ""}
-                        onClick={() => setEditForm((p) => ({ ...p, keyword_matching: level }))}
-                      >
-                        {level}
-                      </button>
-                    ))}
-                  </div>
-                </label>
-                {editForm.referral_status === "Requested" && (
-                  <p className="new-app-alert">
-                    Track requested referrals on the <Link to="/referrals" className="table-link">Referrals</Link> page.
-                  </p>
-                )}
-                {editForm.referral_status === "Yes" && (
-                  <p className="new-app-alert">
-                    Ensure this company has an entry on the <Link to="/referrals" className="table-link">Referrals</Link> page.
-                  </p>
-                )}
-              </section>
-
-              <section className="new-app-section">
-                <details className="new-app-details">
-                  <summary className="new-app-details-summary">
-                    <span className="new-app-details-title">Additional Information</span>
-                    <span className="new-app-details-toggle" aria-hidden="true">
-                      <span className="new-app-details-icon">▾</span>
-                    </span>
-                  </summary>
-                  <div className="new-app-details-body">
-                    <div className="new-app-grid-2">
-                      <label className="new-app-field">
-                        <span className="new-app-label">Date Applied</span>
-                        <input
-                          className="new-app-input"
-                          type="date"
-                          value={editForm.date_saved}
-                          onChange={(e) => setEditForm((p) => ({ ...p, date_saved: e.target.value }))}
-                        />
-                      </label>
-                      <label className="new-app-field">
-                        <span className="new-app-label">Country / Location</span>
-                        <input
-                          className="new-app-input"
-                          placeholder="e.g. United States"
-                          value={editForm.location_raw}
-                          onChange={(e) => setEditForm((p) => ({ ...p, location_raw: e.target.value }))}
-                        />
-                      </label>
-                      <label className="new-app-field">
-                        <span className="new-app-label">Application Status</span>
-                        <select
-                          className="new-app-input new-app-select"
-                          value={editForm.application_status}
-                          onChange={(e) => setEditForm((p) => ({ ...p, application_status: e.target.value }))}
-                        >
-                          <option value="Applied">Applied</option>
-                          <option value="Under consideration">Under consideration</option>
-                          <option value="Rejected">Rejected</option>
-                        </select>
-                      </label>
-                      <label className="new-app-field">
-                        <span className="new-app-label">Response Status</span>
-                        <input
-                          className="new-app-input"
-                          placeholder="e.g. Interview"
-                          value={editForm.response_status}
-                          onChange={(e) => setEditForm((p) => ({ ...p, response_status: e.target.value }))}
-                        />
-                      </label>
-                    </div>
-                    <label className="new-app-field">
-                      <span className="new-app-label">Notes</span>
-                      <textarea
-                        className="new-app-input new-app-textarea"
-                        rows={3}
-                        placeholder="Any additional notes..."
-                        value={editForm.notes}
-                        onChange={(e) => setEditForm((p) => ({ ...p, notes: e.target.value }))}
-                      />
-                    </label>
-                  </div>
-                </details>
-              </section>
-
-              <div className="new-app-actions">
-                <button type="button" className="new-app-btn new-app-btn--secondary" onClick={() => setEditing(null)} disabled={isSaving}>
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="new-app-btn new-app-btn--primary"
-                  disabled={isSaving || !editForm.role.trim() || !editForm.company.trim()}
-                >
-                  {isSaving ? "Saving..." : "Save"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {oaEditing && (
-        <div className="modal-overlay" onClick={() => !isOaSaving && setOaEditing(null)}>
-          <div className="modal modal--quickadd" onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              className="modal-close-x"
-              aria-label="Close"
-              onClick={() => !isOaSaving && setOaEditing(null)}
-              disabled={isOaSaving}
-            >
-              ×
-            </button>
-            <h3>Edit OA Record</h3>
-            <form className="form form--quickadd" onSubmit={onSaveOaEdit}>
-              <div className="qa-left">
-                <input
-                  placeholder="Position"
-                  value={oaEditForm.role}
-                  onChange={(e) => setOaEditForm((p) => ({ ...p, role: e.target.value }))}
-                  autoFocus
-                />
-                <div className="form-row">
-                  <label className="form-label">Date Saved</label>
-                  <input
-                    type="date"
-                    value={oaEditForm.date_saved}
-                    onChange={(e) => setOaEditForm((p) => ({ ...p, date_saved: e.target.value }))}
-                  />
-                </div>
-                <input
-                  placeholder="Location"
-                  value={oaEditForm.location_raw}
-                  onChange={(e) => setOaEditForm((p) => ({ ...p, location_raw: e.target.value }))}
-                />
-                <div className="form-row">
-                  <label className="form-label">Referral</label>
-                  <select
-                    value={oaEditForm.referral_status}
-                    onChange={(e) => setOaEditForm((p) => ({ ...p, referral_status: e.target.value }))}
-                    className="form-select"
-                  >
-                    {REFERRAL_OPTIONS.map((opt) => (
-                      <option key={`oa-ref-${opt || "empty"}`} value={opt}>{opt || "—"}</option>
-                    ))}
-                  </select>
-                </div>
-                {oaEditForm.referral_status === "Yes" && (
-                  <p className="referral-hint">
-                    Ensure this company has an entry on the <Link to="/referrals" className="table-link">Referrals</Link> page.
-                  </p>
-                )}
-                <div className="form-row">
-                  <label className="form-label">Application Status</label>
-                  <select
-                    value={oaEditForm.application_status}
-                    onChange={(e) => setOaEditForm((p) => ({ ...p, application_status: e.target.value }))}
-                    className="form-select"
-                  >
-                    <option value="Applied">Applied</option>
-                    <option value="Under consideration">Under consideration</option>
-                    <option value="Rejected">Rejected</option>
-                  </select>
-                </div>
-                <input
-                  placeholder="Response status"
-                  value={oaEditForm.response_status}
-                  onChange={(e) => setOaEditForm((p) => ({ ...p, response_status: e.target.value }))}
-                />
-                <textarea
-                  placeholder="Notes"
-                  rows={3}
-                  value={oaEditForm.notes}
-                  onChange={(e) => setOaEditForm((p) => ({ ...p, notes: e.target.value }))}
-                />
-              </div>
-              <div className="qa-right">
-                <input
-                  placeholder="Company"
-                  value={oaEditForm.company}
-                  onChange={(e) => setOaEditForm((p) => ({ ...p, company: e.target.value }))}
-                />
-                <input
-                  placeholder="Job link (URL)"
-                  type="url"
-                  value={oaEditForm.job_link}
-                  onChange={(e) => setOaEditForm((p) => ({ ...p, job_link: e.target.value }))}
-                />
-                <input
-                  placeholder="Job/Application ID"
-                  value={oaEditForm.job_application_id}
-                  onChange={(e) => setOaEditForm((p) => ({ ...p, job_application_id: e.target.value }))}
-                />
-                <div className="form-row">
-                  <label className="form-label">OA Deadline</label>
-                  <input
-                    type="date"
-                    value={oaEditForm.oa_deadline_date}
-                    onChange={(e) => setOaEditForm((p) => ({ ...p, oa_deadline_date: e.target.value }))}
-                  />
-                </div>
-                <div className="form-row">
-                  <label className="form-label">Online Assessment (OA)</label>
-                  <select
-                    value={oaEditForm.oa_status}
-                    onChange={(e) => setOaEditForm((p) => ({ ...p, oa_status: e.target.value }))}
-                    className="form-select"
-                  >
-                    <option value="Yes">Yes</option>
-                    <option value="No">No</option>
-                  </select>
-                </div>
-                <div className="form-row">
-                  <label className="form-label">Keyword Matching</label>
-                  <select
-                    value={oaEditForm.keyword_matching}
-                    onChange={(e) => setOaEditForm((p) => ({ ...p, keyword_matching: e.target.value }))}
-                    className="form-select"
-                  >
-                    <option value="Strong">Strong</option>
-                    <option value="Medium">Medium</option>
-                    <option value="Weak">Weak</option>
-                  </select>
-                </div>
-                <details className="form-accordion">
-                  <summary>
-                    <span>OA Result Details</span>
-                    <span className="form-accordion-summary-meta">Status: {oaEditForm.oa_result || "—"}</span>
-                  </summary>
-                  <div className="form-accordion-grid">
-                    <div className="form-row">
-                      <label className="form-label">Record Date</label>
-                      <input
-                        type="date"
-                        value={oaEditForm.oa_result_date}
-                        onChange={(e) => setOaEditForm((p) => ({ ...p, oa_result_date: e.target.value }))}
-                      />
-                    </div>
-                    <div className="form-row">
-                      <label className="form-label">Result Status</label>
-                      <select
-                        value={oaEditForm.oa_result}
-                        onChange={(e) => setOaEditForm((p) => ({ ...p, oa_result: e.target.value }))}
-                        className="form-select"
-                      >
-                        <option value="Pending">Pending</option>
-                        <option value="Completed">Completed</option>
-                        <option value="Missed">Missed</option>
-                      </select>
-                    </div>
-                    <div className="form-row">
-                      <label className="form-label">OA Completed Date (legacy)</label>
-                      <input
-                        type="date"
-                        value={oaEditForm.oa_completed_date}
-                        onChange={(e) => setOaEditForm((p) => ({ ...p, oa_completed_date: e.target.value }))}
-                      />
-                    </div>
-                  </div>
-                </details>
-              </div>
-              <div className="modal-actions">
-                <button type="button" className="action-btn" onClick={() => setOaEditing(null)} disabled={isOaSaving}>
-                  Cancel
-                </button>
-                <button type="submit" disabled={isOaSaving}>
-                  {isOaSaving ? "Saving..." : "Save"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <EditOaModal
+        oaEditing={oaEditing}
+        isOaSaving={isOaSaving}
+        oaEditForm={oaEditForm}
+        setOaEditing={setOaEditing}
+        setOaEditForm={setOaEditForm}
+        onSaveOaEdit={onSaveOaEdit}
+      />
       {confirmDialog}
     </>
   );

@@ -1,0 +1,229 @@
+
+.lv-testimonial-feature-copy {
+  position: relative;
+  z-index: 1;
+  margin: 26px 0 24px;
+  font-family: var(--font-header);
+  font-size: clamp(1.6rem, 2.35vw, 2.05rem);
+  line-height: 1.18;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.lv-testimonial-person {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.lv-testimonial-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 999px;
+  color: #ffffff;
+  font-family: var(--font-header);
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.22);
+}
+
+.lv-testimonial-avatar--1 {
+  background: linear-gradient(145deg, #87a8ff, #2458d8);
+}
+
+.lv-testimonial-avatar--2 {
+  background: linear-gradient(145deg, #c8bef8, #7471ea);
+}
+
+.lv-testimonial-avatar--3 {
+  background: linear-gradient(145deg, #8be0ef, #2aa5c8);
+}
+
+.lv-testimonial-person-meta {
+  display: grid;
+  gap: 1px;
+}
+
+.lv-testimonial-person-meta strong {
+  font-size: 1.08rem;
+  line-height: 1.25;
+  color: var(--text-primary);
+}
+
+.lv-testimonial-person-meta small {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.lv-testimonial-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.lv-testimonial-mini {
+  position: relative;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 74%, transparent);
+  background: color-mix(in srgb, var(--bg-card) 94%, #ffffff 6%);
+  box-shadow: 0 12px 24px color-mix(in srgb, #020617 12%, transparent);
+  padding: 14px 16px 16px;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  column-gap: 10px;
+  row-gap: 8px;
+}
+
+.lv-testimonial-mini .lv-testimonial-avatar {
+  width: 44px;
+  height: 44px;
+  font-size: 0.9rem;
+  box-shadow: none;
+}
+
+.lv-testimonial-mini .lv-testimonial-person-meta strong {
+  font-size: 1.08rem;
+}
+
+.lv-testimonial-mini .lv-testimonial-person-meta small {
+  font-size: 0.86rem;
+}
+
+.lv-testimonial-mini p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.46;
+}
+
+.lv-testimonial-mini-quote {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  color: color-mix(in srgb, var(--accent) 65%, #98b8ff);
+  font-size: 1.5rem;
+  line-height: 1;
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.lv-footer-mini {
+  border-top: 1px solid color-mix(in srgb, var(--bg-card-border) 72%, transparent);
+  background: color-mix(in srgb, var(--bg-card) 92%, transparent);
+}
+
+.lv-footer-mini-inner {
+  min-height: 68px;
+  width: 100%;
+  padding: 0 clamp(24px, 3vw, 40px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.lv-footer-mini-inner p {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.lv-footer-mini-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.lv-footer-mini-legal {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lv-footer-mini-legal a {
+  text-decoration: none;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  font-weight: 600;
+  transition: color 0.18s ease;
+}
+
+.lv-footer-mini-legal a:hover {
+  color: var(--text-primary);
+}
+
+.lv-footer-mini-legal span {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+}
+
+.lv-footer-theme-toggle.theme-toggle {
+  width: 44px;
+  height: 24px;
+  border: 1px solid #d1d5db;
+  background: #eef2f7;
+  box-shadow: none;
+  color: #6b7280;
+  margin-left: 0;
+}
+
+.lv-footer-theme-toggle .theme-toggle-track::before {
+  inset: 2px;
+  border-color: rgba(148, 163, 184, 0.35);
+}
+
+.lv-footer-theme-toggle .theme-toggle-glyph {
+  width: 9px;
+  height: 9px;
+}
+
+.lv-footer-theme-toggle .theme-toggle-glyph--sun {
+  left: 7px;
+}
+
+.lv-footer-theme-toggle .theme-toggle-glyph--moon {
+  right: 7px;
+}
+
+.lv-footer-theme-toggle .theme-toggle-thumb {
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.18);
+}
+
+.lv-footer-theme-toggle .theme-toggle-thumb-icon {
+  width: 10px;
+  height: 10px;
+  color: var(--brand-primary);
+}
+
+.lv-footer-theme-toggle.theme-toggle--light .theme-toggle-glyph--sun {
+  color: var(--brand-primary);
+}
+
+.lv-footer-theme-toggle.theme-toggle--dark .theme-toggle-thumb {
+  transform: translateX(20px);
+  border-color: #0f172a;
+  background: #1f2937;
+}
+
+.lv-footer-theme-toggle.theme-toggle--dark .theme-toggle-thumb-icon {
+  color: #f8fafc;
+}
+
+:root[data-theme="light"] .lv-hero {
+  background:
+    radial-gradient(circle at 50% 26%, rgba(37, 99, 235, 0.09), transparent 56%),
+    radial-gradient(circle at 16% 8%, rgba(59, 130, 246, 0.12), transparent 45%),
+    linear-gradient(180deg, #f4f8ff 0%, #eaf2ff 58%, #f6f9ff 100%);
+}

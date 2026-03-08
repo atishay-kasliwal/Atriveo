@@ -1,0 +1,226 @@
+
+.lv-extension-actions {
+  margin-top: 30px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.lv-extension-actions .lv-btn {
+  min-height: 40px;
+  min-width: 164px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 0.9rem;
+}
+
+.lv-extension-cta-secondary {
+  border-color: color-mix(in srgb, var(--accent) 54%, var(--bg-card-border));
+  color: color-mix(in srgb, var(--accent-soft) 70%, var(--text-primary) 30%);
+  background: transparent;
+}
+
+.lv-extension-cta-secondary:hover {
+  border-color: color-mix(in srgb, var(--accent) 80%, var(--bg-card-border));
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.lv-extension-proof {
+  margin: 22px 0 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.02rem;
+  color: var(--text-secondary);
+}
+
+.lv-extension-proof span {
+  letter-spacing: 0.04em;
+  color: #f59e0b;
+  font-size: 1.08rem;
+}
+
+.lv-features,
+.lv-compete,
+.lv-testimonials {
+  padding: 86px 0;
+}
+
+.lv-features h2,
+.lv-compete-head h2 {
+  margin: 0;
+  text-align: center;
+  font-family: var(--font-header);
+  font-size: clamp(1.82rem, 3.4vw, 2.75rem);
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+.lv-feature-grid {
+  margin-top: 36px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.lv-feature-card {
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 72%, transparent);
+  background: color-mix(in srgb, var(--bg-card) 90%, transparent);
+  padding: 20px;
+}
+
+.lv-feature-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+}
+
+.lv-feature-card h3 {
+  margin: 12px 0 6px;
+  font-size: 1.05rem;
+  color: var(--text-primary);
+}
+
+.lv-feature-card p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  font-size: 0.9rem;
+}
+
+.lv-compete {
+  position: relative;
+}
+
+.lv-compete::before {
+  content: "";
+  position: absolute;
+  top: 24%;
+  left: 50%;
+  width: min(640px, 78vw);
+  height: 380px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  filter: blur(86px);
+  pointer-events: none;
+}
+
+.lv-compete-head {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+}
+
+.lv-compete-head > span {
+  display: inline-flex;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 36%, transparent);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 4px 10px;
+}
+
+.lv-compete-head p {
+  margin: 12px auto 0;
+  max-width: 620px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.lv-compete-board {
+  position: relative;
+  z-index: 1;
+  margin-top: 28px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 72%, transparent);
+  background: color-mix(in srgb, var(--bg-card) 92%, transparent);
+  box-shadow: 0 22px 44px color-mix(in srgb, #020617 24%, transparent);
+  overflow: hidden;
+}
+
+.lv-compete-kpi-row {
+  padding: 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--bg-card-border) 62%, transparent);
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.lv-compete-kpi {
+  position: relative;
+  overflow: hidden;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 60%, transparent);
+  background: linear-gradient(150deg, color-mix(in srgb, var(--bg-card-elevated) 78%, #ffffff 22%) 0%, color-mix(in srgb, var(--bg-card) 90%, #dbeafe 10%) 100%);
+  padding: 11px 12px;
+  display: grid;
+  gap: 2px;
+}
+
+.lv-compete-kpi::after {
+  content: "";
+  position: absolute;
+  right: -24px;
+  bottom: -28px;
+  width: 90px;
+  height: 58px;
+  border-radius: 999px;
+  background: radial-gradient(circle at center, color-mix(in srgb, var(--accent) 20%, transparent), transparent 72%);
+}
+
+.lv-compete-kpi small {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.lv-compete-kpi strong {
+  font-size: 1.24rem;
+  color: var(--text-primary);
+  line-height: 1.1;
+}
+
+.lv-compete-kpi span {
+  font-size: 0.7rem;
+  color: color-mix(in srgb, var(--accent) 72%, var(--text-muted));
+}
+
+.lv-compete-main {
+  padding: 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.42fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.lv-compete-visuals {
+  display: grid;
+  gap: 10px;
+}
+
+.lv-compete-side {
+  display: grid;
+  gap: 8px;
+  grid-auto-rows: max-content;
+  align-content: start;
+}
+
+.lv-compete-footrow {
+  padding: 12px 14px 16px;
+  border-top: 1px solid color-mix(in srgb, var(--bg-card-border) 62%, transparent);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}

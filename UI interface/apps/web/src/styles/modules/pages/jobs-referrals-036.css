@@ -1,0 +1,224 @@
+
+.application-card-role {
+  margin: 1px 0 0;
+  font-size: 12px;
+  color: #475569;
+  line-height: 1.25;
+}
+
+.application-card-meta {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.application-card-pipeline {
+  min-width: 0;
+  display: grid;
+  justify-items: center;
+  justify-self: center;
+  width: min(100%, 560px);
+}
+
+.application-card-pipeline-track {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  margin-inline: auto;
+}
+
+.application-card-pipeline-step {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.application-card-pipeline-step:last-child {
+  flex: 0;
+}
+
+.application-card-pipeline-node {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  border: 2px solid #cbd5f5;
+  background: #ffffff;
+  box-sizing: border-box;
+  transition: transform 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
+}
+
+.application-card-pipeline-node.is-complete {
+  border-color: #2563eb;
+  background: #2563eb;
+}
+
+.application-card-pipeline-line {
+  flex: 1;
+  height: 3px;
+  background: #cbd5f5;
+  transition: background-color 0.18s ease;
+}
+
+.application-card-pipeline-line.is-complete {
+  background: #2563eb;
+}
+
+.application-card:hover .application-card-pipeline-node {
+  transform: scale(1.06);
+}
+
+.application-card:hover .application-card-pipeline-line.is-complete {
+  background: #1d4ed8;
+}
+
+.application-card-pipeline-labels {
+  margin-top: 3px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 2px;
+  width: 100%;
+  margin-inline: auto;
+}
+
+.application-card-pipeline-labels span {
+  font-size: 10px;
+  text-align: center;
+  color: #64748b;
+}
+
+.application-card-status {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+}
+
+.application-card-status-message {
+  margin: 0;
+  font-size: 11px;
+  color: #475569;
+}
+
+.application-card-open-btn {
+  margin-top: 2px;
+  min-height: 24px;
+  min-width: 60px;
+  border-radius: 7px;
+  border: 1px solid #2563eb;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.2s ease, transform 0.2s ease;
+}
+
+.application-card-open-btn:hover {
+  filter: brightness(0.96);
+  transform: translateY(-1px);
+}
+
+.application-card-quick-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.application-card-quick-actions button {
+  width: 30px;
+  height: 30px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #475569;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  transition: border-color 0.16s ease, color 0.16s ease, background-color 0.16s ease;
+}
+
+.application-card-quick-actions button svg {
+  width: 17px;
+  height: 17px;
+}
+
+.application-card-quick-actions button:hover {
+  border-color: #bfdbfe;
+  background: #f8fbff;
+  color: #1d4ed8;
+}
+.application-card-divider {
+  border: 0;
+  border-top: 1px solid #e2e8f0;
+  margin: 6px 0 5px;
+}
+
+.application-card-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 8px;
+  flex-wrap: wrap;
+}
+
+.application-card-metadata {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+}
+
+.application-card-tag {
+  background: #f1f5f9;
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 11px;
+  line-height: 1.2;
+  color: #334155;
+  transition: background-color 0.2s ease;
+}
+
+.application-card-tag:hover {
+  background: #e7eef7;
+}
+
+.application-card-tag--applied {
+  margin-left: auto;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.application-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 4px;
+}
+
+.application-card-actions button {
+  border: 0;
+  background: transparent;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 4px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.application-card-actions button:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.application-card-actions button.is-danger {
+  color: #ef4444;
+}
+
+.application-card-actions button.is-danger:hover {
+  background: #fef2f2;
+  color: #dc2626;
+}

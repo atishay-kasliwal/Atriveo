@@ -1,0 +1,227 @@
+.csv-rules-panel {
+  position: absolute;
+  top: 34px;
+  right: 0;
+  width: min(340px, calc(100vw - 84px));
+  max-height: 210px;
+  overflow: auto;
+  z-index: 6;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 84%, transparent);
+  border-radius: 12px;
+  padding: 10px 11px;
+  background: color-mix(in srgb, var(--bg-card-elevated) 86%, transparent);
+  box-shadow: 0 10px 18px color-mix(in srgb, #020617 20%, transparent);
+  box-sizing: border-box;
+}
+
+.modal--csv .csv-rules-panel .csv-helper {
+  margin: 0 0 8px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.csv-rules-copy ul {
+  margin: 0;
+  padding-left: 16px;
+  display: grid;
+  gap: 6px;
+}
+
+.csv-rules-copy li {
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.modal--csv .modal-actions > button {
+  width: 130px;
+}
+
+.modal--csv .csv-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal--csv .csv-action-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.modal--csv input[type="file"] {
+  width: 100%;
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--bg-card-border));
+  border-radius: 12px;
+  padding: 10px 12px;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--bg-card-elevated) 90%, transparent),
+      color-mix(in srgb, var(--bg-card) 94%, transparent)
+    );
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+}
+
+.modal--csv input[type="file"]:hover {
+  border-color: color-mix(in srgb, var(--accent) 34%, var(--bg-card-border));
+}
+
+.modal--csv input[type="file"]:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--accent) 52%, var(--bg-card-border));
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent),
+    0 10px 20px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.modal--csv input[type="file"]::file-selector-button {
+  margin-right: 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--bg-card-border));
+  border-radius: 9px;
+  padding: 7px 12px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 18%, transparent), color-mix(in srgb, var(--accent) 10%, transparent));
+  color: var(--text-primary);
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.14s ease;
+}
+
+.modal--csv input[type="file"]::file-selector-button:hover {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 26%, transparent), color-mix(in srgb, var(--accent) 14%, transparent));
+  border-color: color-mix(in srgb, var(--accent) 48%, var(--bg-card-border));
+  transform: translateY(-1px);
+}
+
+.modal--csv input[type="file"]::-webkit-file-upload-button {
+  margin-right: 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--bg-card-border));
+  border-radius: 9px;
+  padding: 7px 12px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 18%, transparent), color-mix(in srgb, var(--accent) 10%, transparent));
+  color: var(--text-primary);
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.csv-success {
+  margin-top: 10px;
+  border: 1px solid var(--success-border);
+  background: var(--success-bg);
+  color: var(--success-text);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.page-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  margin-top: 0;
+  overflow-x: hidden;
+}
+
+.app-footer {
+  margin-top: auto;
+  min-height: 28px;
+  padding: 12px 4px 10px;
+  border-top: 1px solid color-mix(in srgb, var(--bg-card-border) 46%, transparent);
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.app-footer-version {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(161, 161, 170, 0.85);
+}
+
+.spinner-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  padding: 24px;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--bg-card-border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.empty-state {
+  padding: 32px 24px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  border: 1px dashed var(--bg-card-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg-card-elevated) 35%, transparent);
+}
+
+.table-link {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.table-link:hover {
+  text-decoration: underline;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.pagination button {
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--bg-card-border);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+}
+
+.pagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination button:not(:disabled):hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(0, 102, 255, 0.25);
+  transform: translateY(-1px);
+}
+
+.pagination span {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}

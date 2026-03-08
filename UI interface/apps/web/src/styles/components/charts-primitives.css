@@ -1,0 +1,74 @@
+.chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 6px;
+}
+.chart-title-group h2 {
+  margin: 0 0 6px 0;
+}
+.chart-filter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.chart-filter-label {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+.chart-filter-select {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--bg-card-border);
+  color: var(--text-primary);
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.chart-filter-select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+.delta-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: color-mix(in srgb, var(--bg-card-elevated) 82%, transparent);
+  color: var(--text-secondary);
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 78%, transparent);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.delta-pill strong {
+  color: var(--text-primary);
+}
+.delta-pill-sep {
+  color: var(--text-muted);
+}
+.delta-pill--up {
+  color: #22c55e;
+  border-color: color-mix(in srgb, #22c55e 30%, transparent);
+  background: color-mix(in srgb, #22c55e 12%, var(--bg-card-elevated));
+}
+.delta-pill--down {
+  color: #f97316;
+  border-color: color-mix(in srgb, #f97316 34%, transparent);
+  background: color-mix(in srgb, #f97316 12%, var(--bg-card-elevated));
+}
+.delta-pill--neutral {
+  color: var(--text-secondary);
+}
+.delta-pill--target {
+  color: var(--text-secondary);
+  border-color: color-mix(in srgb, var(--accent) 24%, var(--bg-card-border));
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-card-elevated));
+}

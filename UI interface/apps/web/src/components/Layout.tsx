@@ -1,5 +1,5 @@
 import { useState, useEffect, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from "react";
-import { NavLink, Outlet, Link, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, Link, useLocation } from "react-router-dom";
 import {
   acceptFriendRequest,
   blockFriendship,
@@ -18,7 +18,6 @@ import {
   type JobsCsvExportRange,
   type OutgoingFriendRequest,
 } from "../lib/api";
-import { getLocalISODate } from "../lib/formatDate";
 import {
   ANALYTICS_EVENTS,
   trackErrorEvent,
@@ -31,9 +30,16 @@ import {
 import NotificationBell from "./layout/NotificationBell";
 import QuickCreateSplitButton from "./layout/QuickCreateSplitButton";
 import HeaderAvatarMenu from "./layout/HeaderAvatarMenu";
+import {
+  COUNTRY_OPTIONS,
+  SLOW_APPLICATION_CREATE_THRESHOLD_MS,
+  emptyJobForm,
+  emptyNoteForm,
+  emptyPendingForm,
+} from "./layout/quickCreateConfig";
+import { computeUserInitials } from "./layout/utils";
 import { ThemeToggle } from "./ThemeToggle";
 import useConfirmDialog from "./ui/useConfirmDialog";
-import { withDashboardBase } from "../lib/paths";
 
 type LayoutProps = {
   userEmail: string;
@@ -43,78 +49,6 @@ type LayoutProps = {
   theme: "light" | "dark";
   onToggleTheme: () => void;
 };
-
-const emptyJobForm = {
-  role: "",
-  company: "",
-  location_raw: "United States",
-  job_link: "",
-  job_application_id: "",
-  oa_deadline_date: "",
-  keyword_matching: "Medium",
-  oa_status: "No",
-  referral_status: "No",
-  referred_by_name: "",
-  notes: "",
-  date_saved: getLocalISODate(),
-};
-
-const emptyPendingForm = {
-  company: "",
-  position_name: "",
-  pending_date: getLocalISODate(),
-  end_date: "",
-  comment: "",
-  link: "",
-};
-
-function getLocalISODatePlusDays(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  return getLocalISODate(d);
-}
-
-const emptyNoteForm = {
-  title: "",
-  currentDate: getLocalISODate(),
-  lastDate: getLocalISODatePlusDays(7),
-  priority: "High",
-  show_on_dashboard: "Yes",
-  note: "",
-};
-
-const COUNTRY_OPTIONS = [
-  "United States",
-  "Canada",
-  "United Kingdom",
-  "India",
-  "Germany",
-  "Australia",
-];
-
-const SLOW_APPLICATION_CREATE_THRESHOLD_MS = 1500;
-
-function computeUserInitials(firstName: string | null | undefined, lastName: string | null | undefined, email: string): string {
-  const first = String(firstName ?? "").trim();
-  const last = String(lastName ?? "").trim();
-  if (first || last) {
-    const firstLetter = first ? first[0] : "";
-    const lastLetter = last ? last[0] : "";
-    const pair = `${firstLetter}${lastLetter}`.toUpperCase();
-    if (pair) return pair.slice(0, 2);
-  }
-
-  const local = String(email || "")
-    .split("@")[0]
-    ?.replace(/[^a-zA-Z0-9]+/g, " ")
-    .trim();
-  if (!local) return "U";
-  const parts = local.split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) {
-    return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
-  }
-  return (parts[0]?.slice(0, 2) || "U").toUpperCase();
-}
 
 type SectionHeaderProps = {
   icon: ReactNode;
@@ -290,9 +224,7 @@ function KeywordMatchRadio({ id, label, value, onChange }: KeywordMatchRadioProp
 
 export default function Layout({ userEmail, userFirstName, userLastName, onLogout, theme, onToggleTheme }: LayoutProps) {
   const location = useLocation();
-  const navigate = useNavigate();
   const isNetworkView = location.pathname.includes("/network");
-  const isActiveJobsView = location.pathname.includes("/jobs");
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [showPendingTask, setShowPendingTask] = useState(false);
   const [showNoteModal, setShowNoteModal] = useState(false);
@@ -319,14 +251,8 @@ export default function Layout({ userEmail, userFirstName, userLastName, onLogou
   const [form, setForm] = useState(emptyJobForm);
   const [pendingForm, setPendingForm] = useState(emptyPendingForm);
   const [noteForm, setNoteForm] = useState(emptyNoteForm);
-  const [navJobsSearch, setNavJobsSearch] = useState("");
   const { confirm, confirmDialog } = useConfirmDialog();
   const avatarInitials = computeUserInitials(userFirstName, userLastName, userEmail);
-
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    setNavJobsSearch(String(params.get("search") ?? ""));
-  }, [location.search]);
 
   useEffect(() => {
     if (!showQuickAdd && !showPendingTask && !showNoteModal) setModalError("");
@@ -781,20 +707,6 @@ export default function Layout({ userEmail, userFirstName, userLastName, onLogou
     setShowNoteModal(true);
   }
 
-  function onNavJobsSearch(e: React.FormEvent) {
-    e.preventDefault();
-    const query = navJobsSearch.trim();
-    trackFeatureEvent(ANALYTICS_EVENTS.search_used, {
-      source: "dashboard_nav",
-      search_scope: "global",
-      query_length: query.length,
-    });
-    const params = new URLSearchParams();
-    if (query) params.set("search", query);
-    const qs = params.toString();
-    navigate(`${withDashboardBase("jobs")}${qs ? `?${qs}` : ""}`);
-  }
-
   return (
     <div className={`page${isNetworkView ? " page--network" : ""}`}>
       <nav className={`app-nav${isNetworkView ? " app-nav--network" : ""}`}>
@@ -833,35 +745,11 @@ export default function Layout({ userEmail, userFirstName, userLastName, onLogou
             <NavLink to="jobs" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
               Active Jobs
             </NavLink>
-            <NavLink to="referrals" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
-              Referrals
-            </NavLink>
             <NavLink to="pending" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
               Follow Up
             </NavLink>
-            <NavLink to="archive" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
-              Archive
-            </NavLink>
           </div>
           <div className="app-nav-bottom-actions">
-            {!isActiveJobsView ? (
-              <form className="app-nav-jobs-search" onSubmit={onNavJobsSearch}>
-                <div className="app-nav-jobs-search-input-wrap">
-                  <input
-                    type="search"
-                    className="app-nav-jobs-search-input"
-                    placeholder="Search anything"
-                    value={navJobsSearch}
-                    onChange={(e) => setNavJobsSearch(e.target.value)}
-                    aria-label="Search jobs by any field"
-                    autoComplete="off"
-                  />
-                  <button type="submit" className="app-nav-jobs-search-emoji-btn" aria-label="Search jobs">
-                    🔍
-                  </button>
-                </div>
-              </form>
-            ) : null}
             <QuickCreateSplitButton
               className="app-split-create--nav-bottom"
               onNewApplication={openNewApplicationModal}

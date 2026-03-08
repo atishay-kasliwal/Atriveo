@@ -1,0 +1,225 @@
+
+.friends-panel .table-wrap th,
+.friends-panel .table-wrap td {
+  padding: 10px 8px;
+}
+
+.friends-panel .table-wrap td {
+  word-break: break-word;
+}
+
+.friends-panel .action-btn {
+  padding: 6px 10px;
+  font-size: 0.78rem;
+}
+
+.network-friends-table th:nth-child(1) { width: 44%; }
+.network-friends-table th:nth-child(2) { width: 34%; }
+.network-friends-table th:nth-child(3) { width: 22%; }
+
+.network-incoming-table th:nth-child(1) { width: 68%; }
+.network-incoming-table th:nth-child(2) { width: 32%; }
+.network-incoming-table {
+  min-width: 560px;
+}
+
+.network-email-cell {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.network-outgoing-table th:nth-child(1) { width: 100%; }
+
+.friends-panel .empty-state {
+  border: 1px dashed rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 32px 14px;
+  background: rgba(255, 255, 255, 0.01);
+}
+
+.network-insight-head {
+  margin: 14px 0 8px;
+}
+
+.network-insight-head h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.network-insight-toggle {
+  margin: 14px 0 8px;
+}
+
+.network-insight-toggle h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.network-insight-toggle:hover {
+  background: transparent;
+}
+
+.network-insight-toggle:focus-visible {
+  outline: 2px solid rgba(0, 102, 255, 0.35);
+  outline-offset: 2px;
+}
+
+.network-trend-grid,
+.network-today-grid {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.network-insights-grid {
+  grid-template-columns: minmax(280px, 2.8fr) minmax(460px, 6.5fr) minmax(220px, 2fr);
+  gap: 24px;
+  align-items: stretch;
+}
+
+.network-insights-grid > .network-insight-card {
+  height: 100%;
+}
+
+.network-trend-card,
+.network-today-card {
+  border: 1px solid var(--bg-card-border);
+  border-radius: 12px;
+  background: var(--bg-card);
+  box-shadow: var(--card-shadow);
+  padding: 24px;
+}
+
+.network-today-item {
+  padding: 14px;
+  background: color-mix(in srgb, var(--bg-card) 88%, rgba(2, 6, 23, 0.72));
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 70%, transparent);
+  box-shadow: 0 8px 18px rgba(2, 6, 23, 0.18);
+}
+
+.network-today-summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: default;
+  margin: 0 0 12px;
+  padding: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--bg-card-border) 82%, transparent);
+  padding-bottom: 10px;
+}
+
+.network-today-summary::-webkit-details-marker {
+  display: none;
+}
+
+.network-today-summary strong {
+  font-size: 1rem;
+  font-weight: 650;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.network-today-summary-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.network-today-item .table-wrap {
+  margin: 0;
+  max-height: 360px;
+  overflow: auto;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 60%, transparent);
+  background: color-mix(in srgb, var(--table-body-bg) 85%, transparent);
+}
+
+.network-today-table {
+  width: 100%;
+  table-layout: fixed;
+  min-width: 0;
+}
+
+.network-today-table th {
+  font-size: 0.74rem;
+  color: var(--table-head-text);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: var(--table-head-bg);
+  border-bottom: 1px solid var(--table-head-divider);
+  padding: 8px 8px;
+}
+
+.network-today-table tbody td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--table-row-divider);
+  background: color-mix(in srgb, var(--table-body-bg) 74%, transparent);
+}
+
+.network-today-table tbody tr:nth-child(odd) td {
+  background: color-mix(in srgb, var(--table-body-bg) 82%, transparent);
+}
+
+.network-today-table tbody tr:hover td {
+  background: var(--table-row-hover);
+}
+
+.network-today-table th:nth-child(1)  { width: 3%; }
+.network-today-table th:nth-child(2)  { width: 20%; }
+.network-today-table th:nth-child(3)  { width: 12%; }
+.network-today-table th:nth-child(4)  { width: 5%; }
+.network-today-table th:nth-child(5)  { width: 9%; }
+.network-today-table th:nth-child(6)  { width: 9%; }
+.network-today-table th:nth-child(7)  { width: 7%; }
+.network-today-table th:nth-child(8)  { width: 10%; }
+.network-today-table th:nth-child(9)  { width: 5%; }
+.network-today-table th:nth-child(10) { width: 10%; }
+.network-today-table th:nth-child(11) { width: 10%; }
+
+.network-cell-referral,
+.network-cell-notes {
+  font-size: 0.85rem;
+  max-width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.network-cell-friend {
+  font-size: 0.9rem;
+  color: var(--text-secondary, #94a3b8);
+}
+
+.network-cell-primary,
+.network-cell-secondary {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.network-cell-primary {
+  font-weight: 600;
+  color: #f3f4f6;
+}
+
+.network-cell-secondary {
+  color: var(--text-primary);
+}
+
+.network-cell-company-role .job-main {
+  max-width: none;
+  gap: 0;
+}
+.network-cell-date {
+  color: var(--text-primary);
+  font-size: 0.84rem;
+  line-height: 1.25;
+}

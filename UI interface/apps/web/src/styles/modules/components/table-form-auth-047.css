@@ -1,0 +1,225 @@
+
+.notes-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.notes-priority-chip {
+  font-size: 0.72rem;
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+
+.notes-priority-chip--high {
+  border-color: rgba(220, 38, 38, 0.32);
+  color: #b91c1c;
+  background: rgba(220, 38, 38, 0.1);
+}
+
+.notes-priority-chip--medium {
+  border-color: rgba(245, 158, 11, 0.32);
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.notes-priority-chip--low {
+  border-color: rgba(37, 99, 235, 0.3);
+  color: #1d4ed8;
+  background: rgba(37, 99, 235, 0.1);
+}
+
+.notes-priority-chip--archive {
+  border-color: rgba(148, 163, 184, 0.32);
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--bg-card-elevated) 72%, transparent);
+}
+
+:root[data-theme="dark"] .notes-priority-chip--high {
+  border-color: rgba(248, 113, 113, 0.38);
+  color: #fca5a5;
+  background: rgba(248, 113, 113, 0.14);
+}
+
+:root[data-theme="dark"] .notes-priority-chip--medium {
+  border-color: rgba(250, 204, 21, 0.38);
+  color: #fcd34d;
+  background: rgba(250, 204, 21, 0.14);
+}
+
+:root[data-theme="dark"] .notes-priority-chip--low {
+  border-color: rgba(96, 165, 250, 0.38);
+  color: #93c5fd;
+  background: rgba(96, 165, 250, 0.14);
+}
+
+.notes-card-date {
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.notes-card-title {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.3;
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.notes-card-body {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  white-space: pre-line;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  overflow: hidden;
+  flex: 1 1 auto;
+}
+
+.notes-card-body--empty {
+  color: var(--text-muted);
+}
+
+.notes-card-footer {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.row-actions--notes {
+  flex-wrap: nowrap;
+  gap: 6px;
+  opacity: 1;
+}
+
+.row-actions--notes .action-btn {
+  padding: 5px 10px;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+.notes-empty {
+  border: 1px dashed var(--bg-card-border);
+  border-radius: 12px;
+  min-height: 230px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  background: color-mix(in srgb, var(--bg-card-elevated) 55%, transparent);
+}
+
+@media (max-width: 1680px) {
+  .notes-board-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1400px) {
+  .notes-board-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 980px) {
+  .notes-board-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+:root[data-theme="light"] .notes-tab {
+  background: #f8fafc;
+  border-color: #dbe4f0;
+  color: #475569;
+}
+
+:root[data-theme="light"] .notes-tab.is-active {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1e3a8a;
+}
+
+:root[data-theme="light"] .notes-card {
+  border-color: #e2e8f0;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+.status-chip--applied {
+  border-color: rgba(0, 102, 255, 0.3);
+  color: #0066ff;
+  background: rgba(0, 102, 255, 0.08);
+}
+
+.status-chip--review {
+  border-color: rgba(250, 204, 21, 0.3);
+  color: #facc15;
+  background: rgba(250, 204, 21, 0.08);
+}
+
+.status-chip--open {
+  border-color: rgba(110, 231, 183, 0.3);
+  color: #6ee7b7;
+  background: rgba(110, 231, 183, 0.08);
+}
+
+.status-chip--done {
+  border-color: rgba(148, 163, 184, 0.32);
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--bg-card-elevated) 82%, transparent);
+}
+
+.status-chip--rejected {
+  border-color: rgba(248, 113, 113, 0.3);
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.08);
+}
+
+.status-chip--keyword-strong {
+  border-color: rgba(110, 231, 183, 0.32);
+  color: #86efac;
+  background: rgba(110, 231, 183, 0.12);
+}
+
+.status-chip--keyword-medium {
+  border-color: rgba(250, 204, 21, 0.32);
+  color: #fde68a;
+  background: rgba(250, 204, 21, 0.12);
+}
+
+.status-chip--keyword-week {
+  border-color: rgba(251, 146, 60, 0.32);
+  color: #fdba74;
+  background: rgba(251, 146, 60, 0.12);
+}
+
+/* Light-theme table system */
+:root[data-theme="light"] .jobs-search-input {
+  background: #ffffff;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+:root[data-theme="light"] .jobs-search-input:focus {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+}
+
+:root[data-theme="light"] .jobs-search-btn {
+  background: #eff6ff;
+  color: #1e3a8a;
+  border-color: #bfdbfe;
+}
+
+:root[data-theme="light"] .jobs-search-btn:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+}

@@ -4,7 +4,7 @@ import Spinner from "../components/Spinner";
 import ManageSharedFieldsModal from "../components/network/ManageSharedFieldsModal";
 import TargetSignalsCarousel from "../components/network/TargetSignalsCarousel";
 import WeeklyCompetitionChart from "../components/network/WeeklyCompetitionChart";
-import { BADGES, BADGE_CATEGORY_LABEL, BADGE_TIERS, type BadgeCategory } from "../constants/badges";
+import { BADGE_TIERS, type BadgeCategory } from "../constants/badges";
 import {
   createJob,
   getNetworkFieldVisibility,
@@ -17,7 +17,7 @@ import {
   type NetworkTrendFriend,
   type TargetProgress,
 } from "../lib/api";
-import { formatTableDateTime, getLocalISODate } from "../lib/formatDate";
+import { getLocalISODate } from "../lib/formatDate";
 import { buildNetworkTickerFacts } from "../lib/networkTicker";
 import {
   ANALYTICS_EVENTS,
@@ -28,268 +28,34 @@ import {
   trackProductEvent,
 } from "../analytics/events";
 import { getEarnedBadgeIds, getEarnedBadges } from "../lib/badgeLogic";
-
-const ENTERPRISE_CHART_COLORS = [
-  "#2563EB",
-  "#3B82F6",
-  "#0EA5E9",
-  "#14B8A6",
-  "#64748B",
-  "#7C8FB5",
-  "#5C739B",
-  "#4A678F",
-  "#7A8FB4",
-  "#6B7FA3",
-];
-const MAX_NETWORK_BOARD_ENTRIES = 11; // You + up to 10 friends
-const MAX_NETWORK_TODAY_BARS = 5;
-const NETWORK_CHART_THEME = {
-  grid: "var(--network-chart-grid, var(--chart-grid))",
-  tooltipBg: "var(--chart-tooltip-bg)",
-  tooltipBorder: "var(--chart-tooltip-border)",
-  tooltipShadow: "var(--chart-tooltip-shadow)",
-  axis: "var(--chart-axis)",
-  textSecondary: "var(--chart-text-secondary)",
-  textPrimary: "var(--chart-text)",
-  accentSoft: "var(--accent-soft)",
-  accentDim: "var(--accent-dim)",
-  textMain: "var(--chart-text)",
-};
-const WEEKLY_LINE_PALETTE = [
-  ENTERPRISE_CHART_COLORS[0],
-  ENTERPRISE_CHART_COLORS[1],
-  ENTERPRISE_CHART_COLORS[2],
-  ENTERPRISE_CHART_COLORS[3],
-  ENTERPRISE_CHART_COLORS[4],
-];
-
-const REQUIRED_VISIBILITY_KEYS: Array<keyof NetworkFieldVisibility> = [
-  "share_company",
-  "share_role",
-  "share_applied_at",
-  "share_job_application_id",
-];
-
-const NETWORK_VISIBILITY_FIELDS: Array<{ key: keyof NetworkFieldVisibility; label: string }> = [
-  { key: "share_company", label: "Company" },
-  { key: "share_role", label: "Role" },
-  { key: "share_applied_at", label: "Applied Date" },
-  { key: "share_oa_status", label: "OA Status" },
-  { key: "share_oa_deadline", label: "OA Deadline" },
-  { key: "share_referral_used", label: "Referral Used" },
-  { key: "share_notes", label: "Notes" },
-  { key: "share_job_application_id", label: "Job/Application ID" },
-];
-
-const OPTIONAL_SHARE_KEYS: Array<keyof NetworkFieldVisibility> = [
-  "share_oa_status",
-  "share_oa_deadline",
-  "share_referral_used",
-  "share_notes",
-];
-
-function rgbaFromHex(hex: string, alpha: number): string {
-  const normalized = String(hex || "").trim();
-  const short = /^#([0-9a-f]{3})$/i.exec(normalized);
-  const full = /^#([0-9a-f]{6})$/i.exec(normalized);
-  if (!short && !full) return normalized || `rgba(37, 99, 235, ${alpha})`;
-  const raw = short ? short[1].split("").map((c) => `${c}${c}`).join("") : full?.[1] ?? "3385ff";
-  const r = Number.parseInt(raw.slice(0, 2), 16);
-  const g = Number.parseInt(raw.slice(2, 4), 16);
-  const b = Number.parseInt(raw.slice(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
-function todayBarGradientId(key: string): string {
-  return `todayBarGrad-${String(key || "unknown").replace(/[^a-z0-9_-]/gi, "-")}`;
-}
-
-function weeklyShadeGradientId(key: string): string {
-  return `weeklyShadeGrad-${String(key || "unknown").replace(/[^a-z0-9_-]/gi, "-")}`;
-}
-
-function parseIsoDay(day: string): { y: number; m: number; d: number } | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day);
-  if (!m) return null;
-  const y = Number(m[1]);
-  const month = Number(m[2]);
-  const d = Number(m[3]);
-  if (!y || month < 1 || month > 12 || d < 1 || d > 31) return null;
-  return { y, m: month, d };
-}
-
-function utcDateFromIsoDay(day: string): Date | null {
-  const p = parseIsoDay(day);
-  if (!p) return null;
-  return new Date(Date.UTC(p.y, p.m - 1, p.d));
-}
-
-function isoDayAddDays(day: string, deltaDays: number): string {
-  const d = utcDateFromIsoDay(day);
-  if (!d) return day;
-  d.setUTCDate(d.getUTCDate() + deltaDays);
-  return d.toISOString().slice(0, 10);
-}
-
-function weekStartIsoUtc(day: string): string {
-  const d = utcDateFromIsoDay(day);
-  if (!d) return day;
-  const dayOfWeek = d.getUTCDay(); // Sun=0..Sat=6
-  const daysFromMonday = (dayOfWeek + 6) % 7;
-  d.setUTCDate(d.getUTCDate() - daysFromMonday);
-  return d.toISOString().slice(0, 10);
-}
-
-function formatWeekdayShort(day: string): string {
-  const d = utcDateFromIsoDay(day);
-  if (!d || Number.isNaN(d.getTime())) return formatDayShort(day);
-  return new Intl.DateTimeFormat(undefined, { weekday: "short", timeZone: "UTC" }).format(d);
-}
-
-function formatDayShort(day: string) {
-  const parts = String(day).split("-");
-  if (parts.length !== 3) return day;
-  return `${parts[1]}/${parts[2]}`;
-}
-
-function formatFirstNameLastInitial(name: string): string {
-  const parts = String(name || "")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-  if (!parts.length) return String(name || "");
-  if (parts.length === 1) return parts[0];
-  const lastInitial = parts[parts.length - 1]?.[0] ?? "";
-  return `${parts[0]} ${lastInitial}`;
-}
-
-function NetworkInsightBarTooltip({
-  active,
-  payload,
-  metricLabel,
-}: {
-  active?: boolean;
-  payload?: Array<{
-    value?: number;
-    payload?: { label?: string; color?: string };
-  }>;
-  metricLabel: string;
-}) {
-  if (!active || !payload?.length) return null;
-  const row = payload[0];
-  const name = String(row?.payload?.label ?? "");
-  const value = Number(row?.value ?? 0);
-  const color = String(row?.payload?.color ?? "var(--chart-text-secondary)");
-
-  return (
-    <div
-      style={{
-        background: NETWORK_CHART_THEME.tooltipBg,
-        border: `1px solid ${NETWORK_CHART_THEME.tooltipBorder}`,
-        borderRadius: 8,
-        padding: "10px 12px",
-        minWidth: 180,
-        boxShadow: NETWORK_CHART_THEME.tooltipShadow,
-      }}
-    >
-      <p style={{ margin: "0 0 8px", fontSize: 12, color, fontWeight: 700 }}>{name}</p>
-      <p style={{ margin: 0, fontSize: 12, color: "var(--chart-text-secondary)" }}>
-        {metricLabel}: <strong>{value}</strong>
-      </p>
-    </div>
-  );
-}
-
-function toDateInput(value: string | null | undefined): string {
-  const raw = String(value ?? "").trim();
-  if (!raw) return getLocalISODate();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
-  const d = new Date(raw);
-  if (Number.isNaN(d.getTime())) return getLocalISODate();
-  return d.toISOString().slice(0, 10);
-}
-
-function normalizeOaStatus(value: unknown): "Yes" | "No" {
-  const raw = String(value ?? "").trim().toLowerCase();
-  if (raw === "yes" || raw === "pending" || raw === "completed" || raw === "complete" || raw === "done" || raw === "missed" || raw === "missing" || raw === "overdue") return "Yes";
-  return "No";
-}
-
-function emojiForTickerFact(text: string): string {
-  if (text.startsWith("Weekly Leader:")) return "★";
-  if (text.startsWith("Runner-Up:")) return "◆";
-  if (text.startsWith("Lead:")) return "▲";
-  if (text.startsWith("Leading Today:")) return "●";
-  if (text.startsWith("Close Race:")) return "◈";
-  if (text.startsWith("Most Daily Wins:")) return "♛";
-  if (text.startsWith("Team Total:")) return "▦";
-  if (text.startsWith("Most Consistent:")) return "◎";
-  if (text.startsWith("Top Single Day:")) return "✦";
-  return "•";
-}
-
-function augmentDemoNetworkData(
-  trendRows: NetworkTrendFriend[],
-  todayRows: NetworkTodayFriend[],
-): { trend: NetworkTrendFriend[]; today: NetworkTodayFriend[] } {
-  const companies = ["Google", "Amazon", "Meta", "Microsoft", "Apple", "Netflix", "NVIDIA", "Databricks", "Stripe", "Uber"];
-  const roles = ["Software Engineer", "Frontend Engineer", "Backend Engineer", "Data Scientist", "ML Engineer", "Product Engineer"];
-  const now = Date.now();
-  const todayIso = getLocalISODate();
-
-  const trend = trendRows.map((friend, idx) => {
-    const bumpBase = 1 + (idx % 3);
-    const boostedTrend = (friend.trend ?? []).map((point, pointIdx) => {
-      const isRecent = point.day >= isoDayAddDays(todayIso, -6);
-      const boost = isRecent ? ((pointIdx + idx) % 3 === 0 ? bumpBase + 1 : bumpBase) : 0;
-      return {
-        ...point,
-        total: Number(point.total ?? 0) + boost,
-      };
-    });
-    return {
-      ...friend,
-      trend: boostedTrend,
-    };
-  });
-
-  const today = todayRows.map((friend, idx) => {
-    const existing = Array.isArray(friend.jobs) ? friend.jobs : [];
-    const extraCount = existing.length >= 2 ? 1 : 2;
-    const extraJobs = Array.from({ length: extraCount }, (_, j) => {
-      const company = companies[(idx * 2 + j) % companies.length];
-      const role = roles[(idx + j) % roles.length];
-      const ts = new Date(now - (idx * 31 + j * 13) * 60000).toISOString();
-      return {
-        id: 900000 + idx * 10 + j,
-        company,
-        role,
-        date_saved: ts,
-        applied_at: ts,
-        application_status: "Applied",
-        referral_status: j % 2 === 0 ? "Requested" : "No",
-        oa_status: "No",
-        oa_deadline_date: null,
-        job_application_id: "-",
-        job_link: `https://careers.example.com/${encodeURIComponent(company.toLowerCase())}/${(idx + j + 100).toString(36)}`,
-        notes: null,
-        can_view_company: true,
-        can_view_role: true,
-        can_view_applied_at: true,
-        can_view_oa_status: true,
-        can_view_oa_deadline: true,
-        can_view_referral_used: true,
-        can_view_notes: false,
-      };
-    });
-    return {
-      ...friend,
-      jobs: [...existing, ...extraJobs],
-    };
-  });
-
-  return { trend, today };
-}
+import BadgeGalleryModal from "./network/components/BadgeGalleryModal";
+import NetworkInsightBarTooltip from "./network/components/NetworkInsightBarTooltip";
+import PrefillApplicationModal from "./network/components/PrefillApplicationModal";
+import NetworkTodayApplicationsContent from "./network/components/NetworkTodayApplicationsContent";
+import {
+  ENTERPRISE_CHART_COLORS,
+  MAX_NETWORK_BOARD_ENTRIES,
+  MAX_NETWORK_TODAY_BARS,
+  NETWORK_CHART_THEME,
+  NETWORK_VISIBILITY_FIELDS,
+  OPTIONAL_SHARE_KEYS,
+  REQUIRED_VISIBILITY_KEYS,
+  WEEKLY_LINE_PALETTE,
+} from "./network/constants";
+import type { PrefillForm } from "./network/types";
+import {
+  augmentDemoNetworkData,
+  emojiForTickerFact,
+  formatFirstNameLastInitial,
+  formatWeekdayShort,
+  isoDayAddDays,
+  normalizeOaStatus,
+  rgbaFromHex,
+  todayBarGradientId,
+  toDateInput,
+  weekStartIsoUtc,
+  weeklyShadeGradientId,
+} from "./network/utils";
 
 const networkLineGradientId = (key: string) => `networkLineGrad-${key}`;
 
@@ -344,7 +110,7 @@ export default function NetworkPage() {
   const [requiredVisibilityFields, setRequiredVisibilityFields] = useState<Array<keyof NetworkFieldVisibility>>(
     REQUIRED_VISIBILITY_KEYS,
   );
-  const [prefillForm, setPrefillForm] = useState({
+  const [prefillForm, setPrefillForm] = useState<PrefillForm>({
     company: "",
     role: "",
     date_saved: getLocalISODate(),
@@ -1218,7 +984,7 @@ export default function NetworkPage() {
           }}
         />
       ) : null}
-                              <Tooltip content={<NetworkInsightBarTooltip metricLabel="Applications today" />} cursor={false} />
+                              <Tooltip content={<NetworkInsightBarTooltip metricLabel="Applications today" chartTheme={NETWORK_CHART_THEME} />} cursor={false} />
                                 <Bar
                                   dataKey="total"
                                   fillOpacity={1}
@@ -1539,174 +1305,12 @@ export default function NetworkPage() {
             </div>
           </div>
 
-          {isLoading ? (
-            <Spinner />
-          ) : (
-            <div className="network-card-content">
-              {todayApplicationsFlat.length === 0 ? (
-                <div className="network-empty-state network-empty-state--today" role="status" aria-live="polite">
-                  <div className="network-empty-state-icon" aria-hidden="true">
-                    ◌
-                  </div>
-                  <p className="network-empty-state-title">No applications logged today</p>
-                  <p className="network-empty-state-copy">When friends add applications, they appear here automatically.</p>
-                </div>
-              ) : (
-                <div className="table-wrap">
-                  <table className="network-today-table">
-                    <thead>
-                      <tr>
-                        <th>#</th>
-                        <th>Company / Position</th>
-                        <th>Applied Date</th>
-                        <th>OA Status</th>
-                        <th>OA Deadline</th>
-                        <th>Job/Application ID</th>
-                        <th>Referral Used</th>
-                        <th>Notes</th>
-                        <th>Link</th>
-                        <th>Action</th>
-                        <th>Friend</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {todayApplicationsFlat.map((row, idx) => {
-                        const { job, friendName } = row;
-                        const canViewIdentity = Boolean(job.can_view_company && job.can_view_role);
-                        const canOpenLink = canViewIdentity && Boolean(job.job_link);
-                        const canPrefill = canViewIdentity;
-                        return (
-                          <tr
-                            key={`${row.friendId}-${job.id}`}
-                            className="network-job-row"
-                            onClick={() => {
-                              if (!canPrefill) return;
-                              onSelectFriendJob(friendName, {
-                                company: job.company ?? null,
-                                role: job.role ?? null,
-                                date_saved: job.date_saved ?? null,
-                                applied_at: job.applied_at ?? null,
-                                job_link: job.job_link ?? null,
-                                job_application_id: job.job_application_id ?? null,
-                                oa_deadline_date: job.oa_deadline_date ?? null,
-                                oa_status: job.oa_status ?? null,
-                                referral_status: job.referral_status ?? null,
-                                application_status: job.application_status ?? null,
-                                notes: job.notes ?? null,
-                              });
-                            }}
-                          >
-                            <td className="network-cell-index">{idx + 1}</td>
-                            <td className="network-cell-company-role">
-                              {canViewIdentity ? (
-                                <div className="job-main">
-                                  <div className="job-company" title={String(job.company ?? "—")}>
-                                    {String(job.company ?? "—")}
-                                  </div>
-                                  <div className="job-role" title={String(job.role ?? "—")}>
-                                    {String(job.role ?? "—")}
-                                  </div>
-                                </div>
-                              ) : (
-                                <span className="network-not-shared">Not shared</span>
-                              )}
-                            </td>
-                            <td className="network-cell-date">
-                              {job.can_view_applied_at ? (
-                                formatTableDateTime(job.applied_at ?? job.date_saved)
-                              ) : (
-                                <span className="network-not-shared">{privacyHiddenLabel("share_applied_at")}</span>
-                              )}
-                            </td>
-                            <td className="network-cell-oa">
-                              {job.can_view_oa_status ? (
-                                normalizeOaStatus(job.oa_status)
-                              ) : (
-                                <span className="network-not-shared">{privacyHiddenLabel("share_oa_status")}</span>
-                              )}
-                            </td>
-                            <td className="network-cell-deadline">
-                              {job.can_view_oa_deadline ? (
-                                (String(job.oa_deadline_date ?? "-") || "-")
-                              ) : (
-                                <span className="network-not-shared">{privacyHiddenLabel("share_oa_deadline")}</span>
-                              )}
-                            </td>
-                            <td className="network-cell-jobid">
-                              {job.can_view_job_application_id ? (
-                                (String(job.job_application_id ?? "-") || "-")
-                              ) : (
-                                <span className="network-not-shared">{privacyHiddenLabel("share_job_application_id")}</span>
-                              )}
-                            </td>
-                            <td className="network-cell-referral">
-                              {job.can_view_referral_used ? (
-                                (String(job.referral_status ?? "-") || "-")
-                              ) : (
-                                <span className="network-not-shared">{privacyHiddenLabel("share_referral_used")}</span>
-                              )}
-                            </td>
-                            <td className="network-cell-notes">
-                              {job.can_view_notes ? (
-                                (String(job.notes ?? "-") || "-")
-                              ) : (
-                                <span className="network-not-shared">{privacyHiddenLabel("share_notes")}</span>
-                              )}
-                            </td>
-                            <td className="network-cell-link">
-                              {canOpenLink ? (
-                                <a
-                                  href={String(job.job_link)}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="network-link-chip"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  Open
-                                </a>
-                              ) : canViewIdentity ? (
-                                "—"
-                              ) : (
-                                <span className="network-not-shared">Not shared</span>
-                              )}
-                            </td>
-                            <td className="network-cell-action">
-                              <button
-                                type="button"
-                                className="action-btn network-add-btn"
-                                disabled={!canPrefill}
-                                title={canPrefill ? "Add this application to your list" : "Friend has not shared enough fields for prefill"}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (!canPrefill) return;
-                                  onSelectFriendJob(friendName, {
-                                    company: job.company ?? null,
-                                    role: job.role ?? null,
-                                    date_saved: job.date_saved ?? null,
-                                    applied_at: job.applied_at ?? null,
-                                    job_link: job.job_link ?? null,
-                                    job_application_id: job.job_application_id ?? null,
-                                    oa_deadline_date: job.oa_deadline_date ?? null,
-                                    oa_status: job.oa_status ?? null,
-                                    referral_status: job.referral_status ?? null,
-                                    application_status: job.application_status ?? null,
-                                    notes: job.notes ?? null,
-                                  });
-                                }}
-                              >
-                                Add Application
-                              </button>
-                            </td>
-                            <td className="network-cell-friend">{friendName}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          )}
+          <NetworkTodayApplicationsContent
+            isLoading={isLoading}
+            todayApplicationsFlat={todayApplicationsFlat}
+            privacyHiddenLabel={privacyHiddenLabel}
+            onSelectFriendJob={onSelectFriendJob}
+          />
           </div>
         </section>
         <div className="network-signals-sidebar" style={syncedSignalsSidebarStyle}>
@@ -1731,194 +1335,26 @@ export default function NetworkPage() {
         onToggle={setVisibilityValue}
       />
 
-      {showBadgeGallery ? (
-        <div className="modal-overlay network-badge-modal-overlay" onClick={() => setShowBadgeGallery(false)}>
-          <div
-            className="modal network-badge-modal"
-            onClick={(event) => event.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Badge gallery"
-          >
-            <div className="network-badge-modal-head">
-              <h3>Achievements</h3>
-              <button
-                type="button"
-                className="network-badge-modal-close"
-                aria-label="Close achievements modal"
-                onClick={() => setShowBadgeGallery(false)}
-              >
-                ×
-              </button>
-            </div>
-            <div className="network-badge-modal-hero">
-              <p className="network-badge-modal-subtitle">
-                {earnedBadges.length} of {totalMedals} medals earned
-              </p>
-              <section className="network-badge-latest" aria-label="Latest achievement">
-                <p className="network-badge-latest-kicker">Latest Achievement</p>
-                {latestAchievement ? (
-                  <div className={`network-badge-latest-row network-medal tier-${latestAchievement.tier} is-unlocked`}>
-                    <span className="network-badge-latest-icon">
-                      <latestAchievement.Icon />
-                    </span>
-                    <div className="network-badge-latest-copy">
-                      <p className="network-badge-latest-name">{latestAchievement.name}</p>
-                      <p className="network-badge-latest-desc">{latestAchievement.description}</p>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="network-badge-latest-empty">No medals unlocked yet. Keep applying to unlock your first one.</p>
-                )}
-              </section>
-            </div>
-            <div className="network-badge-gallery">
-              {badgeCategories.map((category) => {
-                const unlockedCount = BADGE_TIERS.filter((tier) => earnedBadgeIds.has(BADGES[category][tier].id)).length;
-                return (
-                  <section key={category} className="network-badge-gallery-section">
-                    <div className="network-badge-gallery-section-head">
-                      <h4>{BADGE_CATEGORY_LABEL[category]}</h4>
-                      <span>
-                        {unlockedCount} / {BADGE_TIERS.length}
-                      </span>
-                    </div>
-                    <div className="network-badge-gallery-shelf">
-                      {BADGE_TIERS.map((tier) => {
-                        const badge = BADGES[category][tier];
-                        const Icon = badge.Icon;
-                        const unlocked = earnedBadgeIds.has(badge.id);
-                        return (
-                          <article
-                            key={badge.id}
-                            className={`network-badge-gallery-item network-medal tier-${badge.tier}${unlocked ? " is-unlocked" : " is-locked"}`}
-                            aria-label={`${badge.name}. ${badge.description}. ${unlocked ? "Unlocked" : "Locked"}.`}
-                          >
-                            <span className="network-badge-gallery-icon">
-                              <Icon />
-                            </span>
-                            <p className="network-badge-gallery-name">{badge.name}</p>
-                            <p className="network-badge-gallery-desc">{badge.description}</p>
-                          </article>
-                        );
-                      })}
-                    </div>
-                  </section>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <BadgeGalleryModal
+        show={showBadgeGallery}
+        onClose={() => setShowBadgeGallery(false)}
+        earnedBadges={earnedBadges}
+        totalMedals={totalMedals}
+        latestAchievement={latestAchievement}
+        badgeCategories={badgeCategories}
+        earnedBadgeIds={earnedBadgeIds}
+      />
 
-      {showPrefillModal ? (
-        <div className="modal-overlay" onClick={() => !isPrefillSaving && setShowPrefillModal(false)}>
-          <div className="modal modal--quickadd" onClick={(e) => e.stopPropagation()}>
-            <h3>Add Application</h3>
-            <p className="modal-subtitle">Prefilled from {prefillFromName}. Edit anything before saving.</p>
-            {prefillError ? <div className="auth-error">{prefillError}</div> : null}
-            <form className="form form--quickadd" onSubmit={onCreateFromPrefill}>
-              <div className="qa-left">
-                <input
-                  placeholder="Position *"
-                  value={prefillForm.role}
-                  onChange={(e) => setPrefillForm((p) => ({ ...p, role: e.target.value }))}
-                  autoFocus
-                />
-                <div className="form-row">
-                  <label className="form-label">Date</label>
-                  <input
-                    type="date"
-                    value={prefillForm.date_saved}
-                    onChange={(e) => setPrefillForm((p) => ({ ...p, date_saved: e.target.value }))}
-                  />
-                </div>
-                <input
-                  placeholder="Location"
-                  value={prefillForm.location_raw}
-                  onChange={(e) => setPrefillForm((p) => ({ ...p, location_raw: e.target.value }))}
-                />
-                <div className="form-row">
-                  <label className="form-label">Referral</label>
-                  <select
-                    value={prefillForm.referral_status}
-                    onChange={(e) => setPrefillForm((p) => ({ ...p, referral_status: e.target.value }))}
-                    className="form-select"
-                  >
-                    <option value="">—</option>
-                    <option value="Requested">Requested</option>
-                    <option value="Yes">Yes</option>
-                    <option value="No">No</option>
-                  </select>
-                </div>
-                <textarea
-                  placeholder="Notes"
-                  rows={2}
-                  value={prefillForm.notes}
-                  onChange={(e) => setPrefillForm((p) => ({ ...p, notes: e.target.value }))}
-                />
-              </div>
-              <div className="qa-right">
-                <input
-                  placeholder="Company *"
-                  value={prefillForm.company}
-                  onChange={(e) => setPrefillForm((p) => ({ ...p, company: e.target.value }))}
-                />
-                <input
-                  placeholder="Job link (URL)"
-                  type="url"
-                  value={prefillForm.job_link}
-                  onChange={(e) => setPrefillForm((p) => ({ ...p, job_link: e.target.value }))}
-                />
-                <input
-                  placeholder="Job/Application ID (optional)"
-                  value={prefillForm.job_application_id}
-                  onChange={(e) => setPrefillForm((p) => ({ ...p, job_application_id: e.target.value }))}
-                />
-                <div className="form-row">
-                  <label className="form-label">OA Deadline (optional)</label>
-                  <input
-                    type="date"
-                    value={prefillForm.oa_deadline_date}
-                    onChange={(e) => setPrefillForm((p) => ({ ...p, oa_deadline_date: e.target.value }))}
-                  />
-                </div>
-                <div className="form-row">
-                  <label className="form-label">Online Assessment (OA)</label>
-                  <select
-                    value={prefillForm.oa_status}
-                    onChange={(e) => setPrefillForm((p) => ({ ...p, oa_status: e.target.value }))}
-                    className="form-select"
-                  >
-                    <option value="Yes">Yes</option>
-                    <option value="No">No</option>
-                  </select>
-                </div>
-                <div className="form-row">
-                  <label className="form-label">Keyword Matching</label>
-                  <select
-                    value={prefillForm.keyword_matching}
-                    onChange={(e) => setPrefillForm((p) => ({ ...p, keyword_matching: e.target.value }))}
-                    className="form-select"
-                  >
-                    <option value="Strong">Strong</option>
-                    <option value="Medium">Medium</option>
-                    <option value="Weak">Weak</option>
-                  </select>
-                </div>
-              </div>
-              <div className="modal-actions">
-                <button type="button" className="action-btn" onClick={() => !isPrefillSaving && setShowPrefillModal(false)} disabled={isPrefillSaving}>
-                  Cancel
-                </button>
-                <button type="submit" disabled={isPrefillSaving || !prefillForm.company.trim() || !prefillForm.role.trim()}>
-                  {isPrefillSaving ? "Saving..." : "Add Application"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      ) : null}
+      <PrefillApplicationModal
+        show={showPrefillModal}
+        isSaving={isPrefillSaving}
+        prefillFromName={prefillFromName}
+        prefillError={prefillError}
+        prefillForm={prefillForm}
+        setPrefillForm={setPrefillForm}
+        onClose={() => !isPrefillSaving && setShowPrefillModal(false)}
+        onSubmit={onCreateFromPrefill}
+      />
     </>
   );
 }

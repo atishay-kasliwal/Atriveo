@@ -1,0 +1,216 @@
+.app-nav-link {
+  position: relative;
+  padding: 8px 14px;
+  border-radius: 0;
+  font-size: 0.92rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+}
+
+.app-nav-link:hover {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--bg-card-elevated) 72%, transparent);
+  transform: translateY(-1px);
+}
+
+.app-nav-link.active {
+  color: var(--accent-soft);
+  font-weight: 700;
+  background: color-mix(in srgb, var(--bg-card-elevated) 62%, transparent);
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--accent-soft) 30%, transparent);
+}
+
+.app-nav-link.active::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 3px;
+  height: 2.5px;
+  border-radius: 999px;
+  background: rgba(96, 165, 250, 0.95);
+}
+
+@media (max-width: 1080px) {
+  .app-nav-top {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    row-gap: 8px;
+  }
+
+  .app-nav-actions {
+    justify-content: flex-start;
+  }
+
+  .app-nav-actions-utility {
+    margin-left: 0;
+    padding-left: 0;
+    border-left: 0;
+  }
+}
+
+@media (max-width: 860px) {
+  .app-nav {
+    top: 8px;
+    padding: 10px;
+  }
+
+  .app-nav-top {
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+
+  .app-nav-links {
+    width: 100%;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+
+  .app-nav-bottom {
+    flex-wrap: wrap;
+  }
+
+  .app-nav-bottom-actions {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+
+  .app-nav-jobs-search {
+    flex: 1 1 100%;
+  }
+
+  .app-nav-jobs-search-input-wrap {
+    flex: 1 1 auto;
+  }
+
+  .app-nav-jobs-search-input {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+  }
+
+  .app-nav-theme-toggle:not(.app-nav-theme-toggle--top) {
+    margin-left: auto;
+  }
+
+  .app-nav-brand {
+    font-size: 1.55rem;
+  }
+}
+
+.modal--csv .csv-helper {
+  margin: 0 0 10px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.modal--csv {
+  max-width: 540px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--bg-card-border));
+  background:
+    radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--accent-soft) 14%, transparent), transparent 46%),
+    radial-gradient(circle at 92% 8%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 52%),
+    var(--bg-card);
+  box-shadow:
+    0 28px 62px color-mix(in srgb, #020617 46%, transparent),
+    0 1px 0 color-mix(in srgb, #ffffff 7%, transparent) inset;
+  overflow-x: hidden;
+}
+
+.csv-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+  position: relative;
+}
+
+.modal--csv .csv-modal-head h3 {
+  margin: 0;
+}
+
+.csv-import-headline {
+  margin: 0 0 12px;
+  display: block;
+  position: relative;
+}
+
+.csv-required-pill {
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  display: grid;
+  gap: 4px;
+  border-radius: 16px;
+  padding: 9px 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--bg-card-border));
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--bg-card-elevated) 88%, transparent),
+      color-mix(in srgb, var(--bg-card) 92%, transparent)
+    );
+  color: var(--text-secondary);
+  font-size: 0.79rem;
+  font-weight: 500;
+}
+
+.csv-required-label {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text-muted) 92%, #ffffff 8%);
+}
+
+.csv-required-item {
+  margin: 0;
+  line-height: 1.25;
+  color: var(--text-secondary);
+}
+
+.csv-required-pill code {
+  color: var(--text-primary);
+}
+
+.csv-rules {
+  position: relative;
+  justify-self: end;
+  flex-shrink: 0;
+}
+
+.csv-info-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--bg-card-border));
+  background: color-mix(in srgb, var(--bg-card-elevated) 88%, transparent);
+  color: var(--text-primary);
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+  flex-shrink: 0;
+}
+
+.csv-info-btn::-webkit-details-marker {
+  display: none;
+}
+
+.csv-rules[open] .csv-info-btn {
+  background: color-mix(in srgb, var(--accent) 14%, var(--bg-card-elevated));
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--bg-card-border));
+}

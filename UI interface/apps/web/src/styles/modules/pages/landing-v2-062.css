@@ -1,0 +1,226 @@
+
+.lv-extension-browser-action {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--accent) 42%, transparent);
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lv-extension-browser-action i {
+  width: 8px;
+  height: 8px;
+  border-top: 2px solid #f8fbff;
+  border-right: 2px solid #f8fbff;
+  transform: rotate(45deg);
+}
+
+.lv-extension-browser-body {
+  position: relative;
+  min-height: 290px;
+  padding: 20px 18px 18px;
+}
+
+.lv-extension-mini-popup {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 116px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 76%, transparent);
+  background: color-mix(in srgb, var(--bg-card-elevated) 88%, transparent);
+  box-shadow: 0 10px 20px color-mix(in srgb, #020617 24%, transparent);
+  padding: 8px;
+  display: grid;
+  gap: 6px;
+}
+
+.lv-extension-mini-popup strong {
+  font-size: 0.62rem;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.lv-extension-mini-line {
+  display: block;
+  height: 5px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-muted) 40%, transparent);
+}
+
+.lv-extension-mini-line--short {
+  width: 72%;
+}
+.lv-extension-mini-add {
+  justify-self: end;
+  min-width: 38px;
+  height: 20px;
+  border-radius: 999px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent-soft) 75%, #ffffff 25%), var(--accent));
+  color: #ffffff;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.lv-extension-company {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.lv-extension-company-mark {
+  margin-top: 2px;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: color-mix(in srgb, var(--accent-soft) 78%, #ffffff 22%);
+}
+
+.lv-extension-company strong {
+  display: block;
+  font-size: 1.04rem;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.lv-extension-company small {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.92rem;
+  color: var(--text-secondary);
+}
+
+.lv-extension-skeleton {
+  margin-top: 34px;
+  display: grid;
+  gap: 14px;
+}
+
+.lv-extension-skeleton span {
+  display: block;
+  height: 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-card-elevated) 82%, transparent);
+}
+
+.lv-extension-metrics {
+  margin-top: 20px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 142px);
+  gap: 10px;
+}
+
+.lv-extension-metric,
+.lv-extension-mini-funnel {
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 74%, transparent);
+  background: color-mix(in srgb, var(--bg-card-elevated) 62%, transparent);
+  padding: 10px;
+}
+
+.lv-extension-metric small,
+.lv-extension-mini-funnel small {
+  display: block;
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.lv-extension-metric strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--text-primary);
+}
+
+.lv-extension-sparkline {
+  margin-top: 10px;
+  height: 48px;
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 4px;
+  align-items: end;
+}
+
+.lv-extension-sparkline span {
+  display: block;
+  border-radius: 4px 4px 2px 2px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent-soft) 84%, #ffffff 16%), var(--accent));
+}
+
+.lv-extension-mini-funnel-bars {
+  margin-top: 12px;
+  display: grid;
+  gap: 7px;
+}
+
+.lv-extension-mini-funnel-bars span {
+  display: block;
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 82%, #8bc2ff 18%), color-mix(in srgb, var(--accent-dim) 86%, #6aa8ff 14%));
+}
+
+.lv-extension-copy {
+  max-width: 520px;
+}
+
+.lv-extension-kicker {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.lv-extension-kicker span {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 72%, transparent);
+  background: color-mix(in srgb, var(--bg-card-elevated) 78%, transparent);
+  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.98rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.lv-extension-copy h2 {
+  margin: 18px 0 0;
+  font-family: var(--font-header);
+  font-size: clamp(1.82rem, 3.4vw, 2.75rem);
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.lv-extension-copy p {
+  margin: 20px 0 0;
+  color: var(--text-secondary);
+  font-size: 1.03rem;
+  line-height: 1.65;
+}

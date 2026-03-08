@@ -1,0 +1,230 @@
+
+.active-jobs-referral-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid #c7dcfb;
+  background: linear-gradient(160deg, #e9f2ff 8%, #cfe4ff 58%, #b8d6ff 100%);
+  color: #24427a;
+  font-size: 0;
+  letter-spacing: 0;
+  line-height: 0;
+  text-transform: uppercase;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  box-shadow: 0 3px 8px rgba(59, 130, 246, 0.18);
+  text-align: center;
+  padding: 0;
+  font-family: "Inter", var(--font-body), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-variant-ligatures: none;
+  transform: translateZ(0);
+  position: relative;
+  overflow: hidden;
+}
+
+.active-jobs-referral-avatar-text {
+  position: static;
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  transform: translateY(7px);
+  letter-spacing: 0;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.active-jobs-referral-name {
+  min-width: 0;
+}
+
+.active-jobs-referral-person strong {
+  display: block;
+  color: #0b1220;
+  font-size: 12px;
+  line-height: 1.25;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-weight: 400;
+}
+
+.active-jobs-referral-person span {
+  display: block;
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.active-jobs-referral-stage {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: #eaf2ff;
+  color: #1e40af;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border: 1px solid #dbeafe;
+}
+
+.active-jobs-referral-notes {
+  color: #334155;
+  max-width: 220px;
+  line-height: 1.35;
+}
+
+.active-jobs-main-column {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+  order: 1;
+  align-content: start;
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+  padding-right: 6px;
+}
+
+.active-jobs-main-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 32px;
+  padding: 2px 2px 0;
+}
+
+.active-jobs-main-heading h2 {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.1;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.active-jobs-main-heading span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+
+.active-jobs-main-toolbar {
+  padding: 16px 14px 14px;
+  box-shadow: 0 10px 28px rgba(37, 99, 235, 0.08);
+}
+
+.application-card-toolbar-search-row {
+  padding-bottom: 4px;
+}
+
+.application-card-search-shell--main {
+  min-height: 48px;
+  border-radius: 999px;
+  border-color: #e2e8f0;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+
+.application-card-search-shell--main .application-card-search-input {
+  min-height: 46px;
+  font-size: 14px;
+}
+
+.application-card-search-shell--main .application-card-search-hint {
+  min-width: 44px;
+  height: 24px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.application-card-toolbar-section-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.application-card-toolbar-section-head p {
+  margin: 0;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.application-card-toolbar-section-head span {
+  flex: 1;
+  height: 1px;
+  border-radius: 999px;
+  background: #dbe4f1;
+}
+.application-card-toolbar-section-head--compact {
+  margin-bottom: 6px;
+}
+
+.application-card-toolbar-filters-row {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  align-items: center;
+  overflow: hidden;
+  padding-bottom: 2px;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.application-card-toolbar-filters-row .filter-chip {
+  flex: 1 1 0;
+  min-width: 0;
+  justify-content: center;
+  padding: 6px 8px;
+}
+
+.application-card-toolbar-filters-row .filter-chip-value {
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.application-card-toolbar-primary--single {
+  grid-template-columns: 1fr;
+}
+
+.application-card-toolbar {
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 16px;
+  padding: 24px 22px 18px;
+  display: grid;
+  gap: 12px;
+  font-family: var(--font-body), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.application-card-toolbar-row {
+  display: grid;
+  width: 100%;
+}
+
+.application-card-toolbar-primary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 420px);
+  gap: 12px;
+  align-items: center;
+}
+
+.application-card-toolbar-secondary {
+  display: grid;
+  gap: 6px;
+}
+
+.application-card-search-shell {
+  min-height: 44px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  padding: 0 16px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}

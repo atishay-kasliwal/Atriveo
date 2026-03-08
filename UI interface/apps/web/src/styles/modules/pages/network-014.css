@@ -1,0 +1,228 @@
+
+.network-weekly-hint {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.network-weekly-line-stage {
+  height: 521px;
+}
+
+.network-weekly-strip {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 6px;
+}
+
+.network-weekly-mini-board {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  align-self: stretch;
+}
+
+.network-weekly-mini-board.network-weekly-mini-board-stack {
+  height: 100%;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.network-weekly-mini-board-header {
+  margin-bottom: 0;
+}
+
+.network-weekly-mini-board-header.network-insight-card-head {
+  min-height: 0;
+  margin-bottom: 0;
+}
+
+.network-weekly-board-total {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 3.1rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.035em;
+}
+
+.network-rivalry-status {
+  display: grid;
+  gap: 8px;
+  margin-top: -16px;
+}
+
+.network-rivalry-status-title {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.02rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.network-rivalry-status-copy {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.network-rivalry-rank-snapshot {
+  margin-top: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.network-rivalry-rank-pill {
+  display: grid;
+  gap: 3px;
+  padding: 8px 10px;
+  border-radius: 11px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 74%, transparent);
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--bg-card-elevated) 92%, transparent),
+    color-mix(in srgb, var(--bg-card) 96%, transparent)
+  );
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #ffffff 48%, transparent),
+    0 6px 14px color-mix(in srgb, var(--accent) 8%, transparent);
+  min-height: 52px;
+}
+
+.network-rivalry-rank-pill.is-current {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--bg-card-border));
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--accent-soft) 30%, var(--bg-card-elevated)),
+    color-mix(in srgb, var(--accent) 7%, var(--bg-card))
+  );
+}
+
+.network-rivalry-rank-pill-label {
+  color: var(--text-secondary);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.network-rivalry-rank-pill-value {
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+
+.network-rivalry-rank-shift {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  height: 52px;
+  padding: 0 10px;
+  border-radius: 11px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 74%, transparent);
+  font-size: 0.84rem;
+  font-weight: 800;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 40%, transparent);
+}
+
+.network-rivalry-rank-shift.is-up {
+  color: #166534;
+  border-color: rgba(22, 163, 74, 0.32);
+  background: linear-gradient(145deg, rgba(134, 239, 172, 0.34), rgba(74, 222, 128, 0.18));
+}
+
+.network-rivalry-rank-shift.is-down {
+  color: #b91c1c;
+  border-color: rgba(239, 68, 68, 0.28);
+  background: linear-gradient(145deg, rgba(254, 202, 202, 0.32), rgba(252, 165, 165, 0.16));
+}
+
+.network-rivalry-rank-shift.is-even {
+  color: var(--text-secondary);
+  border-color: color-mix(in srgb, var(--bg-card-border) 74%, transparent);
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--bg-card-elevated) 90%, transparent),
+    color-mix(in srgb, var(--bg-card) 94%, transparent)
+  );
+}
+
+.network-rivalry-top3-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.network-rivalry-top3-card {
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  background: #F8FAFC;
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.network-rivalry-top3-card.place-1 {
+  background: linear-gradient(#EFF6FF, #DBEAFE);
+  border-color: #BFDBFE;
+}
+
+.network-rivalry-rank-badge {
+  font-size: 1.02rem;
+  line-height: 1;
+}
+
+.network-rivalry-top3-name {
+  margin: 0;
+  color: #0F172A;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.network-rivalry-top3-score {
+  margin: 0;
+  color: #0F172A;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+:root[data-theme="dark"] .network-rivalry-top3-card {
+  border-color: color-mix(in srgb, var(--bg-card-border) 82%, transparent);
+  background: color-mix(in srgb, var(--bg-card-elevated) 86%, transparent);
+}
+
+:root[data-theme="dark"] .network-rivalry-top3-card.place-1 {
+  border-color: color-mix(in srgb, #60A5FA 42%, var(--bg-card-border));
+  background: linear-gradient(
+    color-mix(in srgb, #1E3A8A 52%, var(--bg-card-elevated)),
+    color-mix(in srgb, #1D4ED8 34%, var(--bg-card))
+  );
+}
+
+:root[data-theme="dark"] .network-rivalry-top3-name,
+:root[data-theme="dark"] .network-rivalry-top3-score {
+  color: #F8FAFC;
+}
+
+.network-rivalry-streak {
+  display: grid;
+  gap: 8px;
+}
+
+.network-streak-card {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}

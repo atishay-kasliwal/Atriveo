@@ -1,0 +1,217 @@
+.app-nav-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  font-family: var(--font-header);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.app-nav-actions-main,
+.app-nav-actions-utility {
+  display: inline-flex;
+  align-items: center;
+}
+
+.app-nav-actions-main {
+  gap: 10px;
+}
+
+.app-nav-actions-utility {
+  gap: 10px;
+  margin-left: 2px;
+  padding-left: 12px;
+  border-left: 1px solid color-mix(in srgb, var(--bg-card-border) 58%, transparent);
+}
+
+.avatar-menu {
+  position: relative;
+}
+
+.avatar-menu-trigger {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 0;
+  background: color-mix(in srgb, var(--bg-card-elevated) 72%, transparent);
+  color: var(--text-secondary);
+  font-size: 0.86rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 130ms ease, color 130ms ease, border-color 130ms ease;
+}
+
+.avatar-menu-trigger:hover {
+  background: color-mix(in srgb, var(--surface-hover) 92%, transparent);
+  color: var(--text-primary);
+}
+
+.avatar-menu-trigger:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-soft) 34%, transparent);
+}
+
+.avatar-menu-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  width: 240px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 86%, transparent);
+  border-radius: 12px;
+  background: var(--bg-card);
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.2);
+  padding: 12px 8px;
+  z-index: 35;
+  animation: avatar-menu-enter 140ms ease-out;
+  list-style: none;
+  margin: 0;
+}
+
+@keyframes avatar-menu-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.98) translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.avatar-menu-section-label {
+  padding: 0 8px;
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.avatar-menu-divider {
+  border-top: 1px solid color-mix(in srgb, var(--bg-card-border) 82%, transparent);
+  margin: 8px 8px;
+}
+
+.avatar-menu-item {
+  width: 100%;
+  min-height: 40px;
+  border: 0;
+  background: transparent;
+  border-radius: 8px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.avatar-menu-item:hover,
+.avatar-menu-item:focus-visible {
+  outline: none;
+  background: color-mix(in srgb, var(--surface-hover) 92%, transparent);
+  color: var(--text-primary);
+}
+
+.avatar-menu-item-icon {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: color-mix(in srgb, var(--text-muted) 92%, transparent);
+}
+
+.avatar-menu-item-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.avatar-menu-item--danger {
+  color: #dc2626;
+}
+
+.avatar-menu-item--danger .avatar-menu-item-icon {
+  color: #dc2626;
+}
+
+.avatar-menu-item--danger:hover,
+.avatar-menu-item--danger:focus-visible {
+  color: #b91c1c;
+  background: rgba(220, 38, 38, 0.06);
+}
+
+.app-split-create {
+  position: relative;
+  display: inline-flex;
+}
+
+.dropdown-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 42px;
+  padding: 0;
+}
+
+.dropdown-button::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -2px;
+  height: 2px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary-color) 85%, transparent);
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform 140ms ease;
+}
+
+.dropdown-button:hover::after,
+.dropdown-button.is-open::after {
+  transform: scaleX(1);
+}
+
+.app-split-create--nav-bottom {
+  margin-left: 0;
+}
+
+.dropdown-button-primary,
+.dropdown-button-trigger {
+  background: transparent;
+  border: 0;
+  color: var(--text-secondary);
+  border-radius: 0;
+  min-height: 40px;
+  padding: 8px 8px;
+  font-family: var(--font-header);
+  font-size: 0.92rem;
+  font-weight: 600;
+  letter-spacing: 0.015em;
+  line-height: 1.2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 140ms ease, background-color 140ms ease;
+}
+
+.dropdown-button-primary {
+  gap: 10px;
+}

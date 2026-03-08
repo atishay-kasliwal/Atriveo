@@ -1,0 +1,230 @@
+.dropdown-button-trigger {
+  width: 30px;
+  padding: 0;
+  color: color-mix(in srgb, var(--text-secondary) 88%, transparent);
+}
+
+.dropdown-button-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 140ms ease;
+}
+
+.dropdown-button-chevron svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.dropdown-button-plus {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dropdown-button-plus svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.dropdown-button-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.dropdown-button-trigger:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.dropdown-button-menu {
+  list-style: none;
+  margin: 0;
+  padding: 8px;
+  min-width: 200px;
+  position: absolute;
+  left: 0;
+  top: calc(100% + 10px);
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 66%, transparent);
+  background: #ffffff;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+  z-index: 30;
+  transform-origin: top left;
+  animation: app-split-menu-enter 140ms ease-out;
+}
+
+@keyframes app-split-menu-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.98) translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.dropdown-button-item {
+  width: 100%;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #1f2937;
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  padding: 10px 16px;
+  display: block;
+  cursor: pointer;
+  transition: background-color 130ms ease;
+}
+
+.dropdown-button-item:hover,
+.dropdown-button-item:focus-visible {
+  outline: none;
+  background: #f5f6fa;
+}
+
+.app-nav-actions .quick-add-btn {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  padding: 2px 0;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.015em;
+  line-height: 1.2;
+  transition: color 160ms ease, opacity 160ms ease, text-decoration-color 160ms ease;
+  opacity: 0.92;
+  text-decoration: none;
+  text-underline-offset: 4px;
+  box-shadow: none;
+  transform: none;
+}
+
+.app-nav-actions .quick-add-btn:hover {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--accent-soft) 60%, transparent);
+  opacity: 1;
+  box-shadow: none;
+  transform: none;
+}
+
+.app-nav-actions .quick-add-btn.app-btn {
+  color: var(--text-secondary);
+}
+
+.app-nav-actions .quick-add-btn.app-btn:hover {
+  color: var(--text-primary);
+  text-decoration-color: color-mix(in srgb, var(--accent-soft) 70%, transparent);
+}
+
+.app-nav-actions .quick-add-btn.mid-btn,
+.app-nav-actions .quick-add-btn.settings-btn {
+  color: var(--text-secondary);
+}
+
+.app-nav-actions .quick-add-btn.mid-btn:hover,
+.app-nav-actions .quick-add-btn.settings-btn:hover {
+  color: #ffffff;
+}
+
+.app-nav-actions .quick-add-btn.settings-btn--icon {
+  min-width: 30px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.settings-emoji {
+  display: inline-flex;
+  font-size: 0.9rem;
+}
+
+.app-nav-actions .quick-add-btn.logout-btn {
+  color: #fecaca;
+  padding-left: 4px;
+}
+
+.app-nav-actions .quick-add-btn.logout-btn:hover {
+  color: #fca5a5;
+  text-decoration: none;
+}
+
+.csv-tools {
+  position: relative;
+}
+
+.header-notifications {
+  position: relative;
+}
+
+.header-notifications-trigger {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: color 120ms ease, background-color 120ms ease;
+}
+
+.header-notifications-trigger svg {
+  width: 20px;
+  height: 20px;
+}
+
+.header-notifications-trigger:hover,
+.header-notifications-trigger.active {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--surface-hover) 70%, transparent);
+}
+
+.header-notifications-unread-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #ef4444;
+  border: 2px solid var(--bg-card);
+}
+
+.header-notifications-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  width: min(320px, calc(100vw - 20px));
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 84%, transparent);
+  border-radius: 12px;
+  background: var(--bg-card);
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.22);
+  z-index: 65;
+  overflow: hidden;
+  animation: header-notifications-enter 130ms ease-out;
+}

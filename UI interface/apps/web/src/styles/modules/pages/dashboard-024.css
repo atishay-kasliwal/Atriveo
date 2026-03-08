@@ -1,0 +1,230 @@
+.kpi-change-context {
+  margin-top: 2px;
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: color-mix(in srgb, var(--text-muted) 88%, #ffffff 12%);
+}
+
+.chart-grid,
+.layout-2 {
+  margin-top: 24px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.chart-grid-70-30 {
+  grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
+}
+
+
+.chart-grid-trend {
+  grid-template-columns: 1fr;
+}
+
+.chart-grid-trend .card-chart-trend {
+  grid-column: 1 / 2;
+  height: auto;
+  min-height: 560px;
+  display: flex;
+  flex-direction: column;
+}
+
+.pending-list-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.panel-count {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.panel-scroll {
+  max-height: 360px;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-gutter: stable;
+}
+
+.pending-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.notes-preview-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.notes-preview-card {
+  border: 1px solid var(--bg-card-border);
+  border-radius: 10px;
+  background: var(--bg-card);
+  aspect-ratio: 1 / 1;
+  min-height: 150px;
+  overflow: hidden;
+}
+
+.notes-preview-open strong {
+  color: var(--text-primary);
+}
+
+.notes-preview-open {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: transparent;
+  color: var(--text-primary);
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.notes-preview-open:hover {
+  background: transparent;
+  box-shadow: none;
+}
+
+.notes-preview-open:focus-visible {
+  outline: 2px solid rgba(0, 102, 255, 0.8);
+  outline-offset: -2px;
+}
+
+.notes-preview-modal-body {
+  margin-top: 10px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  max-height: 45vh;
+  overflow-y: auto;
+}
+
+.notes-preview-card .pending-item-head {
+  align-items: flex-start;
+}
+
+.notes-preview-body {
+  margin-top: 8px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-y: auto;
+  flex: 1 1 auto;
+}
+
+.pending-item {
+  border: 1px solid var(--bg-card-border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: rgba(255,255,255,0.02);
+}
+
+.pending-item-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.oa-panel-count {
+  margin-bottom: 10px;
+  color: #b8c4d9;
+  letter-spacing: 0.02em;
+}
+
+.oa-list {
+  gap: 10px;
+}
+
+.oa-item {
+  position: relative;
+  border-radius: 12px;
+  padding: 12px 14px 13px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--bg-card-border);
+  box-shadow: none;
+  overflow: hidden;
+  transition: border-color 0.16s ease, background-color 0.16s ease;
+}
+
+.oa-item:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.oa-item.is-overdue {
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.oa-title-row {
+  align-items: center;
+  gap: 8px;
+}
+
+.oa-company {
+  font-size: 0.96rem;
+  color: #f6f8ff;
+}
+
+.oa-meta-row {
+  margin-top: 3px;
+}
+
+.oa-role {
+  color: var(--text-primary);
+}
+
+.oa-id {
+  color: var(--text-muted);
+}
+
+.oa-deadline-meta {
+  margin-top: 8px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.oa-note {
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 0.84rem;
+}
+
+.oa-done-btn {
+  border: 1px solid rgba(0, 102, 255, 0.35);
+  background: rgba(0, 102, 255, 0.12);
+  color: #c9ebff;
+  border-radius: 9px;
+  padding: 6px 11px;
+  font-weight: 600;
+  font-size: 0.76rem;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  box-shadow: none;
+  transition: background-color 0.16s ease, border-color 0.16s ease, opacity 0.16s ease;
+}
+
+.oa-done-btn:hover:not(:disabled) {
+  background: rgba(0, 102, 255, 0.18);
+  border-color: rgba(0, 102, 255, 0.5);
+}
+.oa-done-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}

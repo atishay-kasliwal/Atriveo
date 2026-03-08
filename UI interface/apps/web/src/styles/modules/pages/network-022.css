@@ -1,0 +1,229 @@
+@media (max-width: 700px) {
+  .friends-layout-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .network-today-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .network-today-item .table-wrap {
+    max-height: 300px;
+  }
+
+  .network-weekly-line-stage {
+    height: 336px;
+  }
+
+  .network-split-chart {
+    min-height: 240px;
+  }
+
+  .network-badge-modal {
+    --medal-size: clamp(30px, 4.3vh, 44px);
+    --medal-size-locked: calc(var(--medal-size) - 6px);
+    width: calc(100vw - 6px);
+    max-width: calc(100vw - 6px);
+    height: calc(100dvh - 6px);
+    max-height: calc(100dvh - 6px);
+    padding: 10px 8px 8px;
+    gap: 6px;
+  }
+
+  .network-badge-modal-head h3 {
+    font-size: 0.92rem;
+  }
+
+  .network-badge-modal-close {
+    width: 28px;
+    height: 28px;
+    font-size: 1rem;
+  }
+
+  .network-badge-modal-hero {
+    gap: 6px;
+  }
+
+  .network-badge-modal-subtitle {
+    font-size: 0.72rem;
+    padding: 7px 8px;
+  }
+
+  .network-badge-latest {
+    padding: 7px 8px;
+    gap: 4px;
+  }
+
+  .network-badge-latest-kicker {
+    font-size: 0.65rem;
+  }
+
+  .network-badge-latest-name {
+    font-size: 10px;
+  }
+
+  .network-badge-gallery {
+    gap: 6px;
+  }
+
+  .network-badge-gallery-section {
+    padding: 6px 6px 7px;
+    gap: 6px;
+  }
+
+  .network-badge-gallery-section-head h4,
+  .network-badge-gallery-section-head span {
+    font-size: 10px;
+  }
+
+  .network-badge-gallery-shelf {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+    padding-top: 4px;
+  }
+
+  .network-badge-gallery-name {
+    font-size: 9px;
+    -webkit-line-clamp: 1;
+  }
+
+  .network-badge-gallery-desc {
+    display: none;
+  }
+
+  .network-badge-preview-row {
+    gap: 10px;
+  }
+
+  .network-badge-preview-item .network-badge-preview-icon {
+    width: 64px;
+    height: 64px;
+  }
+
+  .network-badge-preview-label {
+    font-size: 0.72rem;
+  }
+
+  .network-weekly-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .network-weekly-legend {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .network-weekly-legend-item {
+    width: 100%;
+  }
+
+  .network-weekly-actions {
+    width: 100%;
+  }
+
+  .network-rivalry-head h2 {
+    font-size: 1.12rem;
+  }
+
+  .network-rivalry-head h2.network-insight-title {
+    font-size: 1.03rem;
+  }
+
+  .network-weekly-board-total {
+    font-size: 2.6rem;
+  }
+
+  .network-compare-filter {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .network-compare-select {
+    min-width: 0;
+    width: min(100%, 280px);
+  }
+
+  .network-weekly-toggle {
+    width: 100%;
+  }
+
+  .network-weekly-toggle-btn {
+    flex: 1;
+  }
+
+  .target-signals-head {
+    gap: 8px;
+  }
+
+  .target-signals-controls {
+    gap: 6px;
+  }
+
+  .target-signals-search {
+    width: 100%;
+  }
+
+  .target-signal-meta-context {
+    max-width: 52%;
+  }
+
+  .target-signal-app-kv-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .target-signal-app-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .target-signal-add-btn {
+    width: 100%;
+  }
+}
+
+@keyframes networkTickerScroll {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-66%, 0, 0); }
+}
+
+.kpi-grid {
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
+}
+
+.dashboard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-top: 20px;
+  margin-bottom: 8px;
+}
+
+.dashboard-actions--top-right {
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 0;
+  margin-bottom: 2px;
+}
+
+.dashboard-set-target-btn {
+  padding: 5px 12px;
+  line-height: 1.1;
+  font-size: 0.84rem;
+  font-weight: 600;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg-card-elevated) 88%, transparent);
+  border-color: color-mix(in srgb, var(--bg-card-border) 88%, transparent);
+  color: var(--text-secondary);
+  box-shadow: none;
+}
+
+.dashboard-target-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

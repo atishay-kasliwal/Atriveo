@@ -1,0 +1,226 @@
+
+.lv-float-card--left {
+  left: 0;
+  bottom: 50%;
+  transform: translate(-50%, 50%);
+}
+
+.lv-float-card--right {
+  right: 0;
+  bottom: 0;
+  transform: translate(50%, 50%);
+}
+
+.lv-float-card--top-right {
+  right: 0;
+  top: 56px;
+  transform: translate(50%, -50%);
+}
+
+.lv-float-card header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.78rem;
+  color: var(--text-primary);
+}
+
+.lv-float-card header span {
+  color: var(--accent);
+}
+
+.lv-float-value {
+  margin: 8px 0 2px;
+  font-family: var(--font-header);
+  font-size: 1.75rem;
+  line-height: 1;
+  color: var(--text-primary);
+}
+
+.lv-float-meta {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.lv-float-bar {
+  margin-top: 10px;
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-card-elevated) 82%, transparent);
+  overflow: hidden;
+}
+
+.lv-float-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 68%, #ffffff 32%), var(--accent));
+}
+.lv-float-row {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.lv-float-row strong {
+  color: var(--text-primary);
+}
+
+.lv-mini-bars {
+  margin-top: 10px;
+  height: 60px;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 3px;
+  align-items: end;
+}
+
+.lv-mini-bars span {
+  border-radius: 6px 6px 0 0;
+  background: color-mix(in srgb, var(--accent) 58%, transparent);
+}
+
+.lv-social-proof {
+  padding: 22px 0 80px;
+}
+
+.lv-social-proof p {
+  margin: 0;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.86rem;
+}
+
+.lv-social-proof-logos {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+  gap: clamp(14px, 2.6vw, 34px);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.lv-social-proof-logo {
+  width: clamp(76px, 8.2vw, 122px);
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lv-social-proof-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  opacity: 1;
+  filter: none;
+}
+
+.lv-extension-showcase {
+  padding: 0 0 92px;
+}
+
+.lv-extension-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.06fr) minmax(0, 0.94fr);
+  gap: clamp(22px, 3.4vw, 52px);
+  align-items: center;
+}
+
+.lv-extension-pill-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+  margin-bottom: 18px;
+}
+
+.lv-extension-pill-label {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-right: 2px;
+}
+
+.lv-extension-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 78%, transparent);
+  background: color-mix(in srgb, var(--bg-card) 82%, transparent);
+  color: var(--text-secondary);
+  padding: 6px 12px;
+  font-size: 0.83rem;
+  font-weight: 600;
+}
+
+.lv-extension-pill-mark {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.68rem;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.lv-extension-pill-mark--workday {
+  background: rgba(255, 189, 46, 0.16);
+  color: #f59e0b;
+}
+
+.lv-extension-pill-mark--greenhouse {
+  background: rgba(20, 184, 166, 0.18);
+  color: #14b8a6;
+}
+
+.lv-extension-pill-mark--lever {
+  background: rgba(148, 163, 184, 0.2);
+  color: #94a3b8;
+}
+
+.lv-extension-pill--more {
+  gap: 0;
+}
+
+.lv-extension-browser {
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 76%, transparent);
+  background: color-mix(in srgb, var(--bg-card) 90%, transparent);
+  box-shadow: 0 24px 52px color-mix(in srgb, #020617 42%, transparent);
+}
+
+.lv-extension-browser-head {
+  min-height: 46px;
+  padding: 0 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--bg-card-border) 66%, transparent);
+  background: color-mix(in srgb, var(--bg-card-elevated) 76%, transparent);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lv-extension-browser-tab {
+  width: 78px;
+  height: 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-muted) 35%, transparent);
+}
+
+.lv-extension-browser-add {
+  width: 14px;
+  height: 14px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 74%, transparent);
+  margin-right: auto;
+}

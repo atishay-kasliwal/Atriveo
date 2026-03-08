@@ -1,0 +1,230 @@
+
+.lp-tool-card p {
+  margin: 10px 0 0;
+  color: var(--marketing-muted);
+  line-height: 1.62;
+}
+
+.lp-testimonial-section {
+  background: var(--marketing-bg);
+}
+
+.lp-testimonial-track {
+  margin-top: 30px;
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scrollbar-width: thin;
+}
+
+.lp-testimonial-card {
+  flex: 0 0 290px;
+  scroll-snap-align: start;
+  border-radius: 16px;
+  border: 1px solid var(--marketing-border);
+  background: var(--marketing-surface);
+  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.06);
+  padding: 20px;
+}
+
+.lp-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--brand-primary-light) 0%, var(--brand-primary) 100%);
+  color: var(--brand-white);
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lp-testimonial-card p {
+  margin: 14px 0 0;
+  color: var(--marketing-muted);
+  line-height: 1.6;
+}
+
+.lp-testimonial-card strong {
+  margin-top: 14px;
+  display: block;
+  color: var(--marketing-text);
+}
+
+.lp-testimonial-card span {
+  margin-top: 4px;
+  display: block;
+  color: var(--brand-gray);
+  font-size: 0.94rem;
+}
+
+.lp-testimonial-card em {
+  margin-top: 6px;
+  display: inline-block;
+  color: var(--marketing-text);
+  font-style: normal;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.lp-inline-actions {
+  margin-top: 22px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.lp-proof-line {
+  margin: 16px 0 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--marketing-muted);
+  font-weight: 600;
+}
+
+.lp-faq-list {
+  max-width: 900px;
+  margin: 30px auto 0;
+  border-top: 1px solid var(--marketing-border);
+}
+
+.lp-faq-row {
+  border-bottom: 1px solid var(--marketing-border);
+}
+
+.lp-faq-trigger {
+  width: 100%;
+  padding: 24px 0;
+  border: 0;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  color: var(--marketing-text);
+  font-size: 1.15rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lp-faq-answer-wrap {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 220ms ease, opacity 220ms ease;
+}
+
+.lp-faq-row--open .lp-faq-answer-wrap {
+  max-height: 120px;
+  opacity: 1;
+}
+
+.lp-faq-answer-wrap p {
+  margin: 0 0 20px;
+  color: var(--marketing-muted);
+  line-height: 1.65;
+}
+
+.lp-auth-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: color-mix(in srgb, #020617 60%, transparent);
+  backdrop-filter: blur(4px);
+}
+
+.lp-auth-modal {
+  position: relative;
+  width: min(440px, 100%);
+  border-radius: 16px;
+  border: 1px solid var(--marketing-border);
+  background: var(--marketing-surface);
+  box-shadow: 0 20px 52px rgba(2, 6, 23, 0.34);
+  padding: 22px;
+}
+
+.lp-auth-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--marketing-border);
+  background: transparent;
+  color: var(--marketing-muted);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lp-auth-close:hover {
+  color: var(--marketing-text);
+  border-color: color-mix(in srgb, var(--brand-primary) 32%, var(--marketing-border));
+}
+
+.lp-auth-title {
+  margin: 0;
+  color: var(--marketing-text);
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.lp-auth-subtitle {
+  margin: 10px 0 0;
+  color: var(--marketing-muted);
+  font-size: 0.98rem;
+}
+
+.lp-auth-form {
+  margin-top: 18px;
+  display: grid;
+  gap: 10px;
+}
+
+.lp-auth-name-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.lp-auth-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--marketing-muted);
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.lp-auth-input {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--marketing-border);
+  background: color-mix(in srgb, var(--marketing-surface) 92%, var(--bg-base) 8%);
+  color: var(--marketing-text);
+  padding: 11px 12px;
+  font-size: 0.95rem;
+}
+
+.lp-auth-input:focus {
+  outline: none;
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-primary) 20%, transparent);
+}
+
+.lp-auth-error {
+  border: 1px solid color-mix(in srgb, #dc2626 30%, transparent);
+  background: color-mix(in srgb, #dc2626 10%, transparent);
+  color: #ef4444;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 0.9rem;
+}

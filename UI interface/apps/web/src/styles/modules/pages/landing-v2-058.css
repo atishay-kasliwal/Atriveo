@@ -1,0 +1,227 @@
+
+.header-test-bottom {
+  padding-top: 10px;
+}
+
+.header-test-brand {
+  color: #f8fafc;
+  text-decoration: none;
+  font-family: var(--font-header);
+  font-size: 2.05rem;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-weight: 800;
+}
+
+.header-test-brand span {
+  color: #3385ff;
+}
+
+.header-test-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.header-test-icon-btn {
+  width: auto;
+  min-width: 0;
+  height: auto;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #d4d4d8;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 2px;
+  cursor: pointer;
+  transition: color 160ms ease, opacity 160ms ease;
+  opacity: 0.9;
+}
+
+.header-test-icon-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.header-test-icon-btn:hover {
+  color: #e2f3ff;
+  opacity: 1;
+}
+
+.header-test-icon-btn--danger {
+  background: transparent;
+  border: 0;
+  color: #fecaca;
+  padding-left: 6px;
+}
+
+.header-test-icon-btn--danger:hover {
+  color: #fca5a5;
+}
+
+.header-test-action-pill {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #cbd5e1;
+  padding: 2px 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 160ms ease, opacity 160ms ease, text-decoration-color 160ms ease;
+  text-decoration: none;
+  text-underline-offset: 4px;
+  opacity: 0.92;
+}
+
+.header-test-action-pill:hover {
+  background: transparent;
+  color: #e0f2fe;
+  text-decoration: underline;
+  text-decoration-color: rgba(51, 133, 255, 0.6);
+  opacity: 1;
+}
+
+.header-test-action-pill--success {
+  color: #bbf7d0;
+}
+
+.header-test-action-pill--success:hover {
+  text-decoration-color: rgba(110, 231, 183, 0.6);
+}
+
+.header-test-action-pill--settings {
+  color: #bae6fd;
+}
+
+.header-test-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 13px;
+  padding: 5px;
+}
+
+.header-test-link {
+  color: #a1a1aa;
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border-radius: 10px;
+  padding: 10px 14px;
+  white-space: nowrap;
+  transition: color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+
+.header-test-link:hover {
+  color: #f4f4f5;
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.header-test-link--active {
+  color: #8ee4ff;
+  font-weight: 700;
+  background: rgba(0, 102, 255, 0.24);
+  box-shadow: 0 0 0 1px rgba(0, 102, 255, 0.34), inset 0 0 0 1px rgba(0, 102, 255, 0.14);
+}
+
+.header-test-main {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 30px 18px 60px;
+  display: grid;
+  gap: 16px;
+}
+
+.header-test-card {
+  border-radius: 18px;
+  border: 1px solid rgba(51, 133, 255, 0.16);
+  background: linear-gradient(180deg, rgba(11, 17, 30, 0.95), rgba(8, 13, 24, 0.93));
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.35);
+  padding: 30px;
+}
+
+.header-test-card h1 {
+  margin: 0;
+  font-size: 1.65rem;
+  letter-spacing: -0.025em;
+  color: #f8fafc;
+}
+
+.header-test-card h2 {
+  margin: 0;
+  font-size: 1.12rem;
+  letter-spacing: -0.01em;
+  color: #f8fafc;
+}
+
+.header-test-card p {
+  margin: 14px 0 0;
+  color: #cbd5e1;
+  line-height: 1.6;
+}
+
+.header-test-card ul {
+  margin: 12px 0 0;
+  padding-left: 18px;
+  color: #cbd5e1;
+  display: grid;
+  gap: 8px;
+}
+
+.header-test-card--muted {
+  background: rgba(11, 17, 30, 0.68);
+}
+
+.header-test-actions-row {
+  margin-top: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.header-test-actions-row a {
+  border: 1px solid rgba(0, 102, 255, 0.5);
+  border-radius: 999px;
+  padding: 9px 14px;
+  color: #bae6fd;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.header-test-actions-row a:hover {
+  background: rgba(0, 102, 255, 0.16);
+}
+
+@media (max-width: 1200px) {
+  .header-test-top {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .header-test-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 900px) {
+  .header-test-nav-shell {
+    top: 0;
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .header-test-links {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+}

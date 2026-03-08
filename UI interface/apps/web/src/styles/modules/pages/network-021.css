@@ -1,0 +1,164 @@
+
+:root[data-theme="light"] .page--network .network-today-item .table-wrap {
+  border-color: #e2e8f0;
+  background: #ffffff;
+}
+
+:root[data-theme="light"] .page--network .network-today-table tbody td {
+  background: #ffffff;
+}
+
+:root[data-theme="light"] .page--network .network-today-table tbody tr:nth-child(odd) td {
+  background: #f8fafc;
+}
+
+:root[data-theme="light"] .page--network .network-cell-index {
+  color: #2563eb;
+}
+
+:root[data-theme="light"] .page--network .network-link-chip:hover {
+  color: #1d4ed8;
+}
+
+:root[data-theme="light"] .page--network .network-add-btn {
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1e40af;
+}
+
+:root[data-theme="light"] .page--network .network-add-btn:hover {
+  border-color: #93c5fd;
+  background: #dbeafe;
+  color: #1e3a8a;
+}
+
+:root[data-theme="light"] .page--network .target-signals-controls-strip {
+  border-color: #d5deea;
+  background: #ffffff;
+}
+
+:root[data-theme="light"] .page--network .target-signals-page {
+  color: #64748b;
+}
+
+:root[data-theme="light"] .page--network .target-signals-arrow:hover:not(:disabled) {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1e3a8a;
+}
+
+:root[data-theme="light"] .page--network .network-empty-state {
+  border-color: #d6e0ec;
+  background: #f8fafc;
+}
+
+:root[data-theme="light"] .page--network .network-empty-state-icon {
+  border-color: #dbe4f0;
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+:root[data-theme="light"] .page--network .network-empty-state-title {
+  color: #0f172a;
+}
+
+:root[data-theme="light"] .page--network .network-empty-state-copy {
+  color: #64748b;
+}
+
+@media (max-width: 900px) {
+  .network-insights-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .network-rivalry-header {
+    gap: 10px;
+  }
+
+  .network-rivalry-feature-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .network-compare-filter {
+    margin-left: 0;
+  }
+
+  .network-weekly-actions {
+    justify-content: flex-start;
+  }
+
+  .network-weekly-legend {
+    gap: 6px;
+  }
+
+  .network-ticker-overlay {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .network-weekly-line-stage {
+    height: 378px;
+  }
+
+  .network-combined-chart {
+    height: 380px;
+  }
+
+  .network-split-chart {
+    min-height: 280px;
+  }
+
+  .network-badge-gallery-shelf {
+    gap: 18px;
+  }
+}
+
+@media (max-width: 1100px), (max-height: 860px) {
+  .network-badge-modal {
+    --medal-size: clamp(36px, 5.4vh, 56px);
+    --medal-size-locked: calc(var(--medal-size) - 7px);
+    width: min(1280px, calc(100vw - 8px));
+    max-width: min(1280px, calc(100vw - 8px));
+    height: calc(100dvh - 8px);
+    max-height: calc(100dvh - 8px);
+    padding: 12px 12px 10px;
+    gap: 8px;
+  }
+
+  .network-badge-modal-head h3 {
+    font-size: 1rem;
+  }
+
+  .network-badge-modal-subtitle {
+    font-size: 0.8rem;
+    padding: 8px 10px;
+  }
+
+  .network-badge-modal-hero {
+    gap: 10px;
+  }
+
+  .network-badge-gallery {
+    gap: 8px;
+  }
+
+  .network-badge-gallery-section {
+    padding: 8px 8px 9px;
+    gap: 8px;
+  }
+
+  .network-badge-gallery-shelf {
+    gap: 6px;
+  }
+
+  .network-badge-gallery-name {
+    font-size: 10px;
+  }
+
+  .network-badge-gallery-desc,
+  .network-badge-latest-desc {
+    display: none;
+  }
+}

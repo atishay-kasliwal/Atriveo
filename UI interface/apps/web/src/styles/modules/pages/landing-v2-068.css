@@ -1,0 +1,69 @@
+
+@media (max-width: 1080px) {
+  .lv-dashboard-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .lv-dashboard-side {
+    display: none;
+  }
+
+  .lv-float-card {
+    position: static;
+    width: 100%;
+    margin-top: 10px;
+  }
+
+  .lv-float-card--left,
+  .lv-float-card--right,
+  .lv-float-card--top-right {
+    transform: none;
+  }
+
+  .lv-preview {
+    margin-top: -92px;
+  }
+
+  .lv-extension-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 30px;
+  }
+
+  .lv-extension-copy {
+    max-width: none;
+  }
+
+  .lv-feature-grid,
+  .lv-step-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .lv-compete-kpi-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .lv-compete-main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .lv-how h2 {
+    font-size: 40px;
+  }
+
+  .lv-testimonials-copy h2 {
+    font-size: 40px;
+  }
+
+  .lv-testimonials-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+
+  .lv-testimonial-rail {
+    max-width: none;
+  }
+
+  .lv-testimonial-feature-copy {
+    font-size: clamp(1.6rem, 4.8vw, 2.25rem);
+  }
+}

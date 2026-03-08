@@ -1,0 +1,225 @@
+
+.lp-mockup-top {
+  height: 46px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--marketing-border);
+  background: color-mix(in srgb, var(--marketing-surface) 92%, #e2e8f0 8%);
+}
+
+.lp-mockup-top span {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--marketing-muted) 45%, transparent);
+}
+
+.lp-mockup-body {
+  padding: 20px;
+}
+
+.lp-mock-line {
+  height: 11px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--marketing-muted) 22%, transparent);
+}
+
+.lp-mock-line + .lp-mock-line {
+  margin-top: 10px;
+}
+
+.lp-mock-line--lg {
+  width: 84%;
+}
+
+.lp-mock-line--md {
+  width: 66%;
+}
+
+.lp-mock-line--sm {
+  width: 48%;
+}
+
+.lp-mock-grid {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.lp-mock-grid article {
+  min-height: 112px;
+  border: 1px solid var(--marketing-border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--marketing-surface) 92%, #f1f5f9 8%);
+}
+
+.lp-center-title {
+  margin: 0;
+  text-align: center;
+  color: var(--marketing-text);
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+  font-weight: 700;
+}
+
+.lp-center-copy {
+  margin: 16px auto 0;
+  max-width: 760px;
+  text-align: center;
+  color: var(--marketing-muted);
+  font-size: 1.05rem;
+  line-height: 1.62;
+}
+
+.lp-split {
+  margin-top: 44px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 64px;
+  align-items: center;
+}
+
+.lp-split--reverse .lp-copy {
+  order: 2;
+}
+
+.lp-split--reverse .lp-visual-card {
+  order: 1;
+}
+
+.lp-copy h3 {
+  margin: 14px 0 0;
+  color: var(--marketing-text);
+  font-size: clamp(1.8rem, 4vw, 3.1rem);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+
+.lp-copy p {
+  margin: 18px 0 0;
+  color: var(--marketing-muted);
+  font-size: 1.08rem;
+  line-height: 1.66;
+  max-width: 560px;
+}
+
+.lp-copy .lp-btn {
+  margin-top: 22px;
+}
+
+.lp-label {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--marketing-border);
+  border-radius: 999px;
+  background: var(--marketing-surface);
+  color: var(--marketing-muted);
+  font-size: 0.93rem;
+  font-weight: 600;
+  padding: 8px 14px;
+}
+
+.lp-label-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--brand-primary) 0%, var(--brand-primary-dark) 100%);
+}
+
+.lp-visual-card {
+  border: 1px solid var(--marketing-border);
+  border-radius: 20px;
+  background: var(--marketing-surface);
+  box-shadow: 0 20px 35px rgba(15, 23, 42, 0.1);
+  overflow: hidden;
+}
+
+.lp-curated-section,
+.lp-autofill-section {
+  background: var(--marketing-soft);
+}
+.lp-curated-grid {
+  margin-top: 34px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.lp-curated-card {
+  min-height: 116px;
+  border-radius: 16px;
+  border: 1px solid var(--marketing-border);
+  background: var(--marketing-surface);
+  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.06);
+  padding: 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: all 200ms ease;
+}
+
+.lp-curated-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 24px rgba(15, 23, 42, 0.1);
+}
+
+.lp-curated-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, var(--brand-primary-light) 0%, var(--brand-primary) 100%);
+  flex-shrink: 0;
+}
+
+.lp-curated-card strong {
+  color: var(--marketing-text);
+  font-size: 1rem;
+  line-height: 1.35;
+  flex: 1;
+}
+
+.lp-curated-go {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--marketing-border);
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--marketing-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.lp-tools-grid {
+  margin-top: 34px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.lp-tool-card {
+  border-radius: 16px;
+  border: 1px solid var(--marketing-border);
+  background: var(--marketing-surface);
+  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.06);
+  padding: 24px;
+  transition: all 200ms ease;
+}
+
+.lp-tool-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 24px rgba(15, 23, 42, 0.1);
+}
+
+.lp-tool-card h3 {
+  margin: 0;
+  color: var(--marketing-text);
+  font-size: 1.25rem;
+}

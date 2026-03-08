@@ -1,0 +1,222 @@
+
+.application-card-pagination {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.application-card-pagination-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 4px;
+  border: 1px solid #dbe4f1;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
+}
+
+.application-card-pagination button {
+  min-height: 30px;
+  min-width: 62px;
+  border-radius: 8px;
+  border: 1px solid #dbe4f1;
+  background: #ffffff;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 0 12px;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.application-card-pagination button:hover:not(:disabled) {
+  border-color: #c5d8fb;
+  background: #f8fbff;
+  color: #1d4ed8;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.12);
+}
+
+.application-card-pagination button:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.application-card-pagination-pages {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.application-card-pagination .is-page {
+  min-width: 30px;
+  min-height: 30px;
+  border-radius: 8px;
+  padding: 0 8px;
+  font-size: 12px;
+  border-color: #d9e2f0;
+}
+
+.application-card-pagination .is-page.is-active {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.28);
+}
+
+.application-card-pagination-ellipsis {
+  color: #94a3b8;
+  font-size: 12px;
+  line-height: 1;
+  padding: 0 4px;
+}
+
+.application-card-pagination-meta {
+  color: #475569;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.application-card-pagination-rows {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+@media (max-width: 1280px) {
+  .active-jobs-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 28%);
+  }
+}
+
+@media (max-width: 1080px) {
+  .active-jobs-demo-board {
+    overflow-x: auto;
+    overflow-y: visible;
+  }
+
+  .active-jobs-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 28%);
+    min-width: 1200px;
+  }
+
+  .active-jobs-left-column {
+    order: 2;
+  }
+
+  .active-jobs-main-column {
+    order: 1;
+  }
+
+  .application-card-toolbar-primary {
+    grid-template-columns: 1fr;
+  }
+
+  .application-card-toolbar {
+    padding: 20px 14px 14px;
+  }
+
+  .application-card-summary {
+    grid-template-columns: minmax(220px, 340px) minmax(360px, 1fr) auto;
+    gap: 6px 10px;
+  }
+
+  .application-card-status {
+    justify-items: end;
+  }
+
+  .application-card-bottom {
+    align-items: center;
+  }
+}
+@media (max-width: 640px) {
+  .active-jobs-side-panel {
+    padding: 12px;
+  }
+
+  .active-jobs-kpi-premium-value {
+    font-size: 28px;
+  }
+
+  .active-jobs-referral-table-wrap {
+    overflow-x: auto;
+  }
+
+  .application-card-toolbar {
+    padding: 18px 12px 14px;
+  }
+
+  .application-card-toolbar-filters-row {
+    gap: 8px;
+  }
+
+  .application-card-toolbar-preset-list {
+    gap: 8px;
+  }
+
+  .application-card {
+    padding: 10px 12px;
+  }
+
+  .application-card-header {
+    align-items: center;
+  }
+
+  .application-card-pipeline-labels span {
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 460px) {
+  .application-card-search-shell {
+    padding: 0 12px;
+  }
+
+  .application-card-search-hint {
+    min-width: 20px;
+    height: 20px;
+    font-size: 11px;
+  }
+
+  .filter-chip {
+    min-height: 34px;
+    padding: 7px 10px;
+    font-size: 11px;
+  }
+
+  .application-card-toolbar-preset-list button {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+}
+
+.form input,
+.form textarea,
+.form select {
+  width: 100%;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 88%, transparent);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--bg-card-elevated) 88%, transparent);
+  color: var(--text-primary);
+  font: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.form input:hover,
+.form textarea:hover,
+.form select:hover {
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--bg-card-border));
+  background: color-mix(in srgb, var(--surface-hover) 88%, var(--bg-card));
+}
+
+.form input::placeholder,
+.form textarea::placeholder {
+  color: color-mix(in srgb, var(--text-muted) 84%, transparent);
+}

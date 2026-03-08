@@ -1,0 +1,229 @@
+.logout-btn .logout-emoji {
+  display: inline-block;
+  font-size: 0.95em;
+  filter: grayscale(1) brightness(1.15) contrast(1.1);
+}
+
+.chart-grid-four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.chart-grid-two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.chart-grid-three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+/* Dashboard bottom panels (Pending / Referrals / Notes) */
+.dashboard-bottom-panels {
+  align-items: stretch;
+  margin-top: 16px;
+}
+
+.dashboard-panel {
+  display: flex;
+  flex-direction: column;
+  height: auto;
+  min-height: 340px;
+}
+
+.dashboard-bottom-panels--pending .dashboard-panel--pending {
+  min-height: 380px;
+  border-color: color-mix(in srgb, var(--accent) 22%, var(--bg-card-border));
+  background: color-mix(in srgb, var(--bg-card) 90%, var(--bg-card-elevated));
+}
+
+.dashboard-bottom-panels--pending .dashboard-panel--pending h2 {
+  font-size: 1.2rem;
+  margin-bottom: 12px;
+}
+
+.dashboard-bottom-panels--pending .dashboard-panel--pending .chart-subtitle {
+  margin-bottom: 14px;
+}
+
+.dashboard-bottom-panels--secondary .dashboard-panel {
+  min-height: 320px;
+}
+
+.dashboard-bottom-panels--notes .dashboard-panel--notes {
+  min-height: 280px;
+  background: color-mix(in srgb, var(--bg-card-elevated) 72%, var(--bg-card));
+}
+
+.dashboard-bottom-panels--notes .dashboard-panel--notes h2 {
+  font-size: 1rem;
+  margin-bottom: 10px;
+}
+
+.dashboard-bottom-panels--notes .dashboard-panel--notes .chart-subtitle {
+  font-size: 0.82rem;
+  margin-bottom: 10px;
+}
+
+.dashboard-bottom-panels--notes .notes-preview-card {
+  background: color-mix(in srgb, var(--bg-card-elevated) 78%, var(--bg-card));
+  box-shadow: none;
+}
+
+.dashboard-panel--followup {
+  min-height: 420px;
+}
+
+.dashboard-followup-stack {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.dashboard-followup-section {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dashboard-followup-section + .dashboard-followup-section {
+  border-top: 1px solid color-mix(in srgb, var(--bg-card-border) 65%, transparent);
+  padding-top: 12px;
+}
+
+.dashboard-followup-section h3 {
+  margin: 0;
+  font-size: 0.86rem;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.dashboard-panel--followup .panel-scroll {
+  max-height: 150px;
+}
+
+.dashboard-panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.panel-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  flex: 1 1 auto;
+}
+
+.panel-footer-right {
+  margin-top: auto;
+  display: flex;
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.chart-subtitle {
+  margin: -6px 0 12px;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--bg-card-border);
+}
+
+.chart-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.chart-legend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.chart-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 220px;
+  height: 100%;
+  flex: 1 1 auto;
+  padding: 24px;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.trend-uniform-card {
+  padding: 24px;
+  min-height: 560px;
+  display: flex;
+  flex-direction: column;
+}
+
+.trend-uniform-head {
+  margin-bottom: 20px;
+}
+
+.trend-uniform-head h2 {
+  margin: 0 0 8px 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.trend-uniform-head p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--chart-text-secondary);
+}
+
+.trend-uniform-body {
+  min-height: 380px;
+}
+
+.trend-uniform-loading {
+  min-height: 360px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.trend-uniform-foot {
+  margin-top: auto;
+  min-height: 40px;
+  padding-top: 14px;
+  border-top: 1px solid var(--chart-grid);
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+.trend-uniform-foot-item {
+  font-weight: 500;
+}
+
+.trend-uniform-foot-item--applied {
+  color: #2563eb;
+}
+
+.trend-uniform-foot-item--rejected {
+  color: #0ea5e9;
+}
+
+.trend-uniform-foot-item--muted {
+  color: var(--chart-text-secondary);
+}
