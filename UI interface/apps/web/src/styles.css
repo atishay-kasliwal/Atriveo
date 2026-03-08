@@ -605,6 +605,75 @@ body::-webkit-scrollbar-thumb:hover,
   gap: 12px;
 }
 
+.app-nav-bottom-actions {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.app-nav-jobs-search {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.app-nav-jobs-search-input-wrap {
+  position: relative;
+  min-width: 0;
+}
+
+.app-nav-jobs-search-emoji-btn {
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.76rem;
+  line-height: 1;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.app-nav-jobs-search-emoji-btn:hover {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.app-nav-jobs-search-emoji-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 34%, transparent);
+  outline-offset: 1px;
+}
+
+.app-nav-jobs-search-input {
+  width: clamp(180px, 20vw, 260px);
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 72%, transparent);
+  background: color-mix(in srgb, var(--bg-card-elevated) 38%, transparent);
+  color: var(--text-primary);
+  padding: 0 36px 0 12px;
+  font-size: 0.85rem;
+}
+
+.app-nav-jobs-search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.app-nav-jobs-search-input:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 34%, transparent);
+  outline-offset: 1px;
+}
+
 .app-nav-links {
   display: inline-flex;
   flex-wrap: wrap;
@@ -864,7 +933,7 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .app-split-create--nav-bottom {
-  margin-left: auto;
+  margin-left: 0;
 }
 
 .dropdown-button-primary,
@@ -1416,6 +1485,26 @@ body::-webkit-scrollbar-thumb:hover,
 
   .app-nav-bottom {
     flex-wrap: wrap;
+  }
+
+  .app-nav-bottom-actions {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+
+  .app-nav-jobs-search {
+    flex: 1 1 100%;
+  }
+
+  .app-nav-jobs-search-input-wrap {
+    flex: 1 1 auto;
+  }
+
+  .app-nav-jobs-search-input {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
   }
 
   .app-nav-theme-toggle:not(.app-nav-theme-toggle--top) {
@@ -4960,6 +5049,21 @@ body::-webkit-scrollbar-thumb:hover,
   color: #0f172a;
 }
 
+:root[data-theme="light"] .app-nav .app-nav-jobs-search-input {
+  border-color: #d4dde8;
+  background: #ffffff;
+  color: #0f172a;
+}
+
+:root[data-theme="light"] .app-nav .app-nav-jobs-search-emoji-btn {
+  color: #64748b;
+}
+
+:root[data-theme="light"] .app-nav .app-nav-jobs-search-emoji-btn:hover {
+  color: #1e3a8a;
+  background: #dbeafe;
+}
+
 :root[data-theme="light"] .app-nav .avatar-menu-trigger {
   background: #e2e8f0;
   border: 0;
@@ -5730,6 +5834,15 @@ body::-webkit-scrollbar-thumb:hover,
 
   .target-signal-app-kv-grid {
     grid-template-columns: 1fr;
+  }
+
+  .target-signal-app-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .target-signal-add-btn {
+    width: 100%;
   }
 }
 
@@ -7984,6 +8097,909 @@ body::-webkit-scrollbar-thumb:hover,
   background: rgba(0, 102, 255, 0.3);
   border-color: var(--accent);
   transform: translateY(-1px);
+}
+
+.application-card-board {
+  display: grid;
+  gap: 16px;
+}
+
+.active-jobs-demo-board {
+  width: 100%;
+}
+
+.active-jobs-layout {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 28%);
+  gap: 16px;
+  align-items: start;
+}
+
+.active-jobs-left-column {
+  display: grid;
+  gap: 12px;
+  order: 2;
+  min-width: 0;
+}
+
+.active-jobs-side-panel {
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 16px;
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.active-jobs-side-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.active-jobs-side-heading h3 {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.2;
+  color: #0f172a;
+}
+
+.active-jobs-side-heading > span {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.active-jobs-link-btn {
+  border: 0;
+  background: transparent;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.active-jobs-link-btn:hover {
+  text-decoration: underline;
+}
+
+.active-jobs-referral-search {
+  min-height: 34px;
+  border: 1px solid #dbe4f1;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 0 10px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.active-jobs-referral-search:focus-within {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.active-jobs-referral-search-icon {
+  width: 14px;
+  height: 14px;
+  color: #94a3b8;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.active-jobs-referral-search-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.active-jobs-referral-search input {
+  border: 0;
+  outline: 0;
+  background: transparent;
+  min-height: 32px;
+  min-width: 0;
+  color: #0f172a;
+  font-size: 12px;
+  font-family: var(--font-body), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.active-jobs-referral-search input::placeholder {
+  color: #94a3b8;
+}
+
+.active-jobs-side-search-shell {
+  min-height: 40px;
+  padding: 0 12px;
+}
+
+.active-jobs-side-caption {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #64748b;
+}
+
+.active-jobs-kpi-panel {
+  display: grid;
+  gap: 8px;
+}
+
+.active-jobs-kpi-premium-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.active-jobs-kpi-premium-card {
+  border: 1px solid #dbe4f1;
+  border-radius: 14px;
+  padding: 12px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+  display: grid;
+  gap: 4px;
+  aspect-ratio: 1 / 1;
+  align-content: space-between;
+  min-width: 0;
+}
+
+.active-jobs-kpi-premium-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.active-jobs-kpi-premium-head p {
+  margin: 0;
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.active-jobs-kpi-pill {
+  border-radius: 999px;
+  padding: 3px 8px;
+  background: #dcfce7;
+  color: #166534;
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 700;
+}
+
+.active-jobs-kpi-premium-value {
+  margin: 0;
+  font-size: 32px;
+  line-height: 1;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.active-jobs-kpi-premium-status {
+  margin: 0;
+  font-size: 12px;
+  color: #475569;
+  font-weight: 500;
+}
+
+.active-jobs-kpi-sparkline {
+  width: 100%;
+  height: 64px;
+  margin-top: 4px;
+}
+
+.active-jobs-kpi-sparkline path {
+  fill: none;
+  stroke: #3b82f6;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.active-jobs-kpi-bars {
+  margin-top: 4px;
+  height: 72px;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  align-items: end;
+  gap: 4px;
+}
+
+.active-jobs-kpi-bars span {
+  border-radius: 999px;
+  background: linear-gradient(180deg, #6366f1 0%, #4338ca 100%);
+  min-height: 12px;
+  width: 6px;
+  justify-self: center;
+}
+
+.active-jobs-referral-table-wrap {
+  overflow: hidden;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.active-jobs-referral-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.active-jobs-referral-table th,
+.active-jobs-referral-table td {
+  text-align: left;
+  padding: 9px 10px;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.active-jobs-referral-table th {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  background: #f8fafc;
+  font-weight: 600;
+}
+
+.active-jobs-referral-table td {
+  font-size: 12px;
+  color: #334155;
+  vertical-align: top;
+}
+
+.active-jobs-referral-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.active-jobs-referral-empty {
+  text-align: center !important;
+  color: #64748b !important;
+  font-size: 12px !important;
+  padding: 14px 10px !important;
+}
+
+.active-jobs-referral-person {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.active-jobs-referral-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid #dbe4f1;
+  background: #eff6ff;
+  color: #1e40af;
+  font-size: 10px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.active-jobs-referral-person strong {
+  display: block;
+  color: #0f172a;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.active-jobs-referral-person span {
+  display: block;
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.active-jobs-referral-stage {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+}
+
+.active-jobs-main-column {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+  order: 1;
+}
+
+.active-jobs-main-toolbar {
+  padding: 16px 14px 14px;
+  box-shadow: 0 10px 28px rgba(37, 99, 235, 0.08);
+}
+
+.application-card-toolbar-search-row {
+  padding-bottom: 4px;
+}
+
+.application-card-search-shell--main {
+  min-height: 48px;
+  border-radius: 999px;
+  border-color: #e2e8f0;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+
+.application-card-search-shell--main .application-card-search-input {
+  min-height: 46px;
+  font-size: 14px;
+}
+
+.application-card-search-shell--main .application-card-search-hint {
+  min-width: 44px;
+  height: 24px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.application-card-toolbar-section-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.application-card-toolbar-section-head p {
+  margin: 0;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.application-card-toolbar-section-head span {
+  flex: 1;
+  height: 1px;
+  border-radius: 999px;
+  background: #dbe4f1;
+}
+
+.application-card-toolbar-section-head--compact {
+  margin-bottom: 6px;
+}
+
+.application-card-toolbar-filters-row {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  align-items: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 2px;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.application-card-toolbar-primary--single {
+  grid-template-columns: 1fr;
+}
+
+.application-card-toolbar {
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 16px;
+  padding: 24px 22px 18px;
+  display: grid;
+  gap: 12px;
+  font-family: var(--font-body), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.application-card-toolbar-row {
+  display: grid;
+  width: 100%;
+}
+
+.application-card-toolbar-primary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 420px);
+  gap: 12px;
+  align-items: center;
+}
+
+.application-card-toolbar-secondary {
+  display: grid;
+  gap: 6px;
+}
+
+.application-card-search-shell {
+  min-height: 44px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  padding: 0 16px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.application-card-search-shell:focus-within {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.application-card-search-icon {
+  color: #64748b;
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.application-card-search-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.application-card-search-input {
+  width: 100%;
+  min-height: 42px;
+  border: 0;
+  padding: 0;
+  font-size: 13px;
+  color: #0f172a;
+  background: #ffffff;
+  min-width: 0;
+  text-overflow: ellipsis;
+}
+
+.application-card-search-input:focus {
+  outline: none;
+}
+
+.application-card-search-input::placeholder {
+  color: #64748b;
+}
+
+.application-card-search-hint {
+  border: 1px solid #dbe4f1;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #64748b;
+  min-width: 34px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-family: "Inter", var(--font-body), sans-serif;
+  font-weight: 600;
+}
+
+.filter-chip {
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  border-radius: 999px;
+  padding: 7px 11px;
+  font-size: 12px;
+  line-height: 1;
+  color: #334155;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  cursor: pointer;
+  transition: background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease, color 0.16s ease;
+  min-height: 34px;
+  white-space: nowrap;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.02);
+  width: auto;
+  min-width: max-content;
+}
+
+.filter-chip:hover {
+  background: #f1f5f9;
+  border-color: #d3dce9;
+}
+
+.filter-chip.is-active {
+  border-color: #bfd2f8;
+  background: #eff6ff;
+  color: #1e40af;
+  box-shadow: none;
+}
+
+.filter-chip-value {
+  display: inline-flex;
+  color: #334155;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.application-card-toolbar-presets {
+  display: grid;
+  gap: 6px;
+}
+
+.application-card-toolbar-presets p {
+  margin: 0;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.application-card-toolbar-preset-list {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.application-card-toolbar-preset-list button {
+  border: 1px solid transparent;
+  background: #f1f5f9;
+  color: #334155;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  width: auto;
+  min-width: max-content;
+  white-space: nowrap;
+}
+
+.application-card-toolbar-preset-list button:hover {
+  background: #e2e8f0;
+  border-color: #d8e1ee;
+}
+
+.application-card-toolbar-preset-list button.is-selected {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+
+.application-card-toolbar-summary {
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 6px;
+  white-space: normal;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.application-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 12px 14px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.04);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  font-family: "Inter", var(--font-body), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #0f172a;
+}
+
+.application-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 35px rgba(0, 0, 0, 0.08);
+}
+
+.application-card-summary {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.25fr) minmax(250px, 1.1fr) minmax(110px, auto);
+  gap: 10px 14px;
+  align-items: center;
+}
+
+.application-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.application-card-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid #dbe4f0;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.application-card-title h3 {
+  margin: 0;
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 1.2;
+}
+
+.application-card-role {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.25;
+}
+
+.application-card-meta {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.application-card-pipeline {
+  min-width: 0;
+}
+
+.application-card-pipeline-track {
+  display: flex;
+  align-items: center;
+}
+
+.application-card-pipeline-step {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.application-card-pipeline-step:last-child {
+  flex: 0;
+}
+
+.application-card-pipeline-node {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  border: 2px solid #cbd5f5;
+  background: #ffffff;
+  box-sizing: border-box;
+}
+
+.application-card-pipeline-node.is-complete {
+  border-color: #2563eb;
+  background: #2563eb;
+}
+
+.application-card-pipeline-line {
+  flex: 1;
+  height: 2px;
+  background: #cbd5f5;
+}
+
+.application-card-pipeline-line.is-complete {
+  background: #2563eb;
+}
+
+.application-card-pipeline-labels {
+  margin-top: 5px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 2px;
+}
+
+.application-card-pipeline-labels span {
+  font-size: 10px;
+  text-align: center;
+  color: #64748b;
+}
+
+.application-card-status {
+  display: grid;
+  justify-items: end;
+  gap: 4px;
+}
+
+.application-card-status-message {
+  margin: 0;
+  font-size: 12px;
+  color: #475569;
+}
+
+.application-card-open-btn {
+  margin-top: 6px;
+  min-height: 30px;
+  min-width: 78px;
+  border-radius: 8px;
+  border: 1px solid #2563eb;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.2s ease, transform 0.2s ease;
+}
+
+.application-card-open-btn:hover {
+  filter: brightness(0.96);
+  transform: translateY(-1px);
+}
+
+.application-card-divider {
+  border: 0;
+  border-top: 1px solid #e2e8f0;
+  margin: 10px 0 8px;
+}
+
+.application-card-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  flex-wrap: wrap;
+}
+
+.application-card-metadata {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.application-card-tag {
+  background: #f1f5f9;
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 12px;
+  line-height: 1.2;
+  color: #334155;
+  transition: background-color 0.2s ease;
+}
+
+.application-card-tag:hover {
+  background: #e7eef7;
+}
+
+.application-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 6px;
+}
+
+.application-card-actions button {
+  border: 0;
+  background: transparent;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.application-card-actions button:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.application-card-actions button.is-danger {
+  color: #ef4444;
+}
+
+.application-card-actions button.is-danger:hover {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+@media (max-width: 1280px) {
+  .active-jobs-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 34%);
+  }
+}
+
+@media (max-width: 1080px) {
+  .active-jobs-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .active-jobs-left-column {
+    order: 2;
+  }
+
+  .active-jobs-main-column {
+    order: 1;
+  }
+
+  .application-card-toolbar-primary {
+    grid-template-columns: 1fr;
+  }
+
+  .application-card-toolbar {
+    padding: 20px 14px 14px;
+  }
+
+  .application-card-summary {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .application-card-status {
+    justify-items: start;
+  }
+
+  .application-card-bottom {
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 640px) {
+  .active-jobs-side-panel {
+    padding: 12px;
+  }
+
+  .active-jobs-kpi-premium-value {
+    font-size: 28px;
+  }
+
+  .active-jobs-referral-table-wrap {
+    overflow-x: auto;
+  }
+
+  .application-card-toolbar {
+    padding: 18px 12px 14px;
+  }
+
+  .application-card-toolbar-filters-row {
+    gap: 8px;
+  }
+
+  .application-card-toolbar-preset-list {
+    gap: 8px;
+  }
+
+  .application-card {
+    padding: 10px 12px;
+  }
+
+  .application-card-header {
+    align-items: center;
+  }
+
+  .application-card-pipeline-labels span {
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 460px) {
+  .application-card-search-shell {
+    padding: 0 12px;
+  }
+
+  .application-card-search-hint {
+    min-width: 20px;
+    height: 20px;
+    font-size: 11px;
+  }
+
+  .filter-chip {
+    min-height: 34px;
+    padding: 7px 10px;
+    font-size: 11px;
+  }
+
+  .application-card-toolbar-preset-list button {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
 }
 
 .form input,

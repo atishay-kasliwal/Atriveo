@@ -1,5 +1,5 @@
 import { useState, useEffect, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from "react";
-import { NavLink, Outlet, Link, useLocation } from "react-router-dom";
+import { NavLink, Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import {
   acceptFriendRequest,
   blockFriendship,
@@ -33,6 +33,7 @@ import QuickCreateSplitButton from "./layout/QuickCreateSplitButton";
 import HeaderAvatarMenu from "./layout/HeaderAvatarMenu";
 import { ThemeToggle } from "./ThemeToggle";
 import useConfirmDialog from "./ui/useConfirmDialog";
+import { withDashboardBase } from "../lib/paths";
 
 type LayoutProps = {
   userEmail: string;
@@ -289,7 +290,9 @@ function KeywordMatchRadio({ id, label, value, onChange }: KeywordMatchRadioProp
 
 export default function Layout({ userEmail, userFirstName, userLastName, onLogout, theme, onToggleTheme }: LayoutProps) {
   const location = useLocation();
+  const navigate = useNavigate();
   const isNetworkView = location.pathname.includes("/network");
+  const isActiveJobsView = location.pathname.includes("/jobs");
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [showPendingTask, setShowPendingTask] = useState(false);
   const [showNoteModal, setShowNoteModal] = useState(false);
@@ -316,8 +319,14 @@ export default function Layout({ userEmail, userFirstName, userLastName, onLogou
   const [form, setForm] = useState(emptyJobForm);
   const [pendingForm, setPendingForm] = useState(emptyPendingForm);
   const [noteForm, setNoteForm] = useState(emptyNoteForm);
+  const [navJobsSearch, setNavJobsSearch] = useState("");
   const { confirm, confirmDialog } = useConfirmDialog();
   const avatarInitials = computeUserInitials(userFirstName, userLastName, userEmail);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    setNavJobsSearch(String(params.get("search") ?? ""));
+  }, [location.search]);
 
   useEffect(() => {
     if (!showQuickAdd && !showPendingTask && !showNoteModal) setModalError("");
@@ -772,6 +781,20 @@ export default function Layout({ userEmail, userFirstName, userLastName, onLogou
     setShowNoteModal(true);
   }
 
+  function onNavJobsSearch(e: React.FormEvent) {
+    e.preventDefault();
+    const query = navJobsSearch.trim();
+    trackFeatureEvent(ANALYTICS_EVENTS.search_used, {
+      source: "dashboard_nav",
+      search_scope: "global",
+      query_length: query.length,
+    });
+    const params = new URLSearchParams();
+    if (query) params.set("search", query);
+    const qs = params.toString();
+    navigate(`${withDashboardBase("jobs")}${qs ? `?${qs}` : ""}`);
+  }
+
   return (
     <div className={`page${isNetworkView ? " page--network" : ""}`}>
       <nav className={`app-nav${isNetworkView ? " app-nav--network" : ""}`}>
@@ -820,12 +843,32 @@ export default function Layout({ userEmail, userFirstName, userLastName, onLogou
               Archive
             </NavLink>
           </div>
-          <QuickCreateSplitButton
-            className="app-split-create--nav-bottom"
-            onNewApplication={openNewApplicationModal}
-            onCreateTask={openCreateTaskModal}
-            onLogNote={openLogNoteModal}
-          />
+          <div className="app-nav-bottom-actions">
+            {!isActiveJobsView ? (
+              <form className="app-nav-jobs-search" onSubmit={onNavJobsSearch}>
+                <div className="app-nav-jobs-search-input-wrap">
+                  <input
+                    type="search"
+                    className="app-nav-jobs-search-input"
+                    placeholder="Search anything"
+                    value={navJobsSearch}
+                    onChange={(e) => setNavJobsSearch(e.target.value)}
+                    aria-label="Search jobs by any field"
+                    autoComplete="off"
+                  />
+                  <button type="submit" className="app-nav-jobs-search-emoji-btn" aria-label="Search jobs">
+                    🔍
+                  </button>
+                </div>
+              </form>
+            ) : null}
+            <QuickCreateSplitButton
+              className="app-split-create--nav-bottom"
+              onNewApplication={openNewApplicationModal}
+              onCreateTask={openCreateTaskModal}
+              onLogNote={openLogNoteModal}
+            />
+          </div>
         </div>
       </nav>
       <main className="page-main">

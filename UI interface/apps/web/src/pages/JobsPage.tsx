@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import {
   Area,
   Bar,
@@ -125,6 +125,160 @@ const CHART_COLORS = {
   textSecondary: "var(--chart-text-secondary)",
 };
 
+const APPLICATION_PIPELINE_STAGES = ["Applied", "OA", "Interview", "Offer", "Archive"] as const;
+
+type ToolbarTimeRange = "0" | "7" | "14" | "21" | "30" | "all";
+type ToolbarBooleanFilter = "yes" | "no" | "all";
+type ToolbarStatusFilter = "active" | "archive" | "all";
+type ToolbarStageFilter = (typeof APPLICATION_PIPELINE_STAGES)[number] | "All";
+
+const TIME_OPTIONS: Array<{ value: ToolbarTimeRange; label: string }> = [
+  { value: "0", label: "Today" },
+  { value: "7", label: "Last 7 days" },
+  { value: "14", label: "Last 14 days" },
+  { value: "21", label: "Last 21 days" },
+  { value: "30", label: "Last 30 days" },
+  { value: "all", label: "All time" },
+];
+
+const REFERRAL_OPTIONS_TOOLBAR: Array<{ value: ToolbarBooleanFilter; label: string }> = [
+  { value: "yes", label: "With referral" },
+  { value: "no", label: "Without referral" },
+  { value: "all", label: "All" },
+];
+
+const OA_OPTIONS_TOOLBAR: Array<{ value: ToolbarBooleanFilter; label: string }> = [
+  { value: "yes", label: "Yes" },
+  { value: "no", label: "No" },
+  { value: "all", label: "All" },
+];
+
+const STATUS_OPTIONS_TOOLBAR: Array<{ value: ToolbarStatusFilter; label: string }> = [
+  { value: "active", label: "Active" },
+  { value: "archive", label: "Archive" },
+  { value: "all", label: "All" },
+];
+const STAGE_OPTIONS_TOOLBAR: Array<{ value: ToolbarStageFilter; label: string }> = [
+  { value: "All", label: "All" },
+  ...APPLICATION_PIPELINE_STAGES.map((stage) => ({ value: stage, label: stage })),
+];
+const TIME_CHIP_LABEL: Record<ToolbarTimeRange, string> = {
+  "0": "Today",
+  "7": "7d",
+  "14": "14d",
+  "21": "21d",
+  "30": "30d",
+  all: "All",
+};
+const BOOLEAN_CHIP_LABEL: Record<ToolbarBooleanFilter, string> = {
+  yes: "Yes",
+  no: "No",
+  all: "All",
+};
+const STATUS_CHIP_LABEL: Record<ToolbarStatusFilter, string> = {
+  active: "Active",
+  archive: "Archive",
+  all: "All",
+};
+const TIME_FILTER_SEQUENCE: ToolbarTimeRange[] = ["7", "14", "21", "30", "all", "0"];
+const REFERRAL_FILTER_SEQUENCE: ToolbarBooleanFilter[] = ["yes", "no", "all"];
+const OA_FILTER_SEQUENCE: ToolbarBooleanFilter[] = ["yes", "no", "all"];
+const STATUS_FILTER_SEQUENCE: ToolbarStatusFilter[] = ["active", "archive", "all"];
+const STAGE_FILTER_SEQUENCE: ToolbarStageFilter[] = ["All", ...APPLICATION_PIPELINE_STAGES];
+
+const ACTIVE_JOBS_SAMPLE_CARDS = [
+  {
+    company: "Google",
+    role: "Software Engineer, Core",
+    appliedOn: "2026-03-07",
+    appliedDate: "Mar 7, 2026",
+    owner: "Atishay Kasliwal",
+    statusMessage: "Due in 2 days",
+    referralUsed: true,
+    oaStatus: "Yes",
+    applicationStatus: "Active",
+    referredBy: "Alex Johnson",
+    jobId: "48293",
+    keywordMatch: 78,
+    progress: 1,
+  },
+  {
+    company: "Amazon",
+    role: "SDE I, Platform",
+    appliedOn: "2026-03-06",
+    appliedDate: "Mar 6, 2026",
+    owner: "Atishay Kasliwal",
+    statusMessage: "OA requested",
+    referralUsed: true,
+    oaStatus: "Yes",
+    applicationStatus: "Active",
+    referredBy: "Maya Patel",
+    jobId: "51982",
+    keywordMatch: 72,
+    progress: 2,
+  },
+  {
+    company: "Microsoft",
+    role: "Software Engineer, AI Infra",
+    appliedOn: "2026-03-05",
+    appliedDate: "Mar 5, 2026",
+    owner: "Atishay Kasliwal",
+    statusMessage: "Interview soon",
+    referralUsed: true,
+    oaStatus: "Yes",
+    applicationStatus: "Active",
+    referredBy: "Chris Lee",
+    jobId: "64012",
+    keywordMatch: 84,
+    progress: 2,
+  },
+  {
+    company: "Stripe",
+    role: "Backend Engineer",
+    appliedOn: "2026-03-04",
+    appliedDate: "Mar 4, 2026",
+    owner: "Atishay Kasliwal",
+    statusMessage: "Archived last week",
+    referralUsed: false,
+    oaStatus: "No",
+    applicationStatus: "Archive",
+    referredBy: "No referral",
+    jobId: "70354",
+    keywordMatch: 88,
+    progress: 4,
+  },
+];
+
+const ACTIVE_JOBS_PREMIUM_KPIS = {
+  monthly: {
+    label: "This month applications",
+    value: "68",
+    delta: "+12%",
+    status: "On track",
+    sparkPath: "M0 68 L24 58 L48 62 L72 41 L96 49 L120 34 L144 56 L168 46 L192 60 L216 44 L240 38",
+  },
+  oa: {
+    label: "OA completion rate",
+    value: "82%",
+    delta: "+4%",
+    status: "Healthy pipeline",
+    bars: [62, 44, 78, 53, 70, 82, 47],
+  },
+} as const;
+
+const ACTIVE_JOBS_REFERRAL_ROWS: Array<{
+  name: string;
+  company: string;
+  role: string;
+  stage: string;
+}> = [
+  { name: "Alex Shah", company: "Google", role: "SWE Core", stage: "OA" },
+  { name: "Maya Patel", company: "Amazon", role: "SDE I", stage: "Interview" },
+  { name: "Chris Lee", company: "Microsoft", role: "AI Infra", stage: "Applied" },
+  { name: "Rhea Singh", company: "Stripe", role: "Backend", stage: "Offer" },
+  { name: "Jordan Kim", company: "Datadog", role: "Platform", stage: "Applied" },
+];
+
 function parseIsoDay(day: string): { y: number; m: number; d: number } | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day);
   if (!m) return null;
@@ -146,11 +300,16 @@ function formatDayShort(day: string) {
 }
 
 export default function JobsPage({ statusFilter }: { statusFilter?: string } = {}) {
+  const location = useLocation();
+  const urlSearchQuery = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return String(params.get("search") ?? "").trim();
+  }, [location.search]);
   const [data, setData] = useState<Array<Record<string, unknown>>>([]);
   const [totalRows, setTotalRows] = useState(0);
   const [page, setPage] = useState(1);
-  const [company, setCompany] = useState("");
-  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState(urlSearchQuery);
+  const [searchInput, setSearchInput] = useState(urlSearchQuery);
   const [sortBy, setSortBy] = useState<SortField>("applied_at");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const [error, setError] = useState("");
@@ -202,6 +361,140 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
   const [isOaSaving, setIsOaSaving] = useState(false);
   const [oaDeletingId, setOaDeletingId] = useState<number | string | null>(null);
   const { confirm, confirmDialog } = useConfirmDialog();
+  const [cardSearch, setCardSearch] = useState("");
+  const [cardTimeRange, setCardTimeRange] = useState<ToolbarTimeRange>("7");
+  const [cardReferralFilter, setCardReferralFilter] = useState<ToolbarBooleanFilter>("yes");
+  const [cardOaFilter, setCardOaFilter] = useState<ToolbarBooleanFilter>("yes");
+  const [cardStatusFilter, setCardStatusFilter] = useState<ToolbarStatusFilter>("active");
+  const [cardStageFilter, setCardStageFilter] = useState<ToolbarStageFilter>("All");
+  const [referralSearch, setReferralSearch] = useState("");
+  const [activeSmartView, setActiveSmartView] = useState<"default" | "interview" | "referral" | null>("default");
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+
+  const filteredSampleCards = useMemo(() => {
+    const query = cardSearch.trim().toLowerCase();
+    const timeDays = cardTimeRange === "all" ? null : Number(cardTimeRange);
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+
+    return ACTIVE_JOBS_SAMPLE_CARDS.filter((card) => {
+      if (query) {
+        const haystack = [
+          card.company,
+          card.role,
+          card.owner,
+          card.referredBy,
+          card.jobId,
+          card.statusMessage,
+          card.applicationStatus,
+        ]
+          .join(" ")
+          .toLowerCase();
+        if (!haystack.includes(query)) return false;
+      }
+
+      if (timeDays != null) {
+        const applied = new Date(`${card.appliedOn}T00:00:00`);
+        if (!Number.isNaN(applied.getTime())) {
+          const diffDays = Math.floor((now.getTime() - applied.getTime()) / 86_400_000);
+          if (diffDays < 0 || diffDays > timeDays) return false;
+        }
+      }
+
+      if (cardReferralFilter !== "all") {
+        if (cardReferralFilter === "yes" && !card.referralUsed) return false;
+        if (cardReferralFilter === "no" && card.referralUsed) return false;
+      }
+
+      if (cardOaFilter !== "all") {
+        const hasOa = String(card.oaStatus).toLowerCase() === "yes";
+        if (cardOaFilter === "yes" && !hasOa) return false;
+        if (cardOaFilter === "no" && hasOa) return false;
+      }
+
+      if (cardStatusFilter !== "all") {
+        const status = String(card.applicationStatus).toLowerCase();
+        if (cardStatusFilter === "active" && status === "archive") return false;
+        if (cardStatusFilter === "archive" && status !== "archive") return false;
+      }
+
+      if (cardStageFilter !== "All") {
+        const currentStage = APPLICATION_PIPELINE_STAGES[Math.min(card.progress, APPLICATION_PIPELINE_STAGES.length - 1)];
+        if (currentStage !== cardStageFilter) return false;
+      }
+
+      return true;
+    });
+  }, [cardSearch, cardTimeRange, cardReferralFilter, cardOaFilter, cardStatusFilter, cardStageFilter]);
+
+  const filteredReferralRows = useMemo(() => {
+    const query = referralSearch.trim().toLowerCase();
+    if (!query) return ACTIVE_JOBS_REFERRAL_ROWS;
+    return ACTIVE_JOBS_REFERRAL_ROWS.filter((row) => `${row.name} ${row.company}`.toLowerCase().includes(query));
+  }, [referralSearch]);
+
+  useEffect(() => {
+    function onSlashFocusSearch(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      const tag = target?.tagName.toLowerCase();
+      const isEditingContext = tag === "input" || tag === "textarea" || tag === "select" || target?.isContentEditable;
+      if (isEditingContext) return;
+      const slashPressed = event.key === "/";
+      const commandKPressed = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k";
+      if (!slashPressed && !commandKPressed) return;
+      event.preventDefault();
+      searchInputRef.current?.focus();
+      searchInputRef.current?.select();
+    }
+    window.addEventListener("keydown", onSlashFocusSearch);
+    return () => window.removeEventListener("keydown", onSlashFocusSearch);
+  }, []);
+
+  function applyDefaultCardFilters() {
+    setCardSearch("");
+    setCardTimeRange("7");
+    setCardReferralFilter("yes");
+    setCardOaFilter("yes");
+    setCardStatusFilter("active");
+    setCardStageFilter("All");
+    setActiveSmartView("default");
+  }
+
+  function applyInterviewScenario() {
+    setCardSearch("");
+    setCardTimeRange("30");
+    setCardReferralFilter("all");
+    setCardOaFilter("yes");
+    setCardStatusFilter("active");
+    setCardStageFilter("Interview");
+    setActiveSmartView("interview");
+  }
+
+  function applyReferralScenario() {
+    setCardSearch("");
+    setCardTimeRange("14");
+    setCardReferralFilter("yes");
+    setCardOaFilter("all");
+    setCardStatusFilter("active");
+    setCardStageFilter("All");
+    setActiveSmartView("referral");
+  }
+
+  function clearCardFilters() {
+    setCardSearch("");
+    setCardTimeRange("all");
+    setCardReferralFilter("all");
+    setCardOaFilter("all");
+    setCardStatusFilter("all");
+    setCardStageFilter("All");
+    setActiveSmartView(null);
+  }
+
+  function cycleInSequence<T extends string>(current: T, sequence: readonly T[]): T {
+    const idx = sequence.indexOf(current);
+    if (idx < 0) return sequence[0];
+    return sequence[(idx + 1) % sequence.length];
+  }
 
   const load = useCallback(async () => {
     try {
@@ -210,7 +503,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
       const res = await getJobs({
         page,
         limit: LIMIT,
-        company: company || undefined,
+        search: searchQuery || undefined,
         sort: sortBy,
         order: sortOrder,
         status: statusFilter ?? "active",
@@ -224,7 +517,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     } finally {
       setIsLoading(false);
     }
-  }, [page, company, sortBy, sortOrder, statusFilter]);
+  }, [page, searchQuery, sortBy, sortOrder, statusFilter]);
 
   const loadTrend = useCallback(async () => {
     try {
@@ -289,21 +582,27 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     });
   }, [statusFilter]);
 
+  useEffect(() => {
+    setSearchInput(urlSearchQuery);
+    setSearchQuery(urlSearchQuery);
+    setPage(1);
+  }, [urlSearchQuery]);
+
   function onSearch(e: React.FormEvent) {
     e.preventDefault();
     const query = searchInput.trim();
     trackFeatureEvent(ANALYTICS_EVENTS.search_used, {
       source: "jobs_page",
-      search_scope: "company",
+      search_scope: "global",
       query_length: query.length,
     });
     trackFeatureEvent(ANALYTICS_EVENTS.filter_used, {
       source: "jobs_page",
-      filter_type: "company",
+      filter_type: "search",
       value_length: query.length,
       has_value: query.length > 0,
     });
-    setCompany(query);
+    setSearchQuery(query);
     setPage(1);
   }
 
@@ -523,6 +822,294 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     return normalized.charAt(0).toUpperCase() + normalized.slice(1);
   }
 
+  if (statusFilter !== "rejected") {
+    return (
+      <>
+        {error ? <div className="error">{error}</div> : null}
+        <section className="application-card-board active-jobs-demo-board">
+          <div className="active-jobs-layout">
+            <aside className="active-jobs-left-column">
+              <section className="application-card-toolbar active-jobs-main-toolbar">
+                <div className="application-card-toolbar-search-row">
+                  <label className="application-card-search-shell application-card-search-shell--main">
+                    <span className="application-card-search-icon" aria-hidden>
+                      <svg viewBox="0 0 20 20" fill="none" role="presentation" focusable="false">
+                        <circle cx="9" cy="9" r="5.5" stroke="currentColor" strokeWidth="1.8" />
+                        <path d="M13.5 13.5L17 17" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                      </svg>
+                    </span>
+                    <input
+                      ref={searchInputRef}
+                      type="search"
+                      className="application-card-search-input"
+                      placeholder="Search applications, company, role, referral, job ID..."
+                      value={cardSearch}
+                      onChange={(e) => {
+                        setCardSearch(e.target.value);
+                        setActiveSmartView(null);
+                      }}
+                      aria-label="Global search"
+                    />
+                    <kbd className="application-card-search-hint">⌘ K</kbd>
+                  </label>
+                </div>
+
+                <div className="application-card-toolbar-section-head">
+                  <p>Filter by</p>
+                  <span aria-hidden />
+                </div>
+
+                <div className="application-card-toolbar-filters-row" role="toolbar" aria-label="Quick filters">
+                  <button
+                    type="button"
+                    className={`filter-chip ${cardTimeRange !== "all" ? "is-active" : ""}`}
+                    onClick={() => {
+                      setCardTimeRange((curr) => cycleInSequence(curr, TIME_FILTER_SEQUENCE));
+                      setActiveSmartView(null);
+                    }}
+                  >
+                    <span className="filter-chip-value">Time: {TIME_CHIP_LABEL[cardTimeRange]}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`filter-chip ${cardReferralFilter !== "all" ? "is-active" : ""}`}
+                    onClick={() => {
+                      setCardReferralFilter((curr) => cycleInSequence(curr, REFERRAL_FILTER_SEQUENCE));
+                      setActiveSmartView(null);
+                    }}
+                  >
+                    <span className="filter-chip-value">
+                      Referral: {BOOLEAN_CHIP_LABEL[cardReferralFilter]}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`filter-chip ${cardOaFilter !== "all" ? "is-active" : ""}`}
+                    onClick={() => {
+                      setCardOaFilter((curr) => cycleInSequence(curr, OA_FILTER_SEQUENCE));
+                      setActiveSmartView(null);
+                    }}
+                  >
+                    <span className="filter-chip-value">OA: {BOOLEAN_CHIP_LABEL[cardOaFilter]}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`filter-chip ${cardStatusFilter !== "all" ? "is-active" : ""}`}
+                    onClick={() => {
+                      setCardStatusFilter((curr) => cycleInSequence(curr, STATUS_FILTER_SEQUENCE));
+                      setActiveSmartView(null);
+                    }}
+                  >
+                    <span className="filter-chip-value">Status: {STATUS_CHIP_LABEL[cardStatusFilter]}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`filter-chip ${cardStageFilter !== "All" ? "is-active" : ""}`}
+                    onClick={() => {
+                      setCardStageFilter((curr) => cycleInSequence(curr, STAGE_FILTER_SEQUENCE));
+                      setActiveSmartView(null);
+                    }}
+                  >
+                    <span className="filter-chip-value">Stage: {STAGE_OPTIONS_TOOLBAR.find((opt) => opt.value === cardStageFilter)?.label ?? "All"}</span>
+                  </button>
+                </div>
+
+                <div className="application-card-toolbar-secondary">
+                  <div className="application-card-toolbar-presets">
+                    <div className="application-card-toolbar-section-head application-card-toolbar-section-head--compact">
+                      <p>Smart Views</p>
+                      <span aria-hidden />
+                    </div>
+                    <div className="application-card-toolbar-preset-list">
+                      <button
+                        type="button"
+                        onClick={applyDefaultCardFilters}
+                        className={activeSmartView === "default" ? "is-selected" : ""}
+                      >
+                        Default Smart
+                      </button>
+                      <button
+                        type="button"
+                        onClick={applyInterviewScenario}
+                        className={activeSmartView === "interview" ? "is-selected" : ""}
+                      >
+                        Interview Focus
+                      </button>
+                      <button
+                        type="button"
+                        onClick={applyReferralScenario}
+                        className={activeSmartView === "referral" ? "is-selected" : ""}
+                      >
+                        Referral Tracker
+                      </button>
+                      <button type="button" onClick={clearCardFilters}>
+                        Clear All
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section className="active-jobs-side-panel active-jobs-kpi-panel">
+                <div className="active-jobs-side-heading">
+                  <h3>Live KPIs</h3>
+                  <span>Updated today</span>
+                </div>
+                <div className="active-jobs-kpi-premium-grid">
+                  <article className="active-jobs-kpi-premium-card is-line">
+                    <header className="active-jobs-kpi-premium-head">
+                      <p>{ACTIVE_JOBS_PREMIUM_KPIS.monthly.label}</p>
+                      <span className="active-jobs-kpi-pill">{ACTIVE_JOBS_PREMIUM_KPIS.monthly.delta}</span>
+                    </header>
+                    <p className="active-jobs-kpi-premium-value">{ACTIVE_JOBS_PREMIUM_KPIS.monthly.value}</p>
+                    <p className="active-jobs-kpi-premium-status">{ACTIVE_JOBS_PREMIUM_KPIS.monthly.status}</p>
+                    <svg viewBox="0 0 240 70" className="active-jobs-kpi-sparkline" aria-hidden>
+                      <path d={ACTIVE_JOBS_PREMIUM_KPIS.monthly.sparkPath} />
+                    </svg>
+                  </article>
+
+                  <article className="active-jobs-kpi-premium-card is-bars">
+                    <header className="active-jobs-kpi-premium-head">
+                      <p>{ACTIVE_JOBS_PREMIUM_KPIS.oa.label}</p>
+                      <span className="active-jobs-kpi-pill">{ACTIVE_JOBS_PREMIUM_KPIS.oa.delta}</span>
+                    </header>
+                    <p className="active-jobs-kpi-premium-value">{ACTIVE_JOBS_PREMIUM_KPIS.oa.value}</p>
+                    <p className="active-jobs-kpi-premium-status">{ACTIVE_JOBS_PREMIUM_KPIS.oa.status}</p>
+                    <div className="active-jobs-kpi-bars" aria-hidden>
+                      {ACTIVE_JOBS_PREMIUM_KPIS.oa.bars.map((height, idx) => (
+                        <span key={`kpi-bar-${idx}`} style={{ height: `${height}%` }} />
+                      ))}
+                    </div>
+                  </article>
+                </div>
+              </section>
+
+              <section className="active-jobs-side-panel">
+                <div className="active-jobs-side-heading">
+                  <h3>Referral Pulse</h3>
+                  <button type="button" className="active-jobs-link-btn">View all</button>
+                </div>
+                <label className="active-jobs-referral-search">
+                  <span className="active-jobs-referral-search-icon" aria-hidden>
+                    <svg viewBox="0 0 20 20" fill="none" role="presentation" focusable="false">
+                      <circle cx="9" cy="9" r="5.5" stroke="currentColor" strokeWidth="1.8" />
+                      <path d="M13.5 13.5L17 17" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                    </svg>
+                  </span>
+                  <input
+                    type="search"
+                    value={referralSearch}
+                    onChange={(e) => setReferralSearch(e.target.value)}
+                    placeholder="Search friend or company"
+                    aria-label="Search referral pulse"
+                  />
+                </label>
+                <div className="active-jobs-referral-table-wrap">
+                  <table className="active-jobs-referral-table">
+                    <tbody>
+                      {filteredReferralRows.map((row) => (
+                        <tr key={`${row.name}-${row.company}`}>
+                          <td>
+                            <div className="active-jobs-referral-person">
+                              <span className="active-jobs-referral-avatar" aria-hidden>
+                                {row.name.split(" ").map((part) => part[0]).join("").slice(0, 2)}
+                              </span>
+                              <div>
+                                <strong>{row.name}</strong>
+                                <span>{row.role}</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td>{row.company}</td>
+                          <td>
+                            <span className="active-jobs-referral-stage">{row.stage}</span>
+                          </td>
+                        </tr>
+                      ))}
+                      {filteredReferralRows.length === 0 ? (
+                        <tr>
+                          <td className="active-jobs-referral-empty" colSpan={3}>
+                            No matching friend or company.
+                          </td>
+                        </tr>
+                      ) : null}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            </aside>
+
+            <section className="active-jobs-main-column">
+              {filteredSampleCards.map((card) => (
+                <article key={`${card.company}-${card.role}`} className="application-card">
+                  <section className="application-card-summary">
+                    <header className="application-card-header">
+                      <span className="application-card-logo" aria-hidden>
+                        {card.company.slice(0, 2).toUpperCase()}
+                      </span>
+                      <div className="application-card-title">
+                        <h3>{card.company}</h3>
+                        <p className="application-card-role">{card.role}</p>
+                        <p className="application-card-meta">{card.appliedDate} · {card.owner}</p>
+                      </div>
+                    </header>
+
+                    <div className="application-card-pipeline" aria-label="Pipeline progress">
+                      <div className="application-card-pipeline-track" aria-hidden>
+                        {APPLICATION_PIPELINE_STAGES.map((stage, idx) => (
+                          <div key={`${card.company}-${stage}`} className="application-card-pipeline-step">
+                            <span className={`application-card-pipeline-node${idx <= card.progress ? " is-complete" : ""}`} />
+                            {idx < APPLICATION_PIPELINE_STAGES.length - 1 ? (
+                              <span className={`application-card-pipeline-line${idx < card.progress ? " is-complete" : ""}`} />
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                      <div
+                        className="application-card-pipeline-labels"
+                        style={{ gridTemplateColumns: `repeat(${APPLICATION_PIPELINE_STAGES.length}, minmax(0, 1fr))` }}
+                      >
+                        {APPLICATION_PIPELINE_STAGES.map((stage) => (
+                          <span key={`${card.company}-${stage}-label`}>{stage}</span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <aside className="application-card-status">
+                      <p className="application-card-status-message">{card.statusMessage}</p>
+                      <button type="button" className="application-card-open-btn">Open</button>
+                    </aside>
+                  </section>
+
+                  <hr className="application-card-divider" />
+
+                  <div className="application-card-bottom">
+                    <section className="application-card-metadata" aria-label="Secondary metadata">
+                      <span className="application-card-tag">Referral: {card.referredBy}</span>
+                      <span className="application-card-tag"># Job ID: {card.jobId}</span>
+                      <span className="application-card-tag">Keyword Match: {card.keywordMatch}%</span>
+                      <span className="application-card-tag">Applied: {card.appliedDate}</span>
+                    </section>
+
+                    <footer className="application-card-actions">
+                      <button type="button">Edit</button>
+                      <button type="button">Archive</button>
+                      <button type="button" className="is-danger">Delete</button>
+                    </footer>
+                  </div>
+                </article>
+              ))}
+              {filteredSampleCards.length === 0 ? (
+                <div className="empty-state">No cards match your smart filters.</div>
+              ) : null}
+            </section>
+          </div>
+        </section>
+        {confirmDialog}
+      </>
+    );
+  }
+
   function openOaEdit(row: Record<string, unknown>) {
     setOaEditing(row);
     setOaEditForm({
@@ -612,8 +1199,8 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     <>
       {error ? <div className="error">{error}</div> : null}
 
-      {/* Application Momentum Chart - Single Unified View (only for active jobs) */}
-      {statusFilter !== "rejected" && (
+      {/* Application Momentum Chart - temporarily disabled */}
+      {false && statusFilter !== "rejected" && (
         <div className="card card-chart-trend trend-uniform-card" style={{ marginBottom: "24px" }}>
           <div className="trend-uniform-head">
             <h2>Application Momentum</h2>
@@ -937,10 +1524,10 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
             <input
               className="jobs-search-input"
               type="search"
-              placeholder="Search by company"
+              placeholder="Search anything"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              aria-label="Search by company"
+              aria-label="Search jobs by any field"
             />
             <button type="submit" className="jobs-search-btn">Search</button>
           </form>

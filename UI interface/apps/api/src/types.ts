@@ -1,6 +1,9 @@
 export type Bindings = {
   NEON_DATABASE_URL: string;
   API_SHARED_TOKEN: string;
+  MEDIA_BUCKET?: R2Bucket;
+  MEDIA_URL_SIGNING_SECRET?: string;
+  MEDIA_PUBLIC_BASE_URL?: string;
   OWNER_DASHBOARD_PASSWORD?: string;
   OWNER_EMAIL?: string;
   OWNER_ACCESS_ONLY?: string;

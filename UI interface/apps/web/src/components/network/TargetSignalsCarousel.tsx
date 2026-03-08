@@ -127,7 +127,7 @@ export default function TargetSignalsCarousel({
   useDemoFallback = false,
   onAddApplication,
 }: TargetSignalsCarouselProps) {
-  const [companyQuery, setCompanyQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const { cards } = useMemo(() => {
     const canonicalByNormalized = new Map<string, string>();
@@ -312,10 +312,28 @@ export default function TargetSignalsCarousel({
   }, [todayData, useDemoFallback]);
 
   const filteredCards = useMemo(() => {
-    const query = normalizeCompanyName(companyQuery);
+    const query = normalizeCompanyName(searchQuery);
     if (!query) return cards;
-    return cards.filter((card) => normalizeCompanyName(card.company).includes(query));
-  }, [cards, companyQuery]);
+    return cards.filter((card) => {
+      const searchableValues = [
+        card.company,
+        card.latestRole,
+        ...card.previewFriends,
+        ...card.recentApplications.flatMap((app) => [
+          app.role,
+          app.appliedBy,
+          app.jobApplicationId,
+          app.oaStatus,
+          app.oaDeadline,
+          app.referralStatus,
+          app.notes,
+          app.link,
+          app.dateIso,
+        ]),
+      ];
+      return searchableValues.some((value) => normalizeCompanyName(String(value ?? "")).includes(query));
+    });
+  }, [cards, searchQuery]);
 
   const shouldScrollCards = filteredCards.length > 1;
 
@@ -331,9 +349,10 @@ export default function TargetSignalsCarousel({
           <input
             type="search"
             className="target-signals-search"
-            placeholder="Search company"
-            value={companyQuery}
-            onChange={(event) => setCompanyQuery(event.target.value)}
+            placeholder="Search anything"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            aria-label="Search target signals by any field"
           />
           <span className="target-signals-count">
             {filteredCards.length} compan{filteredCards.length === 1 ? "y" : "ies"}

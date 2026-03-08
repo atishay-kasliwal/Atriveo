@@ -37,9 +37,10 @@ React dashboard + Cloudflare Worker API + Postgres database.
    - `cp apps/web/.env.example apps/web/.env`
    - Set `VITE_API_URL=http://127.0.0.1:8787`
    - Leave `VITE_API_TOKEN=` empty unless you set `API_SHARED_TOKEN`
-   - Optional for Google auth: set `VITE_GOOGLE_CLIENT_ID` to your Google OAuth Web client ID
+  - Optional for Google auth: set `VITE_GOOGLE_CLIENT_ID` to your Google OAuth Web client ID
   - Analytics uses GA4 Measurement ID `G-8LNKTSL8MF` (configured in web `index.html`)
   - Analytics implementation guide: `docs/analytics.md`
+  - Optional R2 media storage setup: `docs/r2-media-storage.md`
 8. Run apps (two terminals):
    - Terminal A: `npm run dev:api`
    - Terminal B: `npm run dev:web`

@@ -181,18 +181,20 @@ export function getDashboardSummary(days?: number) {
 export type GetJobsParams = {
   page?: number;
   limit?: number;
-  company?: string;
+  search?: string;
+  company?: string; // Backward-compatible alias for search
   sort?: "date_saved" | "applied_at" | "company" | "role" | "referral_status" | "job_link";
   order?: "asc" | "desc";
   status?: string; // 'active' | 'rejected' | 'all'
 };
 
 export function getJobs(params: GetJobsParams = {}) {
-  const { page = 1, limit = 25, company, sort = "applied_at", order = "desc" } = params;
+  const { page = 1, limit = 25, search: rawSearch, company, sort = "applied_at", order = "desc" } = params;
+  const searchQuery = rawSearch ?? company;
   const search = new URLSearchParams();
   search.set("page", String(page));
   search.set("limit", String(Math.min(limit, 100)));
-  if (company?.trim()) search.set("company", company.trim());
+  if (searchQuery?.trim()) search.set("search", searchQuery.trim());
   search.set("sort", sort);
   search.set("order", order);
   if ((params as any).status) search.set("status", String((params as any).status));
@@ -627,4 +629,87 @@ export function getReferralsTrend(days?: number) {
   if (days) search.set("days", String(days));
   search.set("anchorDay", getLocalISODate());
   return request<{ data: ReferralsTrendData }>(`/api/referrals/trend?${search.toString()}`, { cache: "no-store" });
+}
+
+export type MediaKind = "general" | "profile" | "job" | "note" | "network" | "other";
+
+export type MediaAsset = {
+  id: number;
+  object_key: string;
+  bucket_name: string;
+  file_name: string | null;
+  mime_type: string;
+  byte_size: number;
+  sha256_hex: string;
+  source_url: string | null;
+  kind: MediaKind | string;
+  related_job_id: number | null;
+  related_note_id: number | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+  public_url: string | null;
+  signed_url: string | null;
+};
+
+export function uploadMediaBase64(payload: {
+  file_name?: string;
+  mime_type: string;
+  data_base64: string;
+  kind?: MediaKind;
+  source_url?: string;
+  related_job_id?: number | null;
+  related_note_id?: number | null;
+}) {
+  return request<{ data: MediaAsset; deduplicated: boolean }>("/api/media/upload", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function ingestMediaFromUrl(payload: {
+  source_url: string;
+  file_name?: string;
+  mime_type?: string;
+  kind?: MediaKind;
+  related_job_id?: number | null;
+  related_note_id?: number | null;
+}) {
+  return request<{ data: MediaAsset; deduplicated: boolean }>("/api/media/ingest", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function listMedia(params: {
+  page?: number;
+  limit?: number;
+  kind?: MediaKind;
+  ttl?: number;
+} = {}) {
+  const search = new URLSearchParams();
+  search.set("page", String(Math.max(1, Number(params.page ?? 1) || 1)));
+  search.set("limit", String(Math.min(Math.max(Number(params.limit ?? 25) || 25, 1), 100)));
+  if (params.kind) search.set("kind", params.kind);
+  if (params.ttl) search.set("ttl", String(params.ttl));
+  return request<{ page: number; limit: number; total: number; data: MediaAsset[] }>(
+    `/api/media?${search.toString()}`,
+    { cache: "no-store" },
+  );
+}
+
+export function getMediaSignedUrl(mediaId: number | string, ttl?: number) {
+  const search = new URLSearchParams();
+  if (ttl) search.set("ttl", String(ttl));
+  const suffix = search.toString();
+  return request<{ id: number; ttl_seconds: number; signed_url: string | null; public_url: string | null }>(
+    `/api/media/${mediaId}/signed-url${suffix ? `?${suffix}` : ""}`,
+    { cache: "no-store" },
+  );
+}
+
+export function deleteMedia(mediaId: number | string) {
+  return request<{ ok: boolean; id: number }>(`/api/media/${mediaId}`, {
+    method: "DELETE",
+  });
 }
