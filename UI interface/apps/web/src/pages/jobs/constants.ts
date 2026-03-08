@@ -184,6 +184,32 @@ export const ACTIVE_JOBS_PREMIUM_KPIS = {
   },
 } as const;
 
+export const ACTIVE_JOBS_REFERRAL_ACTIVITY = [
+  { company: "Meta", referrals: 5 },
+  { company: "Google", referrals: 3 },
+  { company: "Microsoft", referrals: 2 },
+  { company: "Amazon", referrals: 1 },
+  { company: "Apple", referrals: 1 },
+] as const;
+
+export const ACTIVE_JOBS_WEEKLY_APPLICATION_COUNTS = [
+  { week: "Week 1", count: 8 },
+  { week: "Week 2", count: 12 },
+  { week: "Week 3", count: 9 },
+  { week: "Week 4", count: 6 },
+  { week: "Week 5", count: 10 },
+] as const;
+
+export const ACTIVE_JOBS_CURRENT_WEEK_DAILY_COUNTS = [
+  { day: "Mon", count: 1 },
+  { day: "Tue", count: 2 },
+  { day: "Wed", count: 3 },
+  { day: "Thu", count: 0 },
+  { day: "Fri", count: 1 },
+  { day: "Sat", count: 1 },
+  { day: "Sun", count: 2 },
+] as const;
+
 export const ACTIVE_JOBS_REFERRAL_ROWS: Array<{
   name: string;
   company: string;
