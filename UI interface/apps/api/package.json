@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev src/index.ts --local --show-interactive-dev-session=false",
+    "dev": "wrangler dev src/index.ts --local --port 8787 --show-interactive-dev-session=false",
     "build": "wrangler deploy --dry-run --env production",
     "build:staging": "wrangler deploy --dry-run --env staging",
     "deploy": "npm run deploy:prod",

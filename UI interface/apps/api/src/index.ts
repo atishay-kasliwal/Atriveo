@@ -2887,7 +2887,7 @@ app.get("/api/jobs", async (c) => {
   const limit = Math.min(Math.max(Number(c.req.query("limit") ?? 25) || 25, 1), 100);
   const searchQuery = String(c.req.query("search") ?? c.req.query("company") ?? "").trim();
   const statusFilterRaw = String(c.req.query("status") ?? "").trim().toLowerCase(); // expected: "active" | "rejected" | "archive" | "all" (empty means active)
-  const statusFilter = statusFilterRaw === "archive" ? "rejected" : statusFilterRaw;
+  const statusFilter = statusFilterRaw;
   const stageFilterRaw = String(c.req.query("stage") ?? "").trim();
   const stageFilter =
     stageFilterRaw === "Applied" ||
@@ -2917,14 +2917,14 @@ app.get("/api/jobs", async (c) => {
   const orderBy = `j.${sort} ${order} NULLS LAST, COALESCE(j.applied_at, j.date_saved, j.created_at) DESC NULLS LAST, j.created_at DESC NULLS LAST, j.id DESC`;
   const stageSql = `
     CASE
-      WHEN LOWER(TRIM(COALESCE(j.application_status, ''))) IN ('rejected', 'archive', 'archived') THEN 'Archive'
-      WHEN LOWER(TRIM(COALESCE(j.application_status, ''))) = 'offer'
-        OR LOWER(TRIM(COALESCE(j.response_status, ''))) = 'offer'
-        THEN 'Offer'
-      WHEN LOWER(TRIM(COALESCE(j.application_status, ''))) = 'interview'
-        OR LOWER(TRIM(COALESCE(j.response_status, ''))) = 'interview'
-        THEN 'Interview'
-      WHEN LOWER(TRIM(COALESCE(j.oa_status, ''))) = 'yes' THEN 'OA'
+      -- Canonical pipeline values stored in application_status
+      WHEN LOWER(TRIM(COALESCE(j.application_status, ''))) IN ('applied', '') THEN 'Applied'
+      WHEN LOWER(TRIM(COALESCE(j.application_status, ''))) = 'oa' THEN 'OA'
+      WHEN LOWER(TRIM(COALESCE(j.application_status, ''))) = 'interview' THEN 'Interview'
+      WHEN LOWER(TRIM(COALESCE(j.application_status, ''))) = 'offer' THEN 'Offer'
+      WHEN LOWER(TRIM(COALESCE(j.application_status, ''))) IN ('archive', 'archived', 'rejected') THEN 'Archive'
+      -- Backward-compat: map legacy values into the closest stage
+      WHEN LOWER(TRIM(COALESCE(j.application_status, ''))) = 'under consideration' THEN 'Applied'
       ELSE 'Applied'
     END
   `;
@@ -2972,11 +2972,18 @@ app.get("/api/jobs", async (c) => {
     params.push(`%${searchQuery}%`);
     paramIdx += 1;
   }
-  // statusFilter semantics: 'rejected' => only Rejected, 'active' or empty => exclude Rejected, 'all' => no filter
+  // statusFilter semantics:
+  // - '' or 'active'  => exclude archived/rejected
+  // - 'archive'       => only archived/rejected
+  // - 'rejected'      => only explicit "rejected" status (backward compat)
+  // - 'all'           => no filter
+  const applicationStatusExpr = "LOWER(TRIM(COALESCE(j.application_status, 'Applied')))";
   if (!statusFilter || statusFilter === "active") {
-    whereParts.push(`LOWER(TRIM(COALESCE(j.application_status, 'Applied'))) != 'rejected'`);
+    whereParts.push(`${applicationStatusExpr} NOT IN ('rejected', 'archive', 'archived')`);
+  } else if (statusFilter === "archive") {
+    whereParts.push(`${applicationStatusExpr} IN ('rejected', 'archive', 'archived')`);
   } else if (statusFilter === "rejected") {
-    whereParts.push(`LOWER(TRIM(COALESCE(j.application_status, ''))) = 'rejected'`);
+    whereParts.push(`${applicationStatusExpr} = 'rejected'`);
   }
   if (stageFilter) {
     whereParts.push(`(${stageSql}) = $${paramIdx}`);

@@ -37,7 +37,7 @@
   padding: 4px 12px;
   border: 1px solid var(--bg-card-border);
   border-radius: 14px;
-  background: rgba(17, 24, 39, 0.9);
+  background: var(--bg-card);
   box-shadow: var(--nav-shadow);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);

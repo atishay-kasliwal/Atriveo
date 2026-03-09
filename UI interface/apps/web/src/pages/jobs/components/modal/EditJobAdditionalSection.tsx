@@ -42,10 +42,16 @@ export default function EditJobAdditionalSection({ editForm, setEditForm }: Prop
             </label>
             <label className="new-app-field">
               <span className="new-app-label">Application Status</span>
-              <select className="new-app-input new-app-select" value={editForm.application_status} onChange={(e) => setEditForm((p) => ({ ...p, application_status: e.target.value }))}>
+              <select
+                className="new-app-input new-app-select"
+                value={editForm.application_status}
+                onChange={(e) => setEditForm((p) => ({ ...p, application_status: e.target.value }))}
+              >
                 <option value="Applied">Applied</option>
-                <option value="Under consideration">Under consideration</option>
-                <option value="Rejected">Rejected</option>
+                <option value="OA">OA</option>
+                <option value="Interview">Interview</option>
+                <option value="Offer">Offer</option>
+                <option value="Archive">Archive</option>
               </select>
             </label>
             <label className="new-app-field">

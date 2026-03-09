@@ -98,8 +98,10 @@ export default function EditOaModal({
                 className="form-select"
               >
                 <option value="Applied">Applied</option>
-                <option value="Under consideration">Under consideration</option>
-                <option value="Rejected">Rejected</option>
+                <option value="OA">OA</option>
+                <option value="Interview">Interview</option>
+                <option value="Offer">Offer</option>
+                <option value="Archive">Archive</option>
               </select>
             </div>
             <input

@@ -428,7 +428,13 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
       setActiveCardsError("");
       setIsLoadingActiveCards(true);
       const selectedStage = cardStageFilter === "All" ? undefined : cardStageFilter;
-      const selectedStatus = selectedStage === "Archive" ? "archive" : "active";
+      // Stage dropdown semantics:
+      // - "All"      => show all jobs (active + archive)
+      // - "Applied"  => only active jobs in Applied stage
+      // - "Archive"  => only archived jobs
+      // - "OA/Interview/Offer" => active jobs in those stages
+      const selectedStatus =
+        cardStageFilter === "All" ? "all" : cardStageFilter === "Archive" ? "archive" : "active";
       const res = await getJobs({
         page: cardPage,
         limit: CARD_LIMIT,
