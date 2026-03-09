@@ -223,3 +223,15 @@
 .table-wrap tbody tr.data-no td:first-child::before {
   background: rgba(0, 102, 255, 0.6);
 }
+
+@media (min-width: 641px) and (max-width: 1024px) {
+  .table-wrap--tablet-scroll {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .table-wrap--tablet-scroll .jobs-table {
+    min-width: 980px;
+  }
+}

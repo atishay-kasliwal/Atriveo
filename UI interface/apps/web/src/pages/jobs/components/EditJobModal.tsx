@@ -22,31 +22,35 @@ type EditForm = {
 type Props = {
   editing: Record<string, unknown> | null;
   isSaving: boolean;
+  isDeleting: boolean;
   editForm: EditForm;
   setEditing: (value: Record<string, unknown> | null) => void;
   setEditForm: (updater: (prev: EditForm) => EditForm) => void;
   onSaveEdit: (e: React.FormEvent) => Promise<void>;
+  onDeleteEdit: () => Promise<void>;
 };
 
 export default function EditJobModal({
   editing,
   isSaving,
+  isDeleting,
   editForm,
   setEditing,
   setEditForm,
   onSaveEdit,
+  onDeleteEdit,
 }: Props) {
   if (!editing) return null;
 
   return (
-    <div className="modal-overlay modal-overlay--quickadd" onClick={() => !isSaving && setEditing(null)}>
+    <div className="modal-overlay modal-overlay--quickadd" onClick={() => !isSaving && !isDeleting && setEditing(null)}>
       <div className="modal modal--quickadd" onClick={(e) => e.stopPropagation()}>
         <button
           type="button"
           className="modal-close-x"
           aria-label="Close"
-          onClick={() => !isSaving && setEditing(null)}
-          disabled={isSaving}
+          onClick={() => !isSaving && !isDeleting && setEditing(null)}
+          disabled={isSaving || isDeleting}
         >
           ×
         </button>
@@ -182,17 +186,32 @@ export default function EditJobModal({
 
           <EditJobAdditionalSection editForm={editForm} setEditForm={setEditForm} />
 
-          <div className="new-app-actions">
-            <button type="button" className="new-app-btn new-app-btn--secondary" onClick={() => setEditing(null)} disabled={isSaving}>
-              Cancel
-            </button>
+          <div className="new-app-actions new-app-actions--with-delete">
             <button
-              type="submit"
-              className="new-app-btn new-app-btn--primary"
-              disabled={isSaving || !editForm.role.trim() || !editForm.company.trim()}
+              type="button"
+              className="new-app-btn new-app-btn--danger"
+              onClick={() => void onDeleteEdit()}
+              disabled={isSaving || isDeleting}
             >
-              {isSaving ? "Saving..." : "Save"}
+              {isDeleting ? "Deleting..." : "Delete"}
             </button>
+            <div className="new-app-actions-right">
+              <button
+                type="button"
+                className="new-app-btn new-app-btn--secondary"
+                onClick={() => setEditing(null)}
+                disabled={isSaving || isDeleting}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="new-app-btn new-app-btn--primary"
+                disabled={isSaving || isDeleting || !editForm.role.trim() || !editForm.company.trim()}
+              >
+                {isSaving ? "Saving..." : "Save"}
+              </button>
+            </div>
           </div>
         </form>
       </div>

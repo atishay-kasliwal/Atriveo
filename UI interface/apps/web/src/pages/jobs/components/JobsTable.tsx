@@ -3,7 +3,7 @@ import { formatTableDateTime } from "../../../lib/formatDate";
 import useIsMobileViewport from "../../../hooks/useIsMobileViewport";
 import type { SortField, SortOrder } from "../types";
 import JobsTableHead from "./table/JobsTableHead";
-import JobsTableMobileCards from "./table/JobsTableMobileCards";
+import MobileApplicationCards from "./table/MobileApplicationCards";
 
 type Props = {
   isLoading: boolean;
@@ -66,7 +66,7 @@ export default function JobsTable({
   normalizeReferralStatus,
   normalizeOaStatus,
 }: Props) {
-  const isMobile = useIsMobileViewport();
+  const isMobile = useIsMobileViewport(640);
 
   return (
     <div className="card" style={{ padding: "24px" }}>
@@ -94,7 +94,7 @@ export default function JobsTable({
       ) : (
         <>
           {isMobile ? (
-            <JobsTableMobileCards
+            <MobileApplicationCards
               rows={sortedData}
               page={page}
               limit={limit}
@@ -108,7 +108,7 @@ export default function JobsTable({
               capitalizeFirst={capitalizeFirst}
             />
           ) : (
-            <div className="table-wrap">
+            <div className="table-wrap table-wrap--tablet-scroll">
               <table className="jobs-table">
                 <JobsTableHead
                   sortBy={sortBy}

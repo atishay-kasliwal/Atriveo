@@ -31,13 +31,12 @@
 
 .app-nav {
   font-family: var(--font-header);
-  display: grid;
-  gap: 8px;
+  display: block;
   margin-top: 0;
-  margin-bottom: 14px;
-  padding: 10px 14px;
+  margin-bottom: 12px;
+  padding: 4px 12px;
   border: 1px solid var(--bg-card-border);
-  border-radius: 16px;
+  border-radius: 14px;
   background: rgba(17, 24, 39, 0.9);
   box-shadow: var(--nav-shadow);
   backdrop-filter: blur(10px);
@@ -48,19 +47,63 @@
 }
 
 .app-nav-top {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  border-bottom: 1px solid color-mix(in srgb, var(--bg-card-border) 72%, transparent);
-  padding: 2px 4px 10px;
+  gap: 20px;
+  min-height: 44px;
+  padding: 0 4px;
+}
+
+.app-nav-left {
+  display: inline-flex;
+  align-items: center;
+}
+
+.app-nav-center {
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0;
+}
+
+.app-nav-menu-toggle {
+  display: none;
+  width: 36px;
+  height: 36px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 72%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg-card-elevated) 56%, transparent);
+  color: var(--text-secondary);
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease, background-color 120ms ease;
+}
+
+.app-nav-menu-toggle svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.app-nav-menu-toggle:hover,
+.app-nav-menu-toggle.is-open {
+  color: var(--text-primary);
+  border-color: color-mix(in srgb, var(--accent-soft) 40%, var(--bg-card-border));
+  background: color-mix(in srgb, var(--surface-hover) 72%, transparent);
 }
 
 .app-nav-brand {
   color: var(--text-primary);
   text-decoration: none;
   font-family: var(--font-header);
-  font-size: 1.8rem;
+  font-size: 1.72rem;
   line-height: 1;
   letter-spacing: -0.03em;
   font-weight: 800;
@@ -150,20 +193,22 @@
 
 .app-nav-links {
   display: inline-flex;
-  flex-wrap: wrap;
-  width: fit-content;
-  max-width: 100%;
-  gap: 7px;
-  background: color-mix(in srgb, var(--bg-card-elevated) 65%, transparent);
-  border: 1px solid color-mix(in srgb, var(--bg-card-border) 72%, transparent);
+  align-items: center;
+  justify-content: center;
+  flex-wrap: nowrap;
+  width: auto;
+  min-width: 0;
+  gap: clamp(14px, 2.2vw, 28px);
+  background: transparent;
+  border: 0;
   box-shadow: none;
-  border-radius: 13px;
-  padding: 5px;
+  border-radius: 0;
+  padding: 0;
 }
 
 .app-nav-theme-toggle {
   flex: 0 0 auto;
-  margin-left: auto;
+  margin-left: 0;
 }
 
 .theme-toggle.app-nav-theme-toggle {

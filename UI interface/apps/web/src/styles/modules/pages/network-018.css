@@ -195,34 +195,34 @@
   cursor: pointer;
 }
 
-:root[data-theme="light"] .app-nav {
+:root[data-theme="light"] .page--network .app-nav {
   background: #ffffff;
   border-color: #e2e8f0;
   box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
-  padding: 12px 14px;
+  padding: 4px 12px;
 }
 
-:root[data-theme="light"] .app-nav .app-nav-top {
-  border-bottom: 1px solid #e2e8f0;
-  padding: 2px 4px 10px;
+:root[data-theme="light"] .page--network .app-nav .app-nav-top {
+  border-bottom: 0;
+  padding: 0 4px;
 }
 
-:root[data-theme="light"] .app-nav .app-nav-brand {
+:root[data-theme="light"] .page--network .app-nav .app-nav-brand {
   color: #0f172a;
 }
 
-:root[data-theme="light"] .app-nav .app-nav-links {
-  background: #f8fafc;
-  border-color: #e2e8f0;
+:root[data-theme="light"] .page--network .app-nav .app-nav-links {
+  background: transparent;
+  border: 0;
 }
-:root[data-theme="light"] .app-nav .app-nav-link {
+:root[data-theme="light"] .page--network .app-nav .app-nav-link {
   color: #334155;
 }
 
-:root[data-theme="light"] .app-nav .app-nav-link.active {
+:root[data-theme="light"] .page--network .app-nav .app-nav-link.active {
   color: #1d4ed8;
 }
 
-:root[data-theme="light"] .app-nav .app-nav-link:hover {
-  background: #eef2ff;
+:root[data-theme="light"] .page--network .app-nav .app-nav-link:hover {
+  background: transparent;
 }

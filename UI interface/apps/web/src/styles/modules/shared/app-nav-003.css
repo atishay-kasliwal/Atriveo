@@ -1,104 +1,138 @@
 .app-nav-link {
   position: relative;
-  padding: 8px 14px;
+  padding: 4px 0;
   border-radius: 0;
-  font-size: 0.92rem;
-  font-weight: 500;
-  letter-spacing: 0.01em;
+  font-size: 0.93rem;
+  font-weight: 550;
+  letter-spacing: 0.012em;
   color: var(--text-secondary);
   text-decoration: none;
-  transition: color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+  transition: color 0.2s ease;
 }
 
 .app-nav-link:hover {
   color: var(--text-primary);
-  background: color-mix(in srgb, var(--bg-card-elevated) 72%, transparent);
-  transform: translateY(-1px);
+  background: transparent;
+  transform: none;
 }
 
 .app-nav-link.active {
-  color: var(--accent-soft);
-  font-weight: 700;
-  background: color-mix(in srgb, var(--bg-card-elevated) 62%, transparent);
-  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--accent-soft) 30%, transparent);
+  color: var(--text-primary);
+  font-weight: 650;
+  background: transparent;
+  box-shadow: none;
 }
 
 .app-nav-link.active::after {
   content: "";
   position: absolute;
-  left: 12px;
-  right: 12px;
-  bottom: 3px;
-  height: 2.5px;
+  left: 0;
+  right: 0;
+  bottom: -8px;
+  height: 2px;
   border-radius: 999px;
-  background: rgba(96, 165, 250, 0.95);
+  background: color-mix(in srgb, var(--accent-soft) 62%, transparent);
 }
 
 @media (max-width: 1080px) {
-  .app-nav-top {
-    flex-wrap: wrap;
-    align-items: flex-start;
-    row-gap: 8px;
-  }
-
-  .app-nav-actions {
-    justify-content: flex-start;
-  }
-
-  .app-nav-actions-utility {
-    margin-left: 0;
-    padding-left: 0;
-    border-left: 0;
+  .app-nav-link {
+    font-size: 0.88rem;
   }
 }
 
-@media (max-width: 860px) {
+@media (max-width: 920px) {
   .app-nav {
     top: 8px;
-    padding: 10px;
+    padding: 10px 12px;
   }
 
   .app-nav-top {
-    padding-left: 2px;
-    padding-right: 2px;
+    grid-template-columns: auto auto minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+  }
+
+  .app-nav-menu-toggle {
+    display: inline-flex;
+  }
+
+  .app-nav-center {
+    display: none;
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    flex-direction: column;
+    align-items: stretch;
+    margin-top: 8px;
+  }
+
+  .app-nav-center.is-mobile-open {
+    display: flex;
   }
 
   .app-nav-links {
     width: 100%;
-    overflow-x: auto;
-    flex-wrap: nowrap;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 6px;
+    padding: 8px 0;
   }
 
-  .app-nav-bottom {
-    flex-wrap: wrap;
-  }
-
-  .app-nav-bottom-actions {
+  .app-nav-link {
     width: 100%;
-    justify-content: space-between;
-    flex-wrap: wrap;
+    border-radius: 8px;
+    padding: 10px 12px;
+    transform: none;
   }
 
-  .app-nav-jobs-search {
-    flex: 1 1 100%;
+  .app-nav-link.active::after {
+    display: none;
   }
 
-  .app-nav-jobs-search-input-wrap {
-    flex: 1 1 auto;
-  }
-
-  .app-nav-jobs-search-input {
-    flex: 1 1 auto;
-    width: auto;
-    min-width: 0;
-  }
-
-  .app-nav-theme-toggle:not(.app-nav-theme-toggle--top) {
+  .app-nav-actions {
     margin-left: auto;
+    gap: 8px;
   }
 
   .app-nav-brand {
     font-size: 1.55rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .app-nav {
+    padding: 8px 10px;
+    border-radius: 12px;
+  }
+
+  .app-nav-top {
+    gap: 8px;
+    padding-inline: 0;
+  }
+
+  .app-nav-brand {
+    font-size: 1.38rem;
+  }
+
+  .app-nav-actions-utility {
+    gap: 8px;
+  }
+
+  .app-split-create--nav-primary .dropdown-button-primary {
+    font-size: 0.82rem;
+    padding-inline: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-split-create--nav-primary .dropdown-button-primary span:last-child {
+    display: none;
+  }
+
+  .app-split-create--nav-primary .dropdown-button-primary {
+    width: 36px;
+    padding-inline: 0;
+    justify-content: center;
   }
 }
 

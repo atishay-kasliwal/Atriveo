@@ -224,3 +224,10 @@
   display: block;
   overflow: visible;
 }
+
+@media (max-width: 640px) {
+  .section-header-btn {
+    height: 44px;
+    min-height: 44px;
+  }
+}

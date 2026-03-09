@@ -183,21 +183,51 @@ export type GetJobsParams = {
   limit?: number;
   search?: string;
   company?: string; // Backward-compatible alias for search
+  stage?: "Applied" | "OA" | "Interview" | "Offer" | "Archive";
+  applicationStatus?: "Applied" | "Under consideration" | "Rejected";
+  timeRange?: "0" | "7" | "14" | "21" | "30" | "all";
+  referral?: "yes" | "no" | "all";
+  oa?: "yes" | "no" | "all";
   sort?: "date_saved" | "applied_at" | "company" | "role" | "referral_status" | "job_link";
   order?: "asc" | "desc";
-  status?: string; // 'active' | 'rejected' | 'all'
+  status?: string; // 'active' | 'rejected' | 'archive' | 'all'
+  anchorDay?: string;
 };
 
 export function getJobs(params: GetJobsParams = {}) {
-  const { page = 1, limit = 25, search: rawSearch, company, sort = "applied_at", order = "desc" } = params;
+  const {
+    page = 1,
+    limit = 25,
+    search: rawSearch,
+    company,
+    stage,
+    applicationStatus,
+    timeRange,
+    referral,
+    oa,
+    sort = "applied_at",
+    order = "desc",
+    anchorDay,
+  } = params;
   const searchQuery = rawSearch ?? company;
   const search = new URLSearchParams();
   search.set("page", String(page));
   search.set("limit", String(Math.min(limit, 100)));
-  if (searchQuery?.trim()) search.set("search", searchQuery.trim());
+  if (searchQuery?.trim()) {
+    const normalizedSearch = searchQuery.trim();
+    search.set("search", normalizedSearch);
+    // Backward-compat: some API deployments only honor `company`.
+    search.set("company", normalizedSearch);
+  }
+  if (stage) search.set("stage", stage);
+  if (applicationStatus) search.set("applicationStatus", applicationStatus);
+  if (timeRange) search.set("timeRange", timeRange);
+  if (referral) search.set("referral", referral);
+  if (oa) search.set("oa", oa);
   search.set("sort", sort);
   search.set("order", order);
   if ((params as any).status) search.set("status", String((params as any).status));
+  search.set("anchorDay", anchorDay ?? getLocalISODate());
   return request<{ page: number; limit: number; total: number; data: Array<Record<string, unknown>> }>(
     `/api/jobs?${search.toString()}`,
     { cache: "no-store" }
@@ -256,13 +286,14 @@ export async function exportJobsCsv(range: JobsCsvExportRange): Promise<Blob> {
 
 export type GetListParams = { page?: number; limit?: number };
 
-export type GetReferralsParams = GetListParams & { filter?: "open" | "applied" };
+export type GetReferralsParams = GetListParams & { filter?: "open" | "applied"; search?: string };
 
 export function getReferrals(params: GetReferralsParams = {}) {
-  const { page = 1, limit = 25, filter } = params;
+  const { page = 1, limit = 25, filter, search: rawSearch } = params;
   const search = new URLSearchParams({ page: String(page), limit: String(Math.min(limit, 100)) });
   if (filter === "open" || filter === "applied") search.set("filter", filter);
-  return request<{ page: number; limit: number; data: Array<Record<string, unknown>> }>(
+  if (rawSearch?.trim()) search.set("search", rawSearch.trim());
+  return request<{ page: number; limit: number; total: number; data: Array<Record<string, unknown>> }>(
     `/api/referrals?${search.toString()}`
   );
 }

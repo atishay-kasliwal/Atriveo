@@ -222,9 +222,17 @@ function KeywordMatchRadio({ id, label, value, onChange }: KeywordMatchRadioProp
   );
 }
 
-export default function Layout({ userEmail, userFirstName, userLastName, onLogout, theme, onToggleTheme }: LayoutProps) {
+export default function Layout({
+  userEmail,
+  userFirstName,
+  userLastName,
+  onLogout,
+  theme,
+  onToggleTheme,
+}: LayoutProps) {
   const location = useLocation();
   const isNetworkView = location.pathname.includes("/network");
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [showPendingTask, setShowPendingTask] = useState(false);
   const [showNoteModal, setShowNoteModal] = useState(false);
@@ -298,6 +306,10 @@ export default function Layout({ userEmail, userFirstName, userLastName, onLogou
       window.removeEventListener("open-import-csv", onOpenImportCsvModal);
     };
   }, []);
+
+  useEffect(() => {
+    setIsMobileNavOpen(false);
+  }, [location.pathname]);
 
   useEffect(() => {
     if (!showFriendModal) return;
@@ -711,14 +723,67 @@ export default function Layout({ userEmail, userFirstName, userLastName, onLogou
     <div className={`page${isNetworkView ? " page--network" : ""}`}>
       <nav className={`app-nav${isNetworkView ? " app-nav--network" : ""}`}>
         <div className="app-nav-top">
-          <Link to="/" className="app-nav-brand" aria-label="Atriveo home">
-            Atriveo<span>.</span>
-          </Link>
+          <div className="app-nav-left">
+            <Link to="/" className="app-nav-brand" aria-label="Atriveo home">
+              Atriveo<span>.</span>
+            </Link>
+          </div>
+          <button
+            type="button"
+            className={`app-nav-menu-toggle${isMobileNavOpen ? " is-open" : ""}`}
+            aria-label="Toggle navigation menu"
+            aria-controls="app-top-navigation"
+            aria-expanded={isMobileNavOpen}
+            onClick={() => setIsMobileNavOpen((prev) => !prev)}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M4 7h16M4 12h16M4 17h16" />
+            </svg>
+          </button>
+          <div id="app-top-navigation" className={`app-nav-center${isMobileNavOpen ? " is-mobile-open" : ""}`}>
+            <div className="app-nav-links">
+              <NavLink
+                to="network"
+                className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}
+                onClick={() => setIsMobileNavOpen(false)}
+              >
+                Network
+              </NavLink>
+              <NavLink
+                to="."
+                end
+                className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}
+                onClick={() => setIsMobileNavOpen(false)}
+              >
+                Dashboard
+              </NavLink>
+              <NavLink
+                to="jobs"
+                className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}
+                onClick={() => setIsMobileNavOpen(false)}
+              >
+                Active Jobs
+              </NavLink>
+              <NavLink
+                to="pending"
+                className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}
+                onClick={() => setIsMobileNavOpen(false)}
+              >
+                Follow Up
+              </NavLink>
+            </div>
+          </div>
           <div className="app-nav-actions">
             <div className="app-nav-actions-main">
-              <ThemeToggle theme={theme} onToggle={onToggleTheme} className="app-nav-theme-toggle app-nav-theme-toggle--top" />
+              <QuickCreateSplitButton
+                className="app-split-create--nav-primary"
+                onNewApplication={openNewApplicationModal}
+                onCreateTask={openCreateTaskModal}
+                onLogNote={openLogNoteModal}
+              />
             </div>
             <div className="app-nav-actions-utility">
+              <ThemeToggle theme={theme} onToggle={onToggleTheme} className="app-nav-theme-toggle app-nav-theme-toggle--top" />
               <NotificationBell
                 userEmail={userEmail}
                 onOpenFriendModal={openFriendModal}
@@ -732,30 +797,6 @@ export default function Layout({ userEmail, userFirstName, userLastName, onLogou
                 initials={avatarInitials}
               />
             </div>
-          </div>
-        </div>
-        <div className="app-nav-bottom">
-          <div className="app-nav-links">
-            <NavLink to="network" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
-              Network
-            </NavLink>
-            <NavLink to="." end className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
-              Dashboard
-            </NavLink>
-            <NavLink to="jobs" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
-              Active Jobs
-            </NavLink>
-            <NavLink to="pending" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
-              Follow Up
-            </NavLink>
-          </div>
-          <div className="app-nav-bottom-actions">
-            <QuickCreateSplitButton
-              className="app-split-create--nav-bottom"
-              onNewApplication={openNewApplicationModal}
-              onCreateTask={openCreateTaskModal}
-              onLogNote={openLogNoteModal}
-            />
           </div>
         </div>
       </nav>

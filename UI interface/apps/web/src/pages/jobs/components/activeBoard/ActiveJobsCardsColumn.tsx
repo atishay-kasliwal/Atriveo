@@ -1,21 +1,25 @@
 import type { Dispatch, SetStateAction } from "react";
 import { APPLICATION_PIPELINE_STAGES } from "../../constants";
-import { getKeywordMatchTier } from "../../utils/formatters";
 
-type SampleCard = {
+type ActiveCard = {
+  id: number | string;
   company: string;
   role: string;
   appliedDate: string;
   appliedDateTime: string;
   referredBy: string;
   jobId: string;
-  keywordMatch: number;
+  keywordMatch: string;
   progress: number;
+  jobLink: string;
+  raw: Record<string, unknown>;
 };
 
 type Props = {
+  isLoading: boolean;
+  cardsError: string;
   filteredSampleCardsLength: number;
-  pagedSampleCards: SampleCard[];
+  pagedSampleCards: ActiveCard[];
   cardStartIndex: number;
   hasCardPrev: boolean;
   hasCardNext: boolean;
@@ -23,9 +27,15 @@ type Props = {
   safeCardPage: number;
   totalCardPages: number;
   setCardPage: Dispatch<SetStateAction<number>>;
+  archivingId: number | string | null;
+  openCardLink: (card: ActiveCard) => void;
+  openCardEdit: (card: ActiveCard) => void;
+  onArchiveCard: (card: ActiveCard) => void;
 };
 
 export default function ActiveJobsCardsColumn({
+  isLoading,
+  cardsError,
   filteredSampleCardsLength,
   pagedSampleCards,
   cardStartIndex,
@@ -35,12 +45,26 @@ export default function ActiveJobsCardsColumn({
   safeCardPage,
   totalCardPages,
   setCardPage,
+  archivingId,
+  openCardLink,
+  openCardEdit,
+  onArchiveCard,
 }: Props) {
   return (
     <section className="active-jobs-main-column">
       <div className="active-jobs-card-list">
+        {isLoading && pagedSampleCards.length === 0
+          ? Array.from({ length: 3 }).map((_, idx) => (
+              <article key={`application-skeleton-${idx}`} className="application-card application-card--skeleton" aria-hidden>
+                <div className="active-jobs-skeleton-line is-wide" />
+                <div className="active-jobs-skeleton-line is-medium" />
+                <div className="active-jobs-skeleton-line is-chip" />
+                <div className="active-jobs-skeleton-pipeline" />
+              </article>
+            ))
+          : null}
         {pagedSampleCards.map((card, idx) => (
-          <article key={`${card.company}-${card.role}-${idx}`} className="application-card">
+          <article key={`${String(card.id)}-${idx}`} className="application-card">
             <div className="application-card-top">
               <header className="application-card-header">
                 <span className="application-card-count" aria-hidden>{cardStartIndex + idx + 1}</span>
@@ -53,16 +77,22 @@ export default function ActiveJobsCardsColumn({
                 </div>
               </header>
               <div className="application-card-actions-inline" role="group" aria-label="Application actions">
-                <button type="button" className="is-link">Link</button>
-                <button type="button" className="is-edit">Edit</button>
-                <button type="button" className="is-archive">Archive</button>
+                <button type="button" className="is-link" onClick={() => openCardLink(card)} disabled={!card.jobLink}>
+                  Link
+                </button>
+                <button type="button" className="is-edit" onClick={() => openCardEdit(card)}>
+                  Edit
+                </button>
+                <button type="button" className="is-archive" onClick={() => onArchiveCard(card)} disabled={archivingId === card.id}>
+                  {archivingId === card.id ? "…" : "Archive"}
+                </button>
               </div>
             </div>
 
             <div className="application-card-meta-row">
               <section className="application-card-metadata" aria-label="Secondary metadata">
                 <span className="application-card-tag">Referral: {card.referredBy}</span>
-                <span className="application-card-tag">Keyword Match: {getKeywordMatchTier(card.keywordMatch)}</span>
+                <span className="application-card-tag">Keyword Match: {card.keywordMatch || "-"}</span>
               </section>
               <span className="application-card-applied">Applied: {card.appliedDateTime || card.appliedDate}</span>
             </div>
@@ -90,8 +120,11 @@ export default function ActiveJobsCardsColumn({
           </article>
         ))}
       </div>
-      {filteredSampleCardsLength === 0 ? <div className="empty-state">No cards match your smart filters.</div> : null}
-      {filteredSampleCardsLength > 0 ? (
+      {!isLoading && cardsError && filteredSampleCardsLength === 0 ? <div className="empty-state">{cardsError}</div> : null}
+      {!isLoading && !cardsError && filteredSampleCardsLength === 0 ? (
+        <div className="empty-state">No cards match your smart filters.</div>
+      ) : null}
+      {filteredSampleCardsLength > 0 && pagedSampleCards.length > 0 ? (
         <div className="application-card-pagination">
           <div className="application-card-pagination-inner" role="navigation" aria-label={`Card pagination, page ${safeCardPage} of ${totalCardPages}`}>
             <button type="button" className="is-first" disabled={!hasCardPrev} onClick={() => setCardPage(1)} aria-label="First page">

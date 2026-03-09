@@ -27,7 +27,7 @@ export default function OaArchiveTable({
   normalizeOaStatus,
 }: Props) {
   if (statusFilter !== "rejected") return null;
-  const isMobile = useIsMobileViewport();
+  const isMobile = useIsMobileViewport(640);
 
   return (
     <div className="card" style={{ padding: "24px", marginTop: "20px" }}>
@@ -91,7 +91,7 @@ export default function OaArchiveTable({
             ))}
           </div>
         ) : (
-          <div className="table-wrap">
+          <div className="table-wrap table-wrap--tablet-scroll">
             <table className="jobs-table">
               <thead>
                 <tr>

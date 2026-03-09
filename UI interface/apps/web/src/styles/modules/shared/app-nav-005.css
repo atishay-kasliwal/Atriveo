@@ -21,6 +21,12 @@
   cursor: not-allowed;
 }
 
+@media (max-width: 640px) {
+  .action-btn {
+    min-height: 44px;
+  }
+}
+
 .error {
   margin-top: 16px;
   background: var(--error-bg);

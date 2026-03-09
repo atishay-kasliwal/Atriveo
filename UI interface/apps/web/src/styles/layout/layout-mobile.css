@@ -1,7 +1,7 @@
 /* Mobile layout: nav tabs, page padding, touch targets */
 
-/* Nav tabs: horizontal scroll from 768px (tablet) */
-@media (max-width: 768px) {
+/* Nav tabs: horizontal scroll on mobile only */
+@media (max-width: 640px) {
   .page {
     padding-left: 16px;
     padding-right: 16px;

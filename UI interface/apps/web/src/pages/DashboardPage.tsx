@@ -22,6 +22,7 @@ import ReferralsPreview from "../components/ReferralsPreview";
 import NotesPreview from "../components/NotesPreview";
 import OaPreview from "../components/OaPreview";
 import quotesData from "../lib/quotes.json";
+import useIsMobileViewport from "../hooks/useIsMobileViewport";
 import {
   getDashboardSummary,
   getTargetProgress,
@@ -61,6 +62,8 @@ import {
 } from "./dashboard/utils";
 
 export default function DashboardPage() {
+  const isMobileDashboard = useIsMobileViewport(640);
+  const [mobileDashboardPanel, setMobileDashboardPanel] = useState<"pending" | "referrals" | "oa" | "notes">("pending");
   const [summary, setSummary] = useState<DashboardSummary>(defaultSummary);
   const [mtdSummary, setMtdSummary] = useState<DashboardSummary>(defaultSummary);
   const [targetProgress, setTargetProgress] = useState<TargetProgress | null>(null);
@@ -152,6 +155,10 @@ export default function DashboardPage() {
     window.addEventListener("dashboard-refresh", onRefresh);
     return () => window.removeEventListener("dashboard-refresh", onRefresh);
   }, [days]);
+
+  useEffect(() => {
+    if (!isMobileDashboard) setMobileDashboardPanel("pending");
+  }, [isMobileDashboard]);
 
   const trendData = useMemo(() => {
     const raw = summary.dailyTrend ?? [];
@@ -811,7 +818,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <>
+    <div className="dashboard-page">
       {error ? (
         <div className="error">
           {error}
@@ -981,6 +988,7 @@ export default function DashboardPage() {
         todayLabel={todayLabel}
         showTodayLine={showTodayLine}
         dailyMotivation={dailyMotivation}
+        isMobile={isMobileDashboard}
       />
 
       <section className="chart-grid chart-grid-two chart-grid-70-30" style={{ gridTemplateColumns: "minmax(0, 7fr) minmax(0, 3fr)" }}>
@@ -993,43 +1001,112 @@ export default function DashboardPage() {
       </section>
 
       {/* Bottom row: Pending / Referrals / OA / Notes */}
-      <section className="chart-grid chart-grid-four dashboard-bottom-panels">
-        <div className="card pending-list-card dashboard-panel dashboard-panel--pending">
-          <h2>Pending</h2>
-          <p className="chart-subtitle">Outstanding items</p>
-          <div className="dashboard-panel-body">
-            <PendingPreview />
+      {isMobileDashboard ? (
+        <section className="chart-grid chart-grid-four dashboard-bottom-panels dashboard-bottom-panels--mobile">
+          <div className="dashboard-mobile-panel-tabs" role="tablist" aria-label="Dashboard sections">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mobileDashboardPanel === "pending"}
+              className={`dashboard-mobile-panel-tab${mobileDashboardPanel === "pending" ? " is-active" : ""}`}
+              onClick={() => setMobileDashboardPanel("pending")}
+            >
+              Pending
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mobileDashboardPanel === "referrals"}
+              className={`dashboard-mobile-panel-tab${mobileDashboardPanel === "referrals" ? " is-active" : ""}`}
+              onClick={() => setMobileDashboardPanel("referrals")}
+            >
+              Referrals
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mobileDashboardPanel === "oa"}
+              className={`dashboard-mobile-panel-tab${mobileDashboardPanel === "oa" ? " is-active" : ""}`}
+              onClick={() => setMobileDashboardPanel("oa")}
+            >
+              OA
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mobileDashboardPanel === "notes"}
+              className={`dashboard-mobile-panel-tab${mobileDashboardPanel === "notes" ? " is-active" : ""}`}
+              onClick={() => setMobileDashboardPanel("notes")}
+            >
+              Notes
+            </button>
           </div>
-        </div>
-        <div className="card dashboard-panel dashboard-panel--referrals">
-          <h2>Referrals</h2>
-          <p className="chart-subtitle">Open referral requests</p>
-          <div className="dashboard-panel-body">
-            <ReferralsPreview />
+          <div className="card pending-list-card dashboard-panel dashboard-panel--mobile-active">
+            <h2>
+              {mobileDashboardPanel === "pending"
+                ? "Pending"
+                : mobileDashboardPanel === "referrals"
+                  ? "Referrals"
+                  : mobileDashboardPanel === "oa"
+                    ? "OA Received"
+                    : "Notes"}
+            </h2>
+            <p className="chart-subtitle">
+              {mobileDashboardPanel === "pending"
+                ? "Outstanding items"
+                : mobileDashboardPanel === "referrals"
+                  ? "Open referral requests"
+                  : mobileDashboardPanel === "oa"
+                    ? "Active online assessments"
+                    : "Recent activity"}
+            </p>
+            <div className="dashboard-panel-body">
+              {mobileDashboardPanel === "pending" ? <PendingPreview /> : null}
+              {mobileDashboardPanel === "referrals" ? <ReferralsPreview /> : null}
+              {mobileDashboardPanel === "oa" ? <OaPreview /> : null}
+              {mobileDashboardPanel === "notes" ? <NotesPreview /> : null}
+            </div>
           </div>
-        </div>
-        <div className="card dashboard-panel dashboard-panel--oa">
-          <h2>OA Received</h2>
-          <p className="chart-subtitle">Active online assessments</p>
-          <div className="dashboard-panel-body">
-            <OaPreview />
+        </section>
+      ) : (
+        <section className="chart-grid chart-grid-four dashboard-bottom-panels">
+          <div className="card pending-list-card dashboard-panel dashboard-panel--pending">
+            <h2>Pending</h2>
+            <p className="chart-subtitle">Outstanding items</p>
+            <div className="dashboard-panel-body">
+              <PendingPreview />
+            </div>
           </div>
-        </div>
-        <div className="card dashboard-panel dashboard-panel--notes">
-          <h2>Notes</h2>
-          <p className="chart-subtitle">Recent activity</p>
-          <div className="dashboard-panel-body">
-            <NotesPreview />
+          <div className="card dashboard-panel dashboard-panel--referrals">
+            <h2>Referrals</h2>
+            <p className="chart-subtitle">Open referral requests</p>
+            <div className="dashboard-panel-body">
+              <ReferralsPreview />
+            </div>
           </div>
-        </div>
-      </section>
+          <div className="card dashboard-panel dashboard-panel--oa">
+            <h2>OA Received</h2>
+            <p className="chart-subtitle">Active online assessments</p>
+            <div className="dashboard-panel-body">
+              <OaPreview />
+            </div>
+          </div>
+          <div className="card dashboard-panel dashboard-panel--notes">
+            <h2>Notes</h2>
+            <p className="chart-subtitle">Recent activity</p>
+            <div className="dashboard-panel-body">
+              <NotesPreview />
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="chart-grid chart-grid-trend">
         <div className="card">
           <h2>Weekly Applications</h2>
           <p className="chart-subtitle">Last 12 weeks</p>
           {(summary.weeklyTrend?.length ?? 0) > 0 ? (
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer width="100%" height={isMobileDashboard ? 190 : 220}>
               <ComposedChart data={summary.weeklyTrend} margin={{ top: 16, right: 24, left: 8, bottom: 8 }}>
                 <defs>
                   <linearGradient id="weeklyArea" x1="0" y1="0" x2="0" y2="1">
@@ -1095,6 +1172,6 @@ export default function DashboardPage() {
         </div>
       </section>
 
-    </>
+    </div>
   );
 }

@@ -2884,9 +2884,30 @@ function syncReferralsFromImportRowsBatchStatement(userId: number, rows: CsvImpo
 app.get("/api/jobs", async (c) => {
   const userId = c.get("authUser").id;
   const page = Math.max(1, Number(c.req.query("page") ?? 1) || 1);
-  const limit = Math.min(Number(c.req.query("limit") ?? 25), 100);
+  const limit = Math.min(Math.max(Number(c.req.query("limit") ?? 25) || 25, 1), 100);
   const searchQuery = String(c.req.query("search") ?? c.req.query("company") ?? "").trim();
-  const statusFilter = String(c.req.query("status") ?? ""); // expected: "active" | "rejected" | "all"(empty means active)
+  const statusFilterRaw = String(c.req.query("status") ?? "").trim().toLowerCase(); // expected: "active" | "rejected" | "archive" | "all" (empty means active)
+  const statusFilter = statusFilterRaw === "archive" ? "rejected" : statusFilterRaw;
+  const stageFilterRaw = String(c.req.query("stage") ?? "").trim();
+  const stageFilter =
+    stageFilterRaw === "Applied" ||
+    stageFilterRaw === "OA" ||
+    stageFilterRaw === "Interview" ||
+    stageFilterRaw === "Offer" ||
+    stageFilterRaw === "Archive"
+      ? stageFilterRaw
+      : "";
+  const applicationStatusRaw = String(c.req.query("applicationStatus") ?? "").trim().toLowerCase();
+  const applicationStatusFilter =
+    applicationStatusRaw === "applied" ||
+    applicationStatusRaw === "under consideration" ||
+    applicationStatusRaw === "rejected"
+      ? applicationStatusRaw
+      : "";
+  const timeRangeRaw = String(c.req.query("timeRange") ?? "").trim().toLowerCase();
+  const referralFilterRaw = String(c.req.query("referral") ?? "").trim().toLowerCase();
+  const oaFilterRaw = String(c.req.query("oa") ?? "").trim().toLowerCase();
+  const anchorDay = parseAnchorDay(c.req.query("anchorDay"));
   const sortRaw = c.req.query("sort") ?? "applied_at";
   const orderRaw = String(c.req.query("order") ?? "desc").toLowerCase();
   const sort = isJobsSortColumn(sortRaw) ? sortRaw : "applied_at";
@@ -2894,35 +2915,36 @@ app.get("/api/jobs", async (c) => {
   const offset = (page - 1) * limit;
 
   const orderBy = `j.${sort} ${order} NULLS LAST, COALESCE(j.applied_at, j.date_saved, j.created_at) DESC NULLS LAST, j.created_at DESC NULLS LAST, j.id DESC`;
-  const baseSql = `
-    SELECT
-      j.*,
-      CASE
-        WHEN LOWER(TRIM(COALESCE(j.referral_status, ''))) IN ('requested', 'yes') THEN
-          COALESCE(
-            (
-              SELECT r.referred_by_name
-              FROM referrals r
-              WHERE r.user_id = j.user_id
-                AND TRIM(COALESCE(r.referred_by_name, '')) <> ''
-                AND TRIM(COALESCE(r.request_link, '')) = TRIM(COALESCE(j.job_link, ''))
-              ORDER BY COALESCE(r.updated_date, r.request_date) DESC NULLS LAST, r.id DESC
-              LIMIT 1
-            ),
-            (
-              SELECT r.referred_by_name
-              FROM referrals r
-              WHERE r.user_id = j.user_id
-                AND TRIM(COALESCE(r.referred_by_name, '')) <> ''
-                AND LOWER(TRIM(COALESCE(r.company, ''))) = LOWER(TRIM(COALESCE(j.company, '')))
-                AND LOWER(TRIM(COALESCE(r.request_log, ''))) = LOWER(TRIM(COALESCE(j.role, '')))
-              ORDER BY COALESCE(r.updated_date, r.request_date) DESC NULLS LAST, r.id DESC
-              LIMIT 1
-            )
-          )
-        ELSE NULL
-      END AS referred_by_name
+  const stageSql = `
+    CASE
+      WHEN LOWER(TRIM(COALESCE(j.application_status, ''))) IN ('rejected', 'archive', 'archived') THEN 'Archive'
+      WHEN LOWER(TRIM(COALESCE(j.application_status, ''))) = 'offer'
+        OR LOWER(TRIM(COALESCE(j.response_status, ''))) = 'offer'
+        THEN 'Offer'
+      WHEN LOWER(TRIM(COALESCE(j.application_status, ''))) = 'interview'
+        OR LOWER(TRIM(COALESCE(j.response_status, ''))) = 'interview'
+        THEN 'Interview'
+      WHEN LOWER(TRIM(COALESCE(j.oa_status, ''))) = 'yes' THEN 'OA'
+      ELSE 'Applied'
+    END
+  `;
+  const fromSql = `
     FROM jobs j
+    LEFT JOIN LATERAL (
+      SELECT r.referred_by_name
+      FROM referrals r
+      WHERE r.user_id = j.user_id
+        AND TRIM(COALESCE(r.referred_by_name, '')) <> ''
+        AND (
+          TRIM(COALESCE(r.request_link, '')) = TRIM(COALESCE(j.job_link, ''))
+          OR (
+            LOWER(TRIM(COALESCE(r.company, ''))) = LOWER(TRIM(COALESCE(j.company, '')))
+            AND LOWER(TRIM(COALESCE(r.request_log, ''))) = LOWER(TRIM(COALESCE(j.role, '')))
+          )
+        )
+      ORDER BY COALESCE(r.updated_date, r.request_date) DESC NULLS LAST, r.id DESC
+      LIMIT 1
+    ) ref ON TRUE
   `;
 
   // Build where clause dynamically to handle broad search and status filters.
@@ -2940,7 +2962,7 @@ app.get("/api/jobs", async (c) => {
       OR COALESCE(j.oa_status, '') ILIKE $${paramIdx}
       OR COALESCE(j.oa_deadline_date::text, '') ILIKE $${paramIdx}
       OR COALESCE(j.referral_status, '') ILIKE $${paramIdx}
-      OR COALESCE(j.referred_by_name, '') ILIKE $${paramIdx}
+      OR COALESCE(ref.referred_by_name, '') ILIKE $${paramIdx}
       OR COALESCE(j.response_status, '') ILIKE $${paramIdx}
       OR COALESCE(j.application_status, '') ILIKE $${paramIdx}
       OR COALESCE(j.notes, '') ILIKE $${paramIdx}
@@ -2956,11 +2978,52 @@ app.get("/api/jobs", async (c) => {
   } else if (statusFilter === "rejected") {
     whereParts.push(`LOWER(TRIM(COALESCE(j.application_status, ''))) = 'rejected'`);
   }
+  if (stageFilter) {
+    whereParts.push(`(${stageSql}) = $${paramIdx}`);
+    params.push(stageFilter);
+    paramIdx += 1;
+  }
+
+  if (applicationStatusFilter) {
+    whereParts.push(`LOWER(TRIM(COALESCE(j.application_status, 'Applied'))) = $${paramIdx}`);
+    params.push(applicationStatusFilter);
+    paramIdx += 1;
+  }
+
+  if (timeRangeRaw && timeRangeRaw !== "all") {
+    const timeRange = Number(timeRangeRaw);
+    if (Number.isFinite(timeRange) && timeRange >= 0 && timeRange <= 3650) {
+      const anchorParam = paramIdx;
+      params.push(anchorDay);
+      paramIdx += 1;
+      const anchorExpr = `COALESCE($${anchorParam}::date, CURRENT_DATE)`;
+      const dayExpr = `COALESCE(j.applied_at::date, j.date_saved::date, j.created_at::date)`;
+      if (timeRange === 0) {
+        whereParts.push(`${dayExpr} = ${anchorExpr}`);
+      } else {
+        whereParts.push(
+          `${dayExpr} >= (${anchorExpr} - INTERVAL '${Math.max(0, Math.floor(timeRange) - 1)} days')::date AND ${dayExpr} <= ${anchorExpr}`,
+        );
+      }
+    }
+  }
+
+  if (referralFilterRaw === "yes") {
+    whereParts.push(`LOWER(TRIM(COALESCE(j.referral_status, ''))) IN ('yes', 'requested')`);
+  } else if (referralFilterRaw === "no") {
+    whereParts.push(`LOWER(TRIM(COALESCE(j.referral_status, ''))) NOT IN ('yes', 'requested')`);
+  }
+
+  if (oaFilterRaw === "yes") {
+    whereParts.push(`LOWER(TRIM(COALESCE(j.oa_status, ''))) = 'yes'`);
+  } else if (oaFilterRaw === "no") {
+    whereParts.push(`LOWER(TRIM(COALESCE(j.oa_status, ''))) <> 'yes'`);
+  }
 
   const whereClause = ` WHERE ${whereParts.join(" AND ")}`;
   const [countRow] = await query<{ total: number }>(
     c.env,
-    `SELECT COUNT(*)::int AS total FROM jobs j${whereClause}`,
+    `SELECT COUNT(*)::int AS total ${fromSql}${whereClause}`,
     params as unknown[],
   );
   const total = Number(countRow?.total ?? 0);
@@ -2968,7 +3031,19 @@ app.get("/api/jobs", async (c) => {
   params.push(limit, offset);
   const orderLimitOffset = ` ORDER BY ${orderBy} LIMIT $${params.length - 1} OFFSET $${params.length}`;
 
-  const rows = await query(c.env, `${baseSql}${whereClause}${orderLimitOffset}`, params as unknown[]);
+  const rows = await query(
+    c.env,
+    `
+    SELECT
+      j.*,
+      ref.referred_by_name,
+      (${stageSql}) AS dashboard_stage
+    ${fromSql}
+    ${whereClause}
+    ${orderLimitOffset}
+    `,
+    params as unknown[],
+  );
   return c.json({ page, limit, total, data: rows });
 });
 
@@ -4123,17 +4198,48 @@ const referralInput = z.object({
 
 app.get("/api/referrals", async (c) => {
   const userId = c.get("authUser").id;
-  const page = Number(c.req.query("page") ?? 1);
-  const limit = Math.min(Number(c.req.query("limit") ?? 25), 100);
+  const page = Math.max(1, Number(c.req.query("page") ?? 1) || 1);
+  const limit = Math.min(Math.max(Number(c.req.query("limit") ?? 25) || 25, 1), 100);
   const offset = (page - 1) * limit;
-  const filter = c.req.query("filter");
-  const sql = filter === "open"
-    ? "SELECT * FROM referrals WHERE user_id = $1 AND COALESCE(TRIM(referral_received), '') = 'Requested' ORDER BY request_date DESC NULLS LAST, id DESC LIMIT $2 OFFSET $3"
-    : filter === "applied"
-      ? "SELECT * FROM referrals WHERE user_id = $1 AND COALESCE(TRIM(referral_received), '') = 'Yes' ORDER BY COALESCE(updated_date, request_date) DESC NULLS LAST, id DESC LIMIT $2 OFFSET $3"
-      : "SELECT * FROM referrals WHERE user_id = $1 ORDER BY request_date DESC NULLS LAST, id DESC LIMIT $2 OFFSET $3";
-  const rows = await query(c.env, sql, [userId, limit, offset]);
-  return c.json({ page, limit, data: rows });
+  const filter = String(c.req.query("filter") ?? "").trim().toLowerCase();
+  const searchQuery = String(c.req.query("search") ?? "").trim();
+
+  const whereParts: string[] = ["user_id = $1"];
+  const params: unknown[] = [userId];
+  let paramIdx = 2;
+  if (filter === "open") {
+    whereParts.push(`COALESCE(TRIM(referral_received), '') = 'Requested'`);
+  } else if (filter === "applied") {
+    whereParts.push(`COALESCE(TRIM(referral_received), '') = 'Yes'`);
+  }
+  if (searchQuery) {
+    whereParts.push(`(
+      COALESCE(company, '') ILIKE $${paramIdx}
+      OR COALESCE(request_log, '') ILIKE $${paramIdx}
+      OR COALESCE(referred_by_name, '') ILIKE $${paramIdx}
+    )`);
+    params.push(`%${searchQuery}%`);
+    paramIdx += 1;
+  }
+
+  const whereClause = ` WHERE ${whereParts.join(" AND ")}`;
+  const [countRow] = await query<{ total: number }>(
+    c.env,
+    `SELECT COUNT(*)::int AS total FROM referrals${whereClause}`,
+    params as unknown[],
+  );
+  const total = Number(countRow?.total ?? 0);
+
+  const orderBy = filter === "applied"
+    ? "ORDER BY COALESCE(updated_date, request_date) DESC NULLS LAST, id DESC"
+    : "ORDER BY request_date DESC NULLS LAST, id DESC";
+  params.push(limit, offset);
+  const rows = await query(
+    c.env,
+    `SELECT * FROM referrals${whereClause} ${orderBy} LIMIT $${params.length - 1} OFFSET $${params.length}`,
+    params as unknown[],
+  );
+  return c.json({ page, limit, total, data: rows });
 });
 
 app.post("/api/referrals", async (c) => {

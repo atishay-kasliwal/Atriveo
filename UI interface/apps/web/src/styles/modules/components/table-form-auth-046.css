@@ -224,3 +224,40 @@
 .notes-card--archive {
   --note-accent: #94a3b8;
 }
+
+@media (max-width: 640px) {
+  .notes-tab-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+  }
+
+  .notes-tab {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    justify-content: space-between;
+    padding: 8px 10px;
+    font-size: 0.8rem;
+  }
+
+  .notes-tab > span:first-child {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .notes-pager {
+    width: 100%;
+    gap: 10px;
+  }
+
+  .notes-pager-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    font-size: 1rem;
+  }
+}

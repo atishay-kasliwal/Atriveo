@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import Spinner from "../components/Spinner";
 import { editPending, getDashboardSummary, getPending, markPendingDone } from "../lib/api";
 import { formatTableDate } from "../lib/formatDate";
+import useIsMobileViewport from "../hooks/useIsMobileViewport";
 import NotesPage from "./NotesPage";
 import { getDueTag } from "./pending/utils";
 
 type PendingItem = Record<string, unknown>;
 
 export default function PendingPage() {
+  const isMobile = useIsMobileViewport(640);
   const [pendingData, setPendingData] = useState<PendingItem[]>([]);
   const [archiveData, setArchiveData] = useState<PendingItem[]>([]);
   const [archiveCompany, setArchiveCompany] = useState("all");
@@ -266,6 +268,10 @@ export default function PendingPage() {
             <Spinner />
           ) : archiveData.length === 0 ? (
             <div className="empty-state">No archived items.</div>
+          ) : isMobile ? (
+            <div className="pending-archive-mobile-cards">
+              {archiveRows.map((item) => renderCard(item, true))}
+            </div>
           ) : (
             <>
               <div className="table-wrap pending-archive-wrap">

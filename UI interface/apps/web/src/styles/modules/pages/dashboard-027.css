@@ -169,6 +169,48 @@
   .followup-workbench-pane--pending .pending-board-grid { grid-template-columns: 1fr; }
 }
 
+@media (max-width: 640px) {
+  .pending-actions .action-btn,
+  .pending-open-btn {
+    min-height: 44px;
+    height: 44px;
+    padding: 0 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .pending-archive-tools--inline {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    justify-content: stretch;
+  }
+
+  .pending-archive-select {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+  }
+
+  .pending-archive-mobile-cards {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+  }
+
+  .pending-archive-mobile-cards .pending-card {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+}
+
 .chart-header-row {
   display: flex;
   flex-wrap: wrap;

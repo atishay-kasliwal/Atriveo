@@ -2,15 +2,20 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import useConfirmDialog from "../components/ui/useConfirmDialog";
 import {
+  createReferral,
   deleteJob,
   deleteOaArchive,
+  getDashboardSummary,
   getJobs,
   getJobsTrend,
   getOaArchive,
+  getReferrals,
+  getTargetProgress,
   updateJob,
   updateOaArchive,
   type JobsTrendData,
 } from "../lib/api";
+import { formatTableDate, formatTableDateTime, getLocalISODate } from "../lib/formatDate";
 import {
   ANALYTICS_EVENTS,
   trackErrorEvent,
@@ -18,14 +23,13 @@ import {
   trackProductEvent,
 } from "../analytics/events";
 import {
-  ACTIVE_JOBS_REFERRAL_ROWS,
-  ACTIVE_JOBS_SAMPLE_CARDS,
   APPLICATION_PIPELINE_STAGES,
   BASE_SORT_CONFIG,
   CARD_LIMIT,
   LIMIT,
 } from "./jobs/constants";
 import ActiveJobsBoard from "./jobs/components/ActiveJobsBoard";
+import AddReferralModal from "./jobs/components/activeBoard/AddReferralModal";
 import EditJobModal from "./jobs/components/EditJobModal";
 import EditOaModal from "./jobs/components/EditOaModal";
 import JobsTable from "./jobs/components/JobsTable";
@@ -50,12 +54,158 @@ import { buildPaginationItems } from "./jobs/utils/pagination";
 import { compareJobs } from "./jobs/utils/sort";
 import { getKeywordMeta, getStatusMeta } from "./jobs/utils/tableMeta";
 
+type DashboardStage = (typeof APPLICATION_PIPELINE_STAGES)[number];
+
+type ActiveCard = {
+  id: number | string;
+  company: string;
+  role: string;
+  appliedDate: string;
+  appliedDateTime: string;
+  referredBy: string;
+  jobId: string;
+  keywordMatch: string;
+  progress: number;
+  jobLink: string;
+  raw: Record<string, unknown>;
+};
+
+type ActiveReferralRow = {
+  id: number | string;
+  name: string;
+  company: string;
+  role: string;
+};
+
+type ActiveWeeklyCount = {
+  week: string;
+  count: number;
+};
+
+type ActiveDailyCount = {
+  day: string;
+  count: number;
+  iso: string;
+};
+
+type ActiveInsightsState = {
+  weeklyCounts: ActiveWeeklyCount[];
+  totalApplications: number;
+  averagePerWeek: string;
+  peakWeekLabel: string;
+  currentWeekDailyCounts: ActiveDailyCount[];
+  thisWeekTotal: number;
+  previousWeekTotal: number;
+  bestDay: string;
+  targetCount: number;
+  targetProgressPercent: number;
+};
+
+const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+function isDashboardStage(value: string): value is DashboardStage {
+  return (APPLICATION_PIPELINE_STAGES as readonly string[]).includes(value);
+}
+
+function deriveDashboardStage(job: Record<string, unknown>): DashboardStage {
+  const fromApi = String((job as any).dashboard_stage ?? "").trim();
+  if (isDashboardStage(fromApi)) return fromApi;
+
+  const applicationStatus = String(job.application_status ?? "").trim().toLowerCase();
+  const responseStatus = String(job.response_status ?? "").trim().toLowerCase();
+  const oaStatus = String((job as any).oa_status ?? "").trim().toLowerCase();
+
+  if (["rejected", "archive", "archived"].includes(applicationStatus)) return "Archive";
+  if (applicationStatus === "offer" || responseStatus === "offer") return "Offer";
+  if (applicationStatus === "interview" || responseStatus === "interview") return "Interview";
+  if (oaStatus === "yes") return "OA";
+  return "Applied";
+}
+
+function getStageProgress(stage: DashboardStage): number {
+  const idx = APPLICATION_PIPELINE_STAGES.indexOf(stage);
+  return idx >= 0 ? idx : 0;
+}
+
+function parseLocalIsoDate(input: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input)) return null;
+  const parsed = new Date(`${input}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed;
+}
+
+function getMondayStart(date: Date): Date {
+  const copy = new Date(date);
+  copy.setHours(0, 0, 0, 0);
+  const day = copy.getDay();
+  const delta = (day + 6) % 7;
+  copy.setDate(copy.getDate() - delta);
+  return copy;
+}
+
+function formatWeekLabel(isoDay: string): string {
+  return formatDayShort(isoDay);
+}
+
+function buildDefaultWeeklyCounts(anchorIso: string): ActiveWeeklyCount[] {
+  const anchor = parseLocalIsoDate(anchorIso) ?? new Date();
+  const weekStart = getMondayStart(anchor);
+  const weekly: ActiveWeeklyCount[] = [];
+  for (let i = 4; i >= 0; i -= 1) {
+    const weekDate = new Date(weekStart);
+    weekDate.setDate(weekStart.getDate() - i * 7);
+    const iso = getLocalISODate(weekDate);
+    weekly.push({ week: formatWeekLabel(iso), count: 0 });
+  }
+  return weekly;
+}
+
+function buildCurrentWeekDailyCounts(
+  dailyTrend: Array<{ day: string; total: number }>,
+  anchorIso: string,
+): ActiveDailyCount[] {
+  const dayMap = new Map<string, number>();
+  for (const row of dailyTrend) {
+    dayMap.set(String(row.day), Number(row.total ?? 0));
+  }
+
+  const anchor = parseLocalIsoDate(anchorIso) ?? new Date();
+  const weekStart = getMondayStart(anchor);
+
+  return WEEKDAY_LABELS.map((label, idx) => {
+    const date = new Date(weekStart);
+    date.setDate(weekStart.getDate() + idx);
+    const iso = getLocalISODate(date);
+    return {
+      day: label,
+      count: dayMap.get(iso) ?? 0,
+      iso,
+    };
+  });
+}
+
+function initialInsightsState(): ActiveInsightsState {
+  return {
+    weeklyCounts: [],
+    totalApplications: 0,
+    averagePerWeek: "0.0",
+    peakWeekLabel: "— (0)",
+    currentWeekDailyCounts: [],
+    thisWeekTotal: 0,
+    previousWeekTotal: 0,
+    bestDay: "Mon",
+    targetCount: 12,
+    targetProgressPercent: 0,
+  };
+}
+
 export default function JobsPage({ statusFilter }: { statusFilter?: string } = {}) {
   const location = useLocation();
   const urlSearchQuery = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return String(params.get("search") ?? "").trim();
   }, [location.search]);
+
   const [data, setData] = useState<Array<Record<string, unknown>>>([]);
   const [totalRows, setTotalRows] = useState(0);
   const [page, setPage] = useState(1);
@@ -111,99 +261,73 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
   });
   const [isOaSaving, setIsOaSaving] = useState(false);
   const [oaDeletingId, setOaDeletingId] = useState<number | string | null>(null);
+
   const { confirm, confirmDialog } = useConfirmDialog();
+
   const [cardSearch, setCardSearch] = useState("");
+  const [debouncedCardSearch, setDebouncedCardSearch] = useState("");
   const [cardTimeRange, setCardTimeRange] = useState<ToolbarTimeRange>("7");
-  const [cardReferralFilter, setCardReferralFilter] = useState<ToolbarBooleanFilter>("yes");
-  const [cardOaFilter, setCardOaFilter] = useState<ToolbarBooleanFilter>("yes");
+  const [cardReferralFilter, setCardReferralFilter] = useState<ToolbarBooleanFilter>("all");
+  const [cardOaFilter, setCardOaFilter] = useState<ToolbarBooleanFilter>("all");
   const [cardStatusFilter, setCardStatusFilter] = useState<ToolbarStatusFilter>("active");
   const [cardStageFilter, setCardStageFilter] = useState<ToolbarStageFilter>("All");
   const [cardPage, setCardPage] = useState(1);
   const [referralSearch, setReferralSearch] = useState("");
+  const [debouncedReferralSearch, setDebouncedReferralSearch] = useState("");
   const [activeSmartView, setActiveSmartView] = useState<"default" | "interview" | "referral" | null>("default");
+
+  const [activeCards, setActiveCards] = useState<ActiveCard[]>([]);
+  const [activeCardsTotal, setActiveCardsTotal] = useState(0);
+  const [isLoadingActiveCards, setIsLoadingActiveCards] = useState(true);
+  const [activeCardsError, setActiveCardsError] = useState("");
+
+  const [activeReferrals, setActiveReferrals] = useState<ActiveReferralRow[]>([]);
+  const [activeReferralTotal, setActiveReferralTotal] = useState(0);
+  const [isLoadingActiveReferrals, setIsLoadingActiveReferrals] = useState(true);
+  const [activeReferralsError, setActiveReferralsError] = useState("");
+
+  const [activeInsights, setActiveInsights] = useState<ActiveInsightsState>(() => initialInsightsState());
+  const [isLoadingActiveInsights, setIsLoadingActiveInsights] = useState(true);
+  const [activeInsightsError, setActiveInsightsError] = useState("");
+
+  const [showAddReferralModal, setShowAddReferralModal] = useState(false);
+  const [isAddingReferral, setIsAddingReferral] = useState(false);
+  const [addReferralError, setAddReferralError] = useState("");
+  const [addReferralForm, setAddReferralForm] = useState({
+    name: "",
+    company: "",
+    role: "",
+  });
+
   const searchInputRef = useRef<HTMLInputElement | null>(null);
-
-  const filteredSampleCards = useMemo(() => {
-    const query = cardSearch.trim().toLowerCase();
-    const timeDays = cardTimeRange === "all" ? null : Number(cardTimeRange);
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-
-    return ACTIVE_JOBS_SAMPLE_CARDS.filter((card) => {
-      if (query) {
-        const haystack = [
-          card.company,
-          card.role,
-          card.owner,
-          card.referredBy,
-          card.jobId,
-          card.statusMessage,
-          card.applicationStatus,
-        ]
-          .join(" ")
-          .toLowerCase();
-        if (!haystack.includes(query)) return false;
-      }
-
-      if (timeDays != null) {
-        const applied = new Date(`${card.appliedOn}T00:00:00`);
-        if (!Number.isNaN(applied.getTime())) {
-          const diffDays = Math.floor((now.getTime() - applied.getTime()) / 86_400_000);
-          if (diffDays < 0 || diffDays > timeDays) return false;
-        }
-      }
-
-      if (cardReferralFilter !== "all") {
-        if (cardReferralFilter === "yes" && !card.referralUsed) return false;
-        if (cardReferralFilter === "no" && card.referralUsed) return false;
-      }
-
-      if (cardOaFilter !== "all") {
-        const hasOa = String(card.oaStatus).toLowerCase() === "yes";
-        if (cardOaFilter === "yes" && !hasOa) return false;
-        if (cardOaFilter === "no" && hasOa) return false;
-      }
-
-      if (cardStatusFilter !== "all") {
-        const status = String(card.applicationStatus).toLowerCase();
-        if (cardStatusFilter === "active" && status === "archive") return false;
-        if (cardStatusFilter === "archive" && status !== "archive") return false;
-      }
-
-      if (cardStageFilter !== "All") {
-        const currentStage = APPLICATION_PIPELINE_STAGES[Math.min(card.progress, APPLICATION_PIPELINE_STAGES.length - 1)];
-        if (currentStage !== cardStageFilter) return false;
-      }
-
-      return true;
-    });
-  }, [cardSearch, cardTimeRange, cardReferralFilter, cardOaFilter, cardStatusFilter, cardStageFilter]);
-
-  const filteredReferralRows = useMemo(() => {
-    const query = referralSearch.trim().toLowerCase();
-    if (!query) return ACTIVE_JOBS_REFERRAL_ROWS;
-    return ACTIVE_JOBS_REFERRAL_ROWS.filter((row) =>
-      `${row.name} ${row.company} ${row.role}`.toLowerCase().includes(query),
-    );
-  }, [referralSearch]);
-
-  const totalCardPages = Math.max(1, Math.ceil(filteredSampleCards.length / CARD_LIMIT));
-  const safeCardPage = Math.min(cardPage, totalCardPages);
-  const pagedSampleCards = useMemo(() => {
-    const start = (safeCardPage - 1) * CARD_LIMIT;
-    return filteredSampleCards.slice(start, start + CARD_LIMIT);
-  }, [filteredSampleCards, safeCardPage]);
-  const cardStartIndex = (safeCardPage - 1) * CARD_LIMIT;
-  const hasCardPrev = safeCardPage > 1;
-  const hasCardNext = safeCardPage < totalCardPages;
-  const cardPaginationItems = useMemo(
-    () => buildPaginationItems(safeCardPage, totalCardPages),
-    [safeCardPage, totalCardPages],
-  );
+  const activeCardsRequestIdRef = useRef(0);
 
   useEffect(() => {
-    if (cardPage !== safeCardPage) setCardPage(safeCardPage);
-  }, [cardPage, safeCardPage]);
+    const trimmed = cardSearch.trim();
+    if (!trimmed) {
+      setDebouncedCardSearch("");
+      return;
+    }
+    if (trimmed.length < 3) {
+      setDebouncedCardSearch("");
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setDebouncedCardSearch(trimmed);
+    }, 180);
+    return () => window.clearTimeout(timer);
+  }, [cardSearch]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedReferralSearch(referralSearch.trim());
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [referralSearch]);
+
+  useEffect(() => {
+    setCardPage(1);
+  }, [debouncedCardSearch, cardTimeRange, cardReferralFilter, cardOaFilter, cardStatusFilter, cardStageFilter]);
 
   useEffect(() => {
     function onSlashFocusSearch(event: KeyboardEvent) {
@@ -225,8 +349,8 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
   function applyDefaultCardFilters() {
     setCardSearch("");
     setCardTimeRange("7");
-    setCardReferralFilter("yes");
-    setCardOaFilter("yes");
+    setCardReferralFilter("all");
+    setCardOaFilter("all");
     setCardStatusFilter("active");
     setCardStageFilter("All");
     setCardPage(1);
@@ -266,7 +390,165 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     setActiveSmartView(null);
   }
 
+  const mapJobToActiveCard = useCallback((job: Record<string, unknown>): ActiveCard => {
+    const stage = deriveDashboardStage(job);
+    const progress = getStageProgress(stage);
+
+    const keywordRaw = String((job as any).keyword_matching ?? "").trim();
+    let keywordMatch = "-";
+    if (keywordRaw) {
+      const numeric = Number(keywordRaw);
+      keywordMatch = Number.isFinite(numeric) ? `${Math.round(numeric)}%` : keywordRaw;
+    }
+
+    const appliedValue = (job as any).applied_at ?? job.date_saved;
+    const appliedDateTime = formatTableDateTime(appliedValue);
+    const appliedDate = formatTableDate(appliedValue);
+
+    return {
+      id: (job.id as number | string | undefined) ?? `${String(job.company ?? "job")}-${String(job.role ?? "role")}`,
+      company: String(job.company ?? "-") || "-",
+      role: String(job.role ?? "-") || "-",
+      appliedDate,
+      appliedDateTime,
+      referredBy: String((job as any).referred_by_name ?? "").trim() || "No referral",
+      jobId: String((job as any).job_application_id ?? "-") || "-",
+      keywordMatch,
+      progress,
+      jobLink: String((job as any).job_link ?? "").trim(),
+      raw: job,
+    };
+  }, []);
+
+  const loadActiveCards = useCallback(async () => {
+    if (statusFilter === "rejected") return;
+    const requestId = activeCardsRequestIdRef.current + 1;
+    activeCardsRequestIdRef.current = requestId;
+    try {
+      setActiveCardsError("");
+      setIsLoadingActiveCards(true);
+      const selectedStage = cardStageFilter === "All" ? undefined : cardStageFilter;
+      const selectedStatus = selectedStage === "Archive" ? "archive" : "active";
+      const res = await getJobs({
+        page: cardPage,
+        limit: CARD_LIMIT,
+        search: debouncedCardSearch || undefined,
+        status: selectedStatus,
+        stage: selectedStage,
+        sort: "applied_at",
+        order: "desc",
+      });
+      if (requestId !== activeCardsRequestIdRef.current) return;
+      const mapped = (res.data ?? []).map((row) => mapJobToActiveCard(row));
+      const total = Number(res.total ?? 0);
+      setActiveCards(mapped);
+      setActiveCardsTotal(total);
+
+      const maxPage = Math.max(1, Math.ceil(total / CARD_LIMIT));
+      if (cardPage > maxPage) setCardPage(maxPage);
+    } catch (err) {
+      if (requestId !== activeCardsRequestIdRef.current) return;
+      setActiveCardsError((err as Error).message);
+      setActiveCards([]);
+      setActiveCardsTotal(0);
+    } finally {
+      if (requestId !== activeCardsRequestIdRef.current) return;
+      setIsLoadingActiveCards(false);
+    }
+  }, [
+    statusFilter,
+    cardPage,
+    debouncedCardSearch,
+    cardStageFilter,
+    mapJobToActiveCard,
+  ]);
+
+  const loadActiveReferrals = useCallback(async () => {
+    if (statusFilter === "rejected") return;
+    try {
+      setActiveReferralsError("");
+      setIsLoadingActiveReferrals(true);
+      const res = await getReferrals({
+        page: 1,
+        limit: 12,
+        search: debouncedReferralSearch || undefined,
+      });
+      const rows = (res.data ?? []).map((row) => ({
+        id: (row.id as number | string | undefined) ?? `ref-${String(row.company ?? "")}-${String(row.request_log ?? "")}`,
+        name: String((row as any).referred_by_name ?? "").trim() || "Unknown",
+        company: String(row.company ?? "-") || "-",
+        role: String((row as any).request_log ?? "-") || "-",
+      }));
+      setActiveReferrals(rows);
+      setActiveReferralTotal(Number((res as any).total ?? rows.length));
+    } catch (err) {
+      setActiveReferralsError((err as Error).message);
+      setActiveReferrals([]);
+      setActiveReferralTotal(0);
+    } finally {
+      setIsLoadingActiveReferrals(false);
+    }
+  }, [statusFilter, debouncedReferralSearch]);
+
+  const loadActiveInsights = useCallback(async () => {
+    if (statusFilter === "rejected") return;
+    try {
+      setActiveInsightsError("");
+      setIsLoadingActiveInsights(true);
+
+      const [summary, targets] = await Promise.all([getDashboardSummary(60), getTargetProgress()]);
+      const anchorDay = String(targets.anchorDay ?? getLocalISODate());
+
+      const weeklyRaw = Array.isArray(summary.weeklyTrend) ? summary.weeklyTrend : [];
+      const latestFive = weeklyRaw.slice(-5);
+      const weeklyCounts: ActiveWeeklyCount[] = latestFive.length
+        ? latestFive.map((row) => ({
+            week: formatWeekLabel(String(row.week ?? "")),
+            count: Number(row.total ?? 0),
+          }))
+        : buildDefaultWeeklyCounts(anchorDay);
+
+      const totalApplications = weeklyCounts.reduce((sum, row) => sum + row.count, 0);
+      const averagePerWeek = (totalApplications / Math.max(1, weeklyCounts.length)).toFixed(1);
+      const peakWeek = weeklyCounts.reduce(
+        (peak, row) => (row.count > peak.count ? row : peak),
+        weeklyCounts[0] ?? { week: "—", count: 0 },
+      );
+
+      const currentWeekDailyCounts = buildCurrentWeekDailyCounts(summary.dailyTrend ?? [], anchorDay);
+      const thisWeekTotal = currentWeekDailyCounts.reduce((sum, row) => sum + row.count, 0);
+      const previousWeekTotal = weeklyCounts.length > 1 ? weeklyCounts[weeklyCounts.length - 2].count : 0;
+      const bestDay = currentWeekDailyCounts.reduce(
+        (peak, row) => (row.count > peak.count ? row : peak),
+        currentWeekDailyCounts[0] ?? { day: "Mon", count: 0, iso: anchorDay },
+      );
+
+      const requestedTarget = Number((targets as any)?.weekly?.target);
+      const targetCount = Number.isFinite(requestedTarget) && requestedTarget > 0 ? requestedTarget : 12;
+      const targetProgressPercent = targetCount > 0 ? Math.round((thisWeekTotal / targetCount) * 100) : 0;
+
+      setActiveInsights({
+        weeklyCounts,
+        totalApplications,
+        averagePerWeek,
+        peakWeekLabel: `${peakWeek.week} (${peakWeek.count})`,
+        currentWeekDailyCounts,
+        thisWeekTotal,
+        previousWeekTotal,
+        bestDay: bestDay.day,
+        targetCount,
+        targetProgressPercent,
+      });
+    } catch (err) {
+      setActiveInsightsError((err as Error).message);
+      setActiveInsights(initialInsightsState());
+    } finally {
+      setIsLoadingActiveInsights(false);
+    }
+  }, [statusFilter]);
+
   const load = useCallback(async () => {
+    if (statusFilter !== "rejected") return;
     try {
       setError("");
       setIsLoading(true);
@@ -290,6 +572,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
   }, [page, searchQuery, sortBy, sortOrder, statusFilter]);
 
   const loadTrend = useCallback(async () => {
+    if (statusFilter !== "rejected") return;
     try {
       setIsLoadingTrend(true);
       const res = await getJobsTrend(30);
@@ -300,7 +583,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     } finally {
       setIsLoadingTrend(false);
     }
-  }, []);
+  }, [statusFilter]);
 
   const loadOaArchive = useCallback(async () => {
     if (statusFilter !== "rejected") return;
@@ -318,31 +601,58 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
   }, [statusFilter]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    if (statusFilter !== "rejected") {
+      loadActiveCards();
+    }
+  }, [statusFilter, loadActiveCards]);
 
   useEffect(() => {
-    loadTrend();
-  }, [loadTrend]);
+    if (statusFilter !== "rejected") {
+      loadActiveReferrals();
+    }
+  }, [statusFilter, loadActiveReferrals]);
+
+  useEffect(() => {
+    if (statusFilter !== "rejected") {
+      loadActiveInsights();
+    }
+  }, [statusFilter, loadActiveInsights]);
 
   useEffect(() => {
     if (statusFilter === "rejected") {
+      load();
+      loadTrend();
       loadOaArchive();
     } else {
+      setData([]);
       setOaArchiveData([]);
       setOaArchiveError("");
     }
-  }, [statusFilter, loadOaArchive]);
+  }, [statusFilter, load, loadTrend, loadOaArchive]);
 
   useEffect(() => {
     const onRefresh = () => {
-      load();
-      loadTrend();
-      if (statusFilter === "rejected") loadOaArchive();
+      if (statusFilter === "rejected") {
+        load();
+        loadTrend();
+        loadOaArchive();
+      } else {
+        loadActiveCards();
+        loadActiveReferrals();
+        loadActiveInsights();
+      }
     };
     window.addEventListener("dashboard-refresh", onRefresh);
     return () => window.removeEventListener("dashboard-refresh", onRefresh);
-  }, [load, loadTrend, loadOaArchive, statusFilter]);
+  }, [
+    statusFilter,
+    load,
+    loadTrend,
+    loadOaArchive,
+    loadActiveCards,
+    loadActiveReferrals,
+    loadActiveInsights,
+  ]);
 
   useEffect(() => {
     trackFeatureEvent(ANALYTICS_EVENTS.filter_used, {
@@ -353,10 +663,11 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
   }, [statusFilter]);
 
   useEffect(() => {
+    if (statusFilter !== "rejected") return;
     setSearchInput(urlSearchQuery);
     setSearchQuery(urlSearchQuery);
     setPage(1);
-  }, [urlSearchQuery]);
+  }, [urlSearchQuery, statusFilter]);
 
   function onSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -390,8 +701,9 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
       setSortOrder(nextOrder);
     } else {
       setSortBy(field);
-      setSortOrder(nextOrder); // datetime: newest first; others: A→Z
+      setSortOrder(nextOrder);
     }
+
     trackFeatureEvent(ANALYTICS_EVENTS.sort_changed, {
       source: "jobs_table",
       sort_field: field,
@@ -452,7 +764,13 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
         notes: editForm.notes.trim() || undefined,
       });
       setEditing(null);
-      await load();
+
+      if (statusFilter === "rejected") {
+        await load();
+      } else {
+        await Promise.all([loadActiveCards(), loadActiveReferrals(), loadActiveInsights()]);
+      }
+
       trackProductEvent(ANALYTICS_EVENTS.application_updated, {
         source: "jobs_edit_modal",
         update_type: "form_save",
@@ -475,26 +793,25 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
   }, [data, sortBy, sortOrder, statusFilter]);
 
   const chartData = useMemo(() => {
-    const data = trendData.map((row) => ({
+    const trendRows = trendData.map((row) => ({
       ...row,
       dayLabel: formatDayShort(row.day),
       fullDate: row.day,
-      hasRejection: row.rejected > 0, // Flag for annotation
+      hasRejection: row.rejected > 0,
     }));
 
-    // Find insights for annotations
-    const maxApplied = Math.max(...data.map((d) => d.applied), 0);
-    const maxAppliedDay = data.find((d) => d.applied === maxApplied);
-    const maxRejected = Math.max(...data.map((d) => d.rejected), 0);
-    const maxRejectedDay = data.find((d) => d.rejected === maxRejected);
-    const rejectionDays = data.filter((d) => d.rejected > 0);
+    const maxApplied = Math.max(...trendRows.map((d) => d.applied), 0);
+    const maxAppliedDay = trendRows.find((d) => d.applied === maxApplied);
+    const maxRejected = Math.max(...trendRows.map((d) => d.rejected), 0);
+    const maxRejectedDay = trendRows.find((d) => d.rejected === maxRejected);
+    const rejectionDays = trendRows.filter((d) => d.rejected > 0);
 
     return {
-      data,
+      data: trendRows,
       insights: {
-        maxApplied: maxAppliedDay ? { day: maxAppliedDay.dayLabel, value: maxApplied, index: data.indexOf(maxAppliedDay) } : null,
-        maxRejected: maxRejectedDay ? { day: maxRejectedDay.dayLabel, value: maxRejected, index: data.indexOf(maxRejectedDay) } : null,
-        rejectionDays: rejectionDays.map((d) => ({ day: d.dayLabel, value: d.rejected, index: data.indexOf(d) })),
+        maxApplied: maxAppliedDay ? { day: maxAppliedDay.dayLabel, value: maxApplied, index: trendRows.indexOf(maxAppliedDay) } : null,
+        maxRejected: maxRejectedDay ? { day: maxRejectedDay.dayLabel, value: maxRejected, index: trendRows.indexOf(maxRejectedDay) } : null,
+        rejectionDays: rejectionDays.map((d) => ({ day: d.dayLabel, value: d.rejected, index: trendRows.indexOf(d) })),
       },
     };
   }, [trendData]);
@@ -503,7 +820,19 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
   const hasPrev = page > 1;
   const totalPages = Math.max(1, Math.ceil(totalRows / LIMIT));
 
-  const sortConfig = BASE_SORT_CONFIG;
+  const totalCardPages = Math.max(1, Math.ceil(activeCardsTotal / CARD_LIMIT));
+  const safeCardPage = Math.min(cardPage, totalCardPages);
+  const cardStartIndex = (safeCardPage - 1) * CARD_LIMIT;
+  const hasCardPrev = safeCardPage > 1;
+  const hasCardNext = safeCardPage < totalCardPages;
+  const cardPaginationItems = useMemo(
+    () => buildPaginationItems(safeCardPage, totalCardPages),
+    [safeCardPage, totalCardPages],
+  );
+
+  useEffect(() => {
+    if (cardPage !== safeCardPage) setCardPage(safeCardPage);
+  }, [cardPage, safeCardPage]);
 
   async function onDelete(job: Record<string, unknown>) {
     const id = job.id as number | string | undefined;
@@ -522,7 +851,14 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
       setError("");
       setDeletingId(id);
       await deleteJob(id);
-      await load();
+      if (editing && (editing.id as number | string | undefined) === id) {
+        setEditing(null);
+      }
+      if (statusFilter === "rejected") {
+        await load();
+      } else {
+        await Promise.all([loadActiveCards(), loadActiveInsights()]);
+      }
       trackProductEvent(ANALYTICS_EVENTS.application_deleted, {
         source: "jobs_table",
       });
@@ -535,6 +871,11 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     } finally {
       setDeletingId(null);
     }
+  }
+
+  async function onDeleteFromEditModal() {
+    if (!editing) return;
+    await onDelete(editing);
   }
 
   async function onArchive(job: Record<string, unknown>) {
@@ -554,7 +895,11 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
       setError("");
       setArchivingId(id);
       await updateJob(id, { application_status: "Rejected" });
-      await load();
+      if (statusFilter === "rejected") {
+        await load();
+      } else {
+        await Promise.all([loadActiveCards(), loadActiveInsights()]);
+      }
       trackProductEvent(ANALYTICS_EVENTS.application_updated, {
         source: "jobs_table",
         update_type: "status_change",
@@ -571,43 +916,138 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     }
   }
 
+  function openCardLink(card: ActiveCard) {
+    const href = card.jobLink.trim();
+    if (!href) return;
+    window.open(href, "_blank", "noopener,noreferrer");
+  }
+
+  function openCardEdit(card: ActiveCard) {
+    openEdit(card.raw);
+  }
+
+  function openAddReferralModal() {
+    setAddReferralError("");
+    setAddReferralForm({ name: "", company: "", role: "" });
+    setShowAddReferralModal(true);
+  }
+
+  function closeAddReferralModal() {
+    if (isAddingReferral) return;
+    setShowAddReferralModal(false);
+  }
+
+  async function onCreateReferralFromPanel(e: React.FormEvent) {
+    e.preventDefault();
+    const company = addReferralForm.company.trim();
+    if (!company) {
+      setAddReferralError("Company is required.");
+      return;
+    }
+
+    try {
+      setAddReferralError("");
+      setIsAddingReferral(true);
+      await createReferral({
+        company,
+        request_log: addReferralForm.role.trim() || undefined,
+        request_date: getLocalISODate(),
+        referral_received: "Requested",
+        keyword_matching: "Medium",
+        referred_by_name: addReferralForm.name.trim() || undefined,
+      });
+      setShowAddReferralModal(false);
+      await Promise.all([loadActiveReferrals(), loadActiveCards()]);
+    } catch (err) {
+      setAddReferralError((err as Error).message);
+    } finally {
+      setIsAddingReferral(false);
+    }
+  }
+
   if (statusFilter !== "rejected") {
     return (
-      <ActiveJobsBoard
-        error={error}
-        confirmDialog={confirmDialog}
-        searchInputRef={searchInputRef}
-        cardSearch={cardSearch}
-        setCardSearch={setCardSearch}
-        cardTimeRange={cardTimeRange}
-        setCardTimeRange={setCardTimeRange}
-        cardReferralFilter={cardReferralFilter}
-        setCardReferralFilter={setCardReferralFilter}
-        cardOaFilter={cardOaFilter}
-        setCardOaFilter={setCardOaFilter}
-        cardStatusFilter={cardStatusFilter}
-        setCardStatusFilter={setCardStatusFilter}
-        cardStageFilter={cardStageFilter}
-        setCardStageFilter={setCardStageFilter}
-        setCardPage={setCardPage}
-        referralSearch={referralSearch}
-        setReferralSearch={setReferralSearch}
-        activeSmartView={activeSmartView}
-        setActiveSmartView={setActiveSmartView}
-        applyDefaultCardFilters={applyDefaultCardFilters}
-        applyInterviewScenario={applyInterviewScenario}
-        applyReferralScenario={applyReferralScenario}
-        clearCardFilters={clearCardFilters}
-        filteredReferralRows={filteredReferralRows}
-        filteredSampleCardsLength={filteredSampleCards.length}
-        pagedSampleCards={pagedSampleCards}
-        cardStartIndex={cardStartIndex}
-        hasCardPrev={hasCardPrev}
-        hasCardNext={hasCardNext}
-        cardPaginationItems={cardPaginationItems}
-        safeCardPage={safeCardPage}
-        totalCardPages={totalCardPages}
-      />
+      <>
+        <ActiveJobsBoard
+          cardsError={activeCardsError}
+          confirmDialog={confirmDialog}
+          searchInputRef={searchInputRef}
+          cardSearch={cardSearch}
+          setCardSearch={setCardSearch}
+          cardTimeRange={cardTimeRange}
+          setCardTimeRange={setCardTimeRange}
+          cardReferralFilter={cardReferralFilter}
+          setCardReferralFilter={setCardReferralFilter}
+          cardOaFilter={cardOaFilter}
+          setCardOaFilter={setCardOaFilter}
+          cardStatusFilter={cardStatusFilter}
+          setCardStatusFilter={setCardStatusFilter}
+          cardStageFilter={cardStageFilter}
+          setCardStageFilter={setCardStageFilter}
+          setCardPage={setCardPage}
+          referralSearch={referralSearch}
+          setReferralSearch={setReferralSearch}
+          activeSmartView={activeSmartView}
+          setActiveSmartView={setActiveSmartView}
+          applyDefaultCardFilters={applyDefaultCardFilters}
+          applyInterviewScenario={applyInterviewScenario}
+          applyReferralScenario={applyReferralScenario}
+          clearCardFilters={clearCardFilters}
+          isLoadingCards={isLoadingActiveCards}
+          filteredReferralRows={activeReferrals}
+          isLoadingReferrals={isLoadingActiveReferrals}
+          referralError={activeReferralsError}
+          totalReferralCount={activeReferralTotal}
+          onAddReferral={openAddReferralModal}
+          filteredSampleCardsLength={activeCardsTotal}
+          pagedSampleCards={activeCards}
+          cardStartIndex={cardStartIndex}
+          hasCardPrev={hasCardPrev}
+          hasCardNext={hasCardNext}
+          cardPaginationItems={cardPaginationItems}
+          safeCardPage={safeCardPage}
+          totalCardPages={totalCardPages}
+          archivingId={archivingId}
+          openCardLink={openCardLink}
+          openCardEdit={openCardEdit}
+          onArchiveCard={(card) => onArchive(card.raw)}
+          weeklyCounts={activeInsights.weeklyCounts}
+          totalApplications={activeInsights.totalApplications}
+          averagePerWeek={activeInsights.averagePerWeek}
+          peakWeekLabel={activeInsights.peakWeekLabel}
+          isLoadingKpi={isLoadingActiveInsights}
+          kpiError={activeInsightsError}
+          currentWeekDailyCounts={activeInsights.currentWeekDailyCounts}
+          thisWeekTotal={activeInsights.thisWeekTotal}
+          previousWeekTotal={activeInsights.previousWeekTotal}
+          bestDay={activeInsights.bestDay}
+          targetCount={activeInsights.targetCount}
+          targetProgressPercent={activeInsights.targetProgressPercent}
+          isLoadingSummary={isLoadingActiveInsights}
+          summaryError={activeInsightsError}
+        />
+
+        <EditJobModal
+          editing={editing}
+          isSaving={isSaving}
+          isDeleting={deletingId != null && editing != null && deletingId === (editing.id as number | string | undefined)}
+          editForm={editForm}
+          setEditing={setEditing}
+          setEditForm={setEditForm}
+          onSaveEdit={onSaveEdit}
+          onDeleteEdit={onDeleteFromEditModal}
+        />
+
+        <AddReferralModal
+          open={showAddReferralModal}
+          isSaving={isAddingReferral}
+          error={addReferralError}
+          form={addReferralForm}
+          setForm={setAddReferralForm}
+          onClose={closeAddReferralModal}
+          onSubmit={onCreateReferralFromPanel}
+        />
+      </>
     );
   }
 
@@ -718,7 +1158,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
         hasNext={hasNext}
         sortBy={sortBy}
         sortOrder={sortOrder}
-        sortConfig={sortConfig}
+        sortConfig={BASE_SORT_CONFIG}
         searchInput={searchInput}
         statusFilter={statusFilter}
         archivingId={archivingId}
@@ -752,10 +1192,12 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
       <EditJobModal
         editing={editing}
         isSaving={isSaving}
+        isDeleting={deletingId != null && editing != null && deletingId === (editing.id as number | string | undefined)}
         editForm={editForm}
         setEditing={setEditing}
         setEditForm={setEditForm}
         onSaveEdit={onSaveEdit}
+        onDeleteEdit={onDeleteFromEditModal}
       />
 
       <EditOaModal

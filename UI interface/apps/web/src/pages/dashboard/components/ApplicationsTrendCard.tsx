@@ -52,6 +52,7 @@ type Props = {
   todayLabel: string;
   showTodayLine: boolean;
   dailyMotivation: DailyMotivation | null;
+  isMobile?: boolean;
 };
 
 export default function ApplicationsTrendCard({
@@ -64,6 +65,7 @@ export default function ApplicationsTrendCard({
   todayLabel,
   showTodayLine,
   dailyMotivation,
+  isMobile = false,
 }: Props) {
   return (
     <section className="chart-grid chart-grid-trend">
@@ -107,7 +109,7 @@ export default function ApplicationsTrendCard({
             </select>
           </div>
         </div>
-        <ResponsiveContainer width="100%" height={520}>
+        <ResponsiveContainer width="100%" height={isMobile ? 300 : 520}>
           <ComposedChart data={trendData} margin={{ top: 16, right: 24, left: 8, bottom: 8 }}>
             <defs>
               <linearGradient id="trendAreaGradient" x1="0" y1="0" x2="0" y2="1">
@@ -127,7 +129,7 @@ export default function ApplicationsTrendCard({
               axisLine={{ stroke: CHART_COLORS.axis, strokeWidth: 1 }}
               tickLine={false}
               ticks={dailyTrendTicks.length > 0 ? dailyTrendTicks : undefined}
-              interval={0}
+              interval={isMobile ? "preserveStartEnd" : 0}
               height={24}
             />
             <YAxis
@@ -171,7 +173,11 @@ export default function ApplicationsTrendCard({
               fillOpacity={0.85}
               radius={[5, 5, 0, 0]}
               activeBar={false}
-              label={{ position: "top", fill: CHART_COLORS.textSecondary, fontSize: 11, fontWeight: 400, dy: -4 }}
+              label={
+                isMobile
+                  ? false
+                  : { position: "top", fill: CHART_COLORS.textSecondary, fontSize: 11, fontWeight: 400, dy: -4 }
+              }
             >
               {trendData.map((row, i) => (
                 <Cell key={row.day ?? i} fill={WEEK_COLORS[row.weekIndex % WEEK_COLORS.length]} />
@@ -203,10 +209,11 @@ export default function ApplicationsTrendCard({
               paddingTop: 8,
               paddingBottom: 0,
               borderTop: `1px solid ${CHART_COLORS.grid}`,
-              fontSize: "0.85rem",
+              fontSize: isMobile ? "0.8rem" : "0.85rem",
               display: "flex",
-              alignItems: "center",
-              gap: 14,
+              flexDirection: isMobile ? "column" : "row",
+              alignItems: isMobile ? "flex-start" : "center",
+              gap: isMobile ? 8 : 14,
               width: "100%",
             }}
           >
@@ -214,11 +221,15 @@ export default function ApplicationsTrendCard({
               <span
                 style={{
                   color: CHART_COLORS.textSecondary,
-                  flex: "0 1 auto",
-                  maxWidth: "48%",
+                  flex: isMobile ? "1 1 auto" : "0 1 auto",
+                  maxWidth: isMobile ? "100%" : "48%",
                   minWidth: 0,
                   whiteSpace: "normal",
-                  lineHeight: 1.35,
+                  lineHeight: isMobile ? 1.4 : 1.35,
+                  display: "-webkit-box",
+                  WebkitLineClamp: isMobile ? 2 : "unset",
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
                 }}
               >
                 {dailyMotivation.quote} — {dailyMotivation.author}
@@ -227,11 +238,12 @@ export default function ApplicationsTrendCard({
             <div
               style={{
                 display: "flex",
-                marginLeft: "auto",
-                justifyContent: "flex-end",
-                gap: 10,
-                textAlign: "right",
-                whiteSpace: "nowrap",
+                flexWrap: "wrap",
+                marginLeft: isMobile ? 0 : "auto",
+                justifyContent: isMobile ? "flex-start" : "flex-end",
+                gap: isMobile ? 6 : 10,
+                textAlign: isMobile ? "left" : "right",
+                whiteSpace: isMobile ? "normal" : "nowrap",
               }}
             >
               <span style={{ color: CHART_COLORS.trendLine }}>
