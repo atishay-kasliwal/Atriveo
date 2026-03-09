@@ -18,6 +18,7 @@ import {
   type JobsCsvExportRange,
   type OutgoingFriendRequest,
 } from "../lib/api";
+import { getLocalISODate } from "../lib/formatDate";
 import {
   ANALYTICS_EVENTS,
   trackErrorEvent,
@@ -49,6 +50,12 @@ type LayoutProps = {
   theme: "light" | "dark";
   onToggleTheme: () => void;
 };
+
+function getLocalISODatePlusDays(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return getLocalISODate(d);
+}
 
 type SectionHeaderProps = {
   icon: ReactNode;
