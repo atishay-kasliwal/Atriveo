@@ -1,0 +1,88 @@
+/* Mobile layout: nav tabs, page padding, touch targets */
+
+/* Nav tabs: horizontal scroll on mobile only */
+@media (max-width: 640px) {
+  .page {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .app-nav {
+    padding: 10px 12px;
+    margin-bottom: 12px;
+    border-radius: 14px;
+  }
+
+  .app-nav-top {
+    padding: 2px 0 8px;
+  }
+
+  .app-nav-brand {
+    font-size: 1.5rem;
+  }
+
+  .app-nav-bottom {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding-top: 6px;
+  }
+
+  /* Tabs: full-width row, scroll horizontally */
+  .app-nav-links {
+    width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding: 4px 2px;
+    gap: 4px;
+  }
+
+  .app-nav-links::-webkit-scrollbar {
+    display: none;
+  }
+
+  .app-nav-link {
+    flex-shrink: 0;
+    padding: 6px 10px;
+    font-size: 0.78rem;
+  }
+
+  .app-nav-bottom-actions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-start;
+  }
+}
+
+/* Phone: tighter nav, smaller tabs */
+@media (max-width: 480px) {
+  .page {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .app-nav {
+    padding: 8px 10px;
+    margin-bottom: 10px;
+    border-radius: 12px;
+  }
+
+  .app-nav-brand {
+    font-size: 1.35rem;
+  }
+
+  .app-nav-link {
+    padding: 6px 8px;
+    font-size: 0.72rem;
+  }
+
+  .app-nav-link.active::after {
+    left: 8px;
+    right: 8px;
+  }
+}

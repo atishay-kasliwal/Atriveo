@@ -1,0 +1,230 @@
+
+.confirm-dialog-btn--cancel {
+  border-color: var(--bg-card-border);
+  background: var(--bg-soft);
+  color: var(--text-secondary);
+}
+
+.confirm-dialog-btn--cancel:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--text-muted) 35%, var(--bg-card-border));
+  color: var(--text-primary);
+}
+
+.confirm-dialog-btn--confirm {
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 78%, #7bb8ff), var(--accent));
+  color: #ffffff;
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--accent) 34%, transparent);
+}
+
+.confirm-dialog-btn--confirm:hover:not(:disabled) {
+  box-shadow: 0 12px 26px color-mix(in srgb, var(--accent) 42%, transparent);
+}
+
+.modal-close-x {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1.35rem;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+  transition: color 0.16s ease, opacity 0.16s ease;
+}
+
+.modal-close-x:hover:not(:disabled) {
+  color: var(--text-primary);
+  opacity: 1;
+}
+
+.modal-close-x:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.modal.network-shared-fields-modal .network-shared-fields-close {
+  top: 14px;
+  right: 14px;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal.network-shared-fields-modal .network-shared-fields-close svg {
+  width: 16px;
+  height: 16px;
+}
+
+.modal--quickadd {
+  max-width: 760px;
+  padding: 28px;
+  max-height: none;
+  overflow: visible;
+}
+
+.modal-overlay--quickadd {
+  align-items: flex-start;
+  overflow-y: auto;
+  padding-top: 24px;
+  padding-bottom: 24px;
+}
+
+@media (min-width: 1400px) and (min-height: 860px) {
+  .modal-overlay--quickadd {
+    align-items: center;
+    padding-top: 16px;
+    padding-bottom: 16px;
+  }
+
+  .modal--quickadd {
+    width: min(820px, calc(100vw - 56px));
+    max-width: none;
+    max-height: calc(100vh - 20px);
+    min-height: auto;
+    overflow-y: auto;
+  }
+
+  .new-app-form {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .new-app-header,
+  .new-app-actions {
+    grid-column: 1 / -1;
+  }
+
+  .new-app-section {
+    gap: 12px;
+  }
+
+  .new-app-section + .new-app-section {
+    border-top: 0;
+    padding-top: 0;
+  }
+
+  .new-app-textarea {
+    min-height: 64px;
+  }
+}
+
+.modal--note {
+  max-width: 1012px;
+}
+
+.modal--form-wide {
+  max-width: 760px;
+}
+
+.modal.network-shared-fields-modal {
+  max-width: 820px;
+  width: min(820px, calc(100vw - 32px));
+  max-height: min(88vh, 840px);
+  padding: 24px;
+}
+.modal--friends {
+  position: relative;
+  max-width: 882px;
+  padding: 22px;
+  background:
+    radial-gradient(circle at 10% 0%, color-mix(in srgb, var(--accent) 11%, transparent), transparent 40%),
+    radial-gradient(circle at 88% 4%, color-mix(in srgb, var(--accent-soft) 10%, transparent), transparent 44%),
+    var(--bg-card);
+}
+
+.friends-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.friends-modal-head h3 {
+  margin: 0;
+}
+
+.friends-head-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.friends-slot-pill {
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 38%, var(--bg-card-border));
+  background: color-mix(in srgb, var(--brand-primary) 16%, var(--bg-card));
+  color: color-mix(in srgb, var(--brand-primary-light) 48%, var(--text-primary));
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+:root[data-theme="light"] .friends-slot-pill {
+  border-color: color-mix(in srgb, var(--brand-primary) 42%, var(--bg-card-border));
+  background: color-mix(in srgb, var(--brand-primary) 12%, #ffffff);
+  color: var(--brand-primary-dark);
+}
+
+.friends-modal-close-x {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1.4rem;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+  transition: color 0.16s ease, opacity 0.16s ease;
+}
+
+.friends-modal-close-x:hover {
+  color: var(--text-primary);
+  opacity: 1;
+}
+
+.friends-form {
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 86%, transparent);
+  border-radius: 14px;
+  padding: 11px;
+  background: color-mix(in srgb, var(--bg-card-elevated) 86%, transparent);
+}
+
+.friends-form-subtitle {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.friends-form-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.friends-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.friends-form-actions button {
+  white-space: nowrap;
+}
+
+.friends-close-btn {
+  background: color-mix(in srgb, var(--bg-card-elevated) 90%, transparent);
+  color: var(--text-primary);
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 92%, transparent);
+  box-shadow: none;
+}

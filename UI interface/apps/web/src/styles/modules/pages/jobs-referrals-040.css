@@ -1,0 +1,225 @@
+
+.friends-close-btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.friends-manager-grid {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid color-mix(in srgb, var(--bg-card-border) 86%, transparent);
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 10px;
+  min-height: 396px;
+}
+
+.friends-side-stack {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  gap: 10px;
+  min-height: 0;
+}
+
+.modal--friends .friends-panel {
+  min-height: 0;
+  height: 100%;
+  border-color: color-mix(in srgb, var(--bg-card-border) 88%, transparent);
+  background:
+    radial-gradient(circle at 20% 4%, color-mix(in srgb, var(--accent) 7%, transparent), transparent 42%),
+    color-mix(in srgb, var(--bg-card-elevated) 88%, transparent);
+  box-shadow: var(--card-shadow);
+}
+
+.modal--friends .network-incoming-table {
+  min-width: 0;
+}
+
+.modal--friends .friends-panel h3 {
+  margin-bottom: 10px;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.friend-row-btn {
+  min-width: 76px;
+  white-space: nowrap;
+  text-align: center;
+  font-size: 0.78rem;
+}
+
+.modal--friends .friends-panel .table-wrap table {
+  table-layout: auto;
+}
+
+.modal--friends .network-friends-table th:nth-child(1) { width: 45%; }
+.modal--friends .network-friends-table th:nth-child(2) { width: 33%; }
+.modal--friends .network-friends-table th:nth-child(3) { width: 22%; }
+
+.modal--friends .network-friends-table th:nth-child(2),
+.modal--friends .network-friends-table td:nth-child(2) {
+  white-space: nowrap;
+}
+
+.modal--friends .network-friends-table td:last-child {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.modal--friends .network-friends-table .friend-row-btn {
+  min-width: 72px;
+  padding: 5px 8px;
+}
+
+.modal h3 {
+  margin: 0 0 18px;
+  font-family: var(--font-header);
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.modal-subtitle {
+  margin: -12px 0 14px;
+  font-size: 0.86rem;
+  color: var(--text-muted);
+}
+
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--bg-card-border) 82%, transparent);
+  justify-content: flex-end;
+}
+
+.modal-footnote {
+  margin-top: 12px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.form--two-col {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px 12px;
+  align-items: start;
+}
+
+.form--two-col .modal-actions,
+.form--two-col .referral-hint,
+.form--two-col .form-span-2 {
+  grid-column: 1 / -1;
+}
+
+.form-accordion {
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 82%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg-card-elevated) 78%, transparent);
+  padding: 0 10px 10px;
+}
+.form-accordion > summary {
+  list-style: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  padding: 10px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.form-accordion > summary::-webkit-details-marker {
+  display: none;
+}
+
+.form-accordion > summary::after {
+  content: "▾";
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  transition: transform 0.18s ease;
+  flex-shrink: 0;
+}
+
+.form-accordion[open] > summary::after {
+  transform: rotate(180deg);
+}
+
+.form-accordion-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px 12px;
+}
+
+.form-accordion-grid .form-span-2 {
+  grid-column: 1 / -1;
+}
+
+.form-accordion-summary-meta {
+  margin-left: auto;
+  margin-right: 10px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+@media (max-width: 900px) {
+  .form--quickadd {
+    grid-template-columns: 1fr;
+  }
+
+  .new-app-grid-2,
+  .new-app-grid-3,
+  .new-app-grid-referral {
+    grid-template-columns: 1fr;
+  }
+
+  .new-app-actions {
+    justify-content: stretch;
+  }
+
+  .new-app-btn {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .form--two-col {
+    grid-template-columns: 1fr;
+  }
+
+  .form-accordion-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-accordion-grid .form-span-2 {
+    grid-column: auto;
+  }
+
+  .friends-manager-grid {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .friends-side-stack {
+    grid-template-rows: auto;
+  }
+
+  .friends-form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .friends-form-actions {
+    justify-content: flex-end;
+  }
+
+  .friends-slot-pill {
+    font-size: 0.76rem;
+  }
+
+  .referrals-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

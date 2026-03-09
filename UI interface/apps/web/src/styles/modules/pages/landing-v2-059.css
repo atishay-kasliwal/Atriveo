@@ -1,0 +1,223 @@
+
+@media (max-width: 720px) {
+  .header-test-brand {
+    font-size: 1.65rem;
+  }
+
+  .header-test-main {
+    padding: 20px 12px 44px;
+  }
+
+  .header-test-card {
+    padding: 22px;
+  }
+
+  .header-test-action-pill {
+    font-size: 0.86rem;
+    padding: 2px 0;
+  }
+}
+
+/* Dashboard hover-neutral mode: keep colors/static visuals on pointer hover */
+.dashboard-page-content .kpi-card:hover,
+.dashboard-page-content .card:hover,
+.dashboard-page-content .target-signal-card:hover,
+.dashboard-page-content .pending-card--clickable:hover,
+.dashboard-page-content .oa-item:hover {
+  background: var(--bg-card) !important;
+  border-color: var(--bg-card-border) !important;
+  box-shadow: var(--card-shadow) !important;
+  transform: none !important;
+}
+
+.dashboard-page-content .app-nav-link:hover,
+.dashboard-page-content .app-nav-actions .quick-add-btn:hover,
+.dashboard-page-content .notify-btn:hover,
+.dashboard-page-content .notify-btn.unread:not(.active):hover,
+.dashboard-page-content .notify-item--action:hover,
+.dashboard-page-content .csv-tools-item:hover,
+.dashboard-page-content .action-btn:hover:not(:disabled),
+.dashboard-page-content .pending-task-btn:hover,
+.dashboard-page-content .network-link-chip:hover,
+.dashboard-page-content .network-add-btn:hover,
+.dashboard-page-content .network-add-friends-btn:hover,
+.dashboard-page-content .notes-preview-open:hover,
+.dashboard-page-content .pending-open-btn:hover,
+.dashboard-page-content .jobs-search-btn:hover,
+.dashboard-page-content .form input:hover,
+.dashboard-page-content .form textarea:hover,
+.dashboard-page-content .form select:hover,
+.dashboard-page-content .form button:hover:not(:disabled),
+.dashboard-page-content .th-sort:hover,
+.dashboard-page-content .table-link:hover,
+.dashboard-page-content .pagination button:not(:disabled):hover,
+.dashboard-page-content .network-insight-toggle:hover,
+.dashboard-page-content .modal-close-x:hover:not(:disabled),
+.dashboard-page-content .friends-modal-close-x:hover,
+.dashboard-page-content .friends-close-btn:hover:not(:disabled) {
+  color: inherit !important;
+  background: inherit !important;
+  border-color: inherit !important;
+  box-shadow: none !important;
+  text-decoration: none !important;
+  transform: none !important;
+}
+
+.dashboard-page-content tr:hover td,
+.dashboard-page-content .tr-hover:hover td,
+.dashboard-page-content .table-wrap tbody tr:hover td,
+.dashboard-page-content .network-today-table tbody tr:hover td {
+  color: var(--text-primary) !important;
+  background: transparent !important;
+}
+
+.dashboard-page-content .recharts-tooltip-cursor,
+.dashboard-page-content .recharts-rectangle.recharts-tooltip-cursor,
+.dashboard-page-content .recharts-curve.recharts-tooltip-cursor {
+  display: none !important;
+}
+
+/* Loveable-style landing page */
+.lv-shell {
+  min-height: 100vh;
+  background: var(--bg-app);
+  color: var(--text-primary);
+}
+
+.lv-wrap {
+  width: min(1160px, calc(100% - 32px));
+  margin: 0 auto;
+}
+
+.lv-main {
+  position: relative;
+}
+
+.lv-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  transition: background 0.2s ease, border-color 0.2s ease, backdrop-filter 0.2s ease;
+}
+
+.lv-nav.is-scrolled {
+  background: color-mix(in srgb, var(--bg-app) 84%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--bg-card-border) 74%, transparent);
+  backdrop-filter: blur(10px);
+}
+
+.lv-nav-inner {
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.lv-logo {
+  text-decoration: none;
+  font-family: var(--font-header);
+  font-weight: 800;
+  font-size: 1.56rem;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.lv-logo span {
+  color: var(--accent);
+}
+
+.lv-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lv-btn {
+  border: 1px solid transparent;
+  border-radius: 11px;
+  min-height: 40px;
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-family: var(--font-header);
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.2s ease, background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lv-btn:hover {
+  transform: translateY(-1px);
+}
+
+.lv-btn-primary {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 82%, #7fb9ff), var(--accent));
+  border-color: color-mix(in srgb, var(--accent) 42%, transparent);
+  color: #ffffff;
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+.lv-btn-primary:hover {
+  box-shadow: 0 14px 30px color-mix(in srgb, var(--accent) 34%, transparent);
+}
+
+.lv-btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.lv-btn-ghost:hover {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--bg-card) 46%, transparent);
+  border-color: color-mix(in srgb, var(--bg-card-border) 74%, transparent);
+}
+
+.lv-btn-outline {
+  border-color: color-mix(in srgb, var(--bg-card-border) 78%, transparent);
+  background: color-mix(in srgb, var(--bg-card) 38%, transparent);
+  color: var(--text-primary);
+}
+
+.lv-btn-outline:hover {
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--bg-card-border));
+  background: color-mix(in srgb, var(--bg-card) 74%, transparent);
+}
+
+.lv-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 120px 0 210px;
+  background:
+    radial-gradient(circle at 50% 26%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 56%),
+    radial-gradient(circle at 16% 8%, color-mix(in srgb, var(--accent-soft) 20%, transparent), transparent 45%),
+    linear-gradient(180deg, #030b1e 0%, #07183b 56%, var(--bg-app) 100%);
+}
+
+.lv-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(to right, color-mix(in srgb, var(--bg-card-border) 16%, transparent) 1px, transparent 1px), linear-gradient(to bottom, color-mix(in srgb, var(--bg-card-border) 16%, transparent) 1px, transparent 1px);
+  background-size: 42px 42px;
+  opacity: 0.26;
+  pointer-events: none;
+}
+
+.lv-particles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.lv-particles span {
+  position: absolute;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 82%, var(--accent-soft) 18%);
+  opacity: 0.22;
+  animation: lvParticleDrift linear infinite;
+}

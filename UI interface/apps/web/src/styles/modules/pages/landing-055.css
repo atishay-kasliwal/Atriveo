@@ -1,0 +1,225 @@
+
+.lp-auth-submit {
+  margin-top: 4px;
+  min-height: 48px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: linear-gradient(90deg, var(--brand-primary) 0%, var(--brand-primary-dark) 100%);
+  color: var(--brand-white);
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.lp-auth-submit:disabled {
+  opacity: 0.8;
+  cursor: wait;
+}
+
+.lp-auth-divider {
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  text-align: center;
+  color: var(--marketing-muted);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.lp-auth-divider::before,
+.lp-auth-divider::after {
+  content: "";
+  flex: 1;
+  border-bottom: 1px solid var(--marketing-border);
+}
+
+.lp-auth-divider span {
+  padding: 0 10px;
+}
+
+.lp-auth-switch {
+  margin: 12px 0 0;
+  text-align: center;
+  color: var(--marketing-muted);
+  font-size: 0.95rem;
+}
+
+.lp-auth-switch button {
+  border: 0;
+  background: transparent;
+  color: var(--brand-primary);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+}
+
+.lp-auth-switch button:hover {
+  color: var(--brand-primary-dark);
+}
+
+.google-auth-button {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  justify-items: center;
+}
+
+.google-auth-render {
+  width: min(100%, 360px);
+  min-height: 40px;
+}
+
+.google-auth-render.is-disabled {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.google-auth-render.is-hidden {
+  display: none;
+}
+
+.google-auth-fallback {
+  width: min(100%, 360px);
+  min-height: 40px;
+  border-radius: 999px;
+  border: 1px solid var(--marketing-border);
+  background: var(--marketing-surface);
+  color: var(--marketing-muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.google-auth-status {
+  margin: 0;
+  color: var(--marketing-muted);
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+.lp-footer {
+  background: var(--brand-primary-dark);
+  color: var(--brand-white);
+  padding: 72px 0 24px;
+}
+
+.lp-footer-grid {
+  display: grid;
+  grid-template-columns: 1.2fr repeat(3, minmax(0, 1fr));
+  gap: 32px;
+}
+
+.lp-logo--footer {
+  color: var(--brand-white);
+}
+
+.lp-social-row {
+  margin-top: 14px;
+  display: flex;
+  gap: 10px;
+}
+
+.lp-social-row a {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  color: #ffffff;
+  text-decoration: none;
+  font-size: 0.73rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lp-status-pill {
+  margin-top: 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  color: #eff6ff;
+  font-size: 0.87rem;
+  font-weight: 600;
+  padding: 8px 14px;
+}
+.lp-status-pill span {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--brand-primary-light);
+}
+
+.lp-footer-grid h4 {
+  margin: 0;
+  color: #ffffff;
+  font-size: 1rem;
+}
+
+.lp-footer-grid a {
+  margin-top: 10px;
+  display: block;
+  color: rgba(240, 253, 250, 0.9);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.lp-footer-grid a:hover {
+  color: #ffffff;
+}
+
+.lp-footer-bottom {
+  margin-top: 30px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.28);
+}
+
+.lp-footer-bottom p {
+  margin: 0;
+  color: rgba(240, 253, 250, 0.9);
+  font-size: 0.87rem;
+}
+
+.lp-footer-minimal {
+  margin-top: 24px;
+  background: #f8fafc;
+  border-top: 1px solid #e5e7eb;
+  color: #111827;
+}
+
+.lp-footer-minimal-inner {
+  max-width: 100%;
+  padding-left: clamp(20px, 3.5vw, 56px);
+  padding-right: clamp(20px, 3.5vw, 56px);
+  padding-top: 72px;
+  padding-bottom: 40px;
+}
+
+.lp-footer-top-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 2.1fr) minmax(0, 0.9fr);
+  gap: 40px;
+  align-items: start;
+}
+
+.lp-logo--footer-minimal {
+  font-size: 3rem;
+  color: #111827;
+}
+
+.lp-footer-tagline {
+  margin: 14px 0 0;
+  max-width: 300px;
+  font-size: 1.03rem;
+  line-height: 1.6;
+  color: #6b7280;
+}
+
+.lp-footer-columns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 32px;
+}

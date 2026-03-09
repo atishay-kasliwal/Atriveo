@@ -5,6 +5,22 @@ import { ThemeToggle } from "../components/ThemeToggle";
 import { login, setStoredSession, signup, type AuthSession } from "../lib/api";
 import { DASHBOARD_BASE_PATH, withDashboardBase } from "../lib/paths";
 import { ANALYTICS_EVENTS, trackErrorEvent, trackFunnelStep, trackProductEvent } from "../analytics/events";
+import {
+  COMPANY_SIGNALS,
+  COMPETE_KPIS,
+  EXTENSION_INSTALL_PATH,
+  FEATURES,
+  FUNNEL_STAGES,
+  LEADERBOARD,
+  PARTICLES,
+  PREVIEW_ROWS,
+  REFERRAL_IMPACT,
+  STEP_ITEMS,
+  TESTIMONIALS,
+  TRUST_LOGOS,
+  VELOCITY_LABELS,
+  VELOCITY_SERIES,
+} from "./landing/constants";
 
 type LandingPageProps = {
   isAuthenticated: boolean;
@@ -12,177 +28,6 @@ type LandingPageProps = {
   onToggleTheme: () => void;
   onAuthenticated: (session: AuthSession) => void;
 };
-
-type PreviewRow = {
-  company: string;
-  role: string;
-  referral: "Yes" | "No";
-  status: string;
-  applied: string;
-  oa: string;
-  deadline: string;
-};
-
-const PREVIEW_ROWS: PreviewRow[] = [
-  {
-    company: "Google",
-    role: "Software Engineer",
-    referral: "Yes",
-    status: "Interview",
-    applied: "Mar 1, 2026",
-    oa: "Yes",
-    deadline: "Mar 15",
-  },
-  {
-    company: "Meta",
-    role: "Backend Engineer",
-    referral: "Yes",
-    status: "Applied",
-    applied: "Mar 3, 2026",
-    oa: "Pending",
-    deadline: "Mar 20",
-  },
-  {
-    company: "Apple",
-    role: "iOS Engineer",
-    referral: "No",
-    status: "OA",
-    applied: "Mar 4, 2026",
-    oa: "Yes",
-    deadline: "Mar 18",
-  },
-  {
-    company: "Amazon",
-    role: "SDE Intern",
-    referral: "Yes",
-    status: "Applied",
-    applied: "Mar 5, 2026",
-    oa: "Pending",
-    deadline: "Mar 22",
-  },
-];
-
-const FEATURES = [
-  {
-    icon: "◎",
-    title: "Track Applications",
-    description: "Keep every application organized in one place with role, company, date, and status context.",
-  },
-  {
-    icon: "◍",
-    title: "Manage Referrals",
-    description: "Track referral requests and outcomes so warm intros never get lost during busy weeks.",
-  },
-  {
-    icon: "◉",
-    title: "Never Miss Deadlines",
-    description: "Stay ahead of OA deadlines and interviews with clear visibility into what needs action next.",
-  },
-];
-
-const STEP_ITEMS = [
-  {
-    step: "Step 1",
-    title: "Add Applications",
-    description: "Add each application in seconds with company, role, and referral context.",
-  },
-  {
-    step: "Step 2",
-    title: "Track Progress",
-    description: "Move applications through OA, interview, and final outcome states.",
-  },
-  {
-    step: "Step 3",
-    title: "Stay Consistent",
-    description: "Review momentum and keep follow-ups moving every day.",
-  },
-  {
-    step: "Step 4",
-    title: "Compete with Friends",
-    description: "Compare progress with friends to stay accountable and keep momentum high.",
-  },
-];
-
-const LEADERBOARD = [
-  { rank: 1, name: "You", score: 10, leader: true },
-  { rank: 2, name: "Ethan", score: 8, leader: false },
-  { rank: 3, name: "Olivia", score: 7, leader: false },
-  { rank: 4, name: "Mason", score: 6, leader: false },
-];
-
-const COMPANY_SIGNALS = [
-  { company: "Google", role: "Software Engineer", friends: 2, by: "Ethan", status: "Hot" },
-  { company: "Meta", role: "Backend Engineer", friends: 1, by: "Olivia", status: "Warm" },
-  { company: "Stripe", role: "Product Engineer", friends: 1, by: "You", status: "New" },
-  { company: "Amazon", role: "SDE Intern", friends: 2, by: "Mason", status: "Hot" },
-];
-
-const COMPETE_KPIS = [
-  { label: "Your Rank", value: "#1", delta: "+2 this week" },
-  { label: "Apps This Week", value: "10", delta: "2 ahead of avg" },
-  { label: "Gap to #2", value: "2", delta: "Strong lead" },
-  { label: "Streak", value: "6 days", delta: "Best in group" },
-];
-
-const VELOCITY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const VELOCITY_SERIES = {
-  you: [2, 3, 4, 3, 5, 4, 6],
-  friends: [1, 2, 2, 3, 2, 3, 3],
-};
-
-const FUNNEL_STAGES = [
-  { label: "Applied", value: 28 },
-  { label: "OA", value: 16 },
-  { label: "Interview", value: 9 },
-  { label: "Offer", value: 2 },
-];
-
-const REFERRAL_IMPACT = [
-  { label: "With Referral", value: 38, note: "+14% conversion" },
-  { label: "Direct Apply", value: 24, note: "Baseline conversion" },
-];
-
-const TRUST_LOGOS = [
-  { name: "Google", src: "/company-logos/google.svg" },
-  { name: "Amazon", src: "/company-logos/amazon.svg", darkSrc: "/company-logos/amazon-dark.svg" },
-  { name: "Meta", src: "/company-logos/meta.svg", darkSrc: "/company-logos/meta-dark.svg" },
-  { name: "NVIDIA", src: "/company-logos/nvidia.svg", darkSrc: "/company-logos/nvidia-dark.svg" },
-  { name: "Apple", src: "/company-logos/apple.svg", darkSrc: "/company-logos/apple-dark.svg" },
-  { name: "Microsoft", src: "/company-logos/microsoft.svg", darkSrc: "/company-logos/microsoft-dark.svg" },
-  { name: "Netflix", src: "/company-logos/netflix.svg" },
-];
-
-const TESTIMONIALS = [
-  {
-    name: "Emma Carter",
-    role: "CS Student",
-    quote: "Atriveo turned my search from random tabs into one clear weekly system.",
-    initials: "EC",
-  },
-  {
-    name: "Olivia Reed",
-    role: "New Grad Applicant",
-    quote: "I finally stopped missing follow-ups. The timeline and reminders keep me consistent.",
-    initials: "OR",
-  },
-  {
-    name: "Ethan Brooks",
-    role: "Software Intern Candidate",
-    quote: "My referrals, deadlines, and interviews are in one place, so I can focus on quality.",
-    initials: "EB",
-  },
-];
-
-const EXTENSION_INSTALL_PATH = "/extension-install";
-
-const PARTICLES = Array.from({ length: 20 }, (_, i) => ({
-  id: i,
-  left: `${(i * 17) % 100}%`,
-  top: `${(i * 29) % 100}%`,
-  size: `${1 + (i % 3)}px`,
-  duration: `${16 + (i % 7)}s`,
-  delay: `${-(i % 9)}s`,
-}));
 
 export default function LandingPage({
   isAuthenticated,

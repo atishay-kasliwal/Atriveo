@@ -1,0 +1,220 @@
+
+.lv-signal-row {
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 62%, transparent);
+  background: color-mix(in srgb, var(--bg-card) 72%, transparent);
+  padding: 7px 8px;
+  display: grid;
+  gap: 2px;
+  transition: transform 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.lv-signal-row:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--accent) 32%, var(--bg-card-border));
+  box-shadow: 0 10px 22px color-mix(in srgb, #020617 15%, transparent);
+}
+
+.lv-signal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.lv-signal-row strong {
+  font-size: 0.82rem;
+  color: var(--text-primary);
+}
+
+.lv-signal-badge {
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.lv-signal-badge--hot {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.lv-signal-badge--warm {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.lv-signal-badge--new {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.lv-signal-row small,
+.lv-signal-row span,
+.lv-signal-row em {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-style: normal;
+}
+.lv-step-grid {
+  margin-top: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.lv-step-card {
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 86%, transparent);
+  background: color-mix(in srgb, var(--bg-card) 95%, #ffffff 5%);
+  box-shadow: 0 8px 22px color-mix(in srgb, #020617 13%, transparent);
+  padding: 30px;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.lv-step-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 16px 35px rgba(0, 0, 0, 0.08);
+}
+
+.lv-step-card > span {
+  display: inline-block;
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #2563eb;
+}
+
+.lv-step-card h3 {
+  margin: 0 0 12px;
+  color: var(--text-primary);
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.lv-step-card p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  font-size: 15px;
+}
+
+.lv-how {
+  background: transparent;
+  padding: 110px 0;
+}
+
+.lv-how .lv-wrap {
+  width: min(1200px, calc(100% - 48px));
+}
+
+.lv-how h2 {
+  margin: 0 0 70px;
+  text-align: center;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 48px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.lv-testimonials {
+  position: relative;
+  overflow: hidden;
+  background: transparent;
+  padding: 96px 0 110px;
+}
+
+.lv-testimonials::before {
+  content: "";
+  position: absolute;
+  right: 8%;
+  bottom: 10%;
+  width: min(520px, 60vw);
+  height: 320px;
+  border-radius: 999px;
+  background: radial-gradient(circle at center, color-mix(in srgb, var(--accent) 18%, transparent), transparent 72%);
+  filter: blur(50px);
+  pointer-events: none;
+}
+
+.lv-testimonials-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.22fr);
+  gap: clamp(18px, 4vw, 44px);
+  align-items: center;
+}
+
+.lv-testimonials-copy h2 {
+  margin: 0 0 18px;
+  font-family: var(--font-header);
+  font-size: 48px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  line-height: 1.08;
+}
+
+.lv-testimonials-copy p {
+  margin: 0;
+  max-width: 420px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  font-size: 1.02rem;
+}
+
+.lv-testimonial-rail {
+  position: relative;
+  display: grid;
+  gap: 14px;
+  max-width: 640px;
+}
+
+.lv-testimonial-feature {
+  position: relative;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 74%, transparent);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--bg-card) 94%, #ffffff 6%) 0%, color-mix(in srgb, var(--bg-card-elevated) 86%, #dbeafe 14%) 100%);
+  box-shadow: 0 14px 32px color-mix(in srgb, #020617 16%, transparent);
+  padding: 28px 30px;
+  overflow: hidden;
+}
+
+.lv-testimonial-feature::after {
+  content: "";
+  position: absolute;
+  right: -56px;
+  bottom: -66px;
+  width: 260px;
+  height: 160px;
+  border-radius: 999px;
+  background: radial-gradient(circle at center, color-mix(in srgb, var(--accent) 22%, transparent), transparent 72%);
+}
+
+.lv-testimonial-quote {
+  position: absolute;
+  font-family: Georgia, "Times New Roman", serif;
+  color: color-mix(in srgb, var(--accent) 68%, #9bbcff);
+  line-height: 1;
+  user-select: none;
+}
+
+.lv-testimonial-quote--left {
+  top: 18px;
+  left: 20px;
+  font-size: 4.6rem;
+  opacity: 0.24;
+}
+
+.lv-testimonial-quote--right {
+  top: 20px;
+  right: 24px;
+  font-size: 2.8rem;
+}

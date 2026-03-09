@@ -1,0 +1,237 @@
+
+.extension-install-step-number {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--brand-primary) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 44%, transparent);
+  color: var(--brand-primary);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.extension-install-list p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.extension-install-note {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 70%, transparent);
+  background: color-mix(in srgb, var(--bg-card-elevated) 68%, transparent);
+}
+
+.legal-section code {
+  border-radius: 8px;
+  padding: 1px 6px;
+  background: color-mix(in srgb, var(--bg-card-elevated) 78%, transparent);
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 68%, transparent);
+  color: var(--text-primary);
+  font-family: "SFMono-Regular", ui-monospace, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.86em;
+}
+
+/* Jobs table polish */
+.table-wrap {
+  overflow-x: auto;
+}
+
+.table-wrap table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.table-wrap thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: color-mix(in srgb, var(--table-head-bg) 92%, transparent);
+  backdrop-filter: blur(10px);
+  text-align: left;
+  font-size: 0.74rem;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--table-head-text);
+  border-bottom: 1px solid var(--table-head-divider);
+  padding: 10px 8px;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.table-wrap tbody td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--table-row-divider);
+  color: var(--text-primary);
+  vertical-align: middle;
+  background: color-mix(in srgb, var(--table-body-bg) 72%, transparent);
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+
+.jobs-table {
+  min-width: 980px;
+}
+
+.table-wrap tbody tr:nth-child(odd) td {
+  background: color-mix(in srgb, var(--table-body-bg) 82%, transparent);
+}
+
+.table-wrap tbody tr:hover td {
+  background: var(--table-row-hover);
+}
+
+.th-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.th-sort {
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.th-sort-sub {
+  font-size: 0.75rem;
+  text-transform: none;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+}
+
+.job-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-width: 440px;
+}
+
+.job-company {
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.job-role {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.job-role + .job-role {
+  margin-top: 2px;
+}
+
+.referrals-table {
+  min-width: 1120px;
+}
+
+.referral-job-main {
+  max-width: none;
+  min-width: 220px;
+}
+
+.referral-job-role {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+
+.referrals-col-name,
+.referrals-col-notes {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  min-width: 140px;
+  max-width: 280px;
+}
+
+.referrals-row-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.job-status-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.row-accent {
+  width: 4px;
+  border-radius: 999px;
+  height: 28px;
+  background: rgba(255,255,255,0.08);
+}
+
+.row-accent--ref {
+  background: rgba(110, 231, 183, 0.7);
+}
+
+.row-accent--no {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.row-accent--pending {
+  background: rgba(250, 204, 21, 0.7);
+}
+
+.row-accent--rejected {
+  background: rgba(248, 113, 113, 0.7);
+}
+
+.table-wrap tbody tr td:first-child {
+  position: relative;
+}
+
+.table-wrap tbody tr td:first-child::before {
+  content: "";
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 24px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+}
+
+.table-wrap tbody tr.data-referral td:first-child::before {
+  background: rgba(110, 231, 183, 0.7);
+}
+
+.table-wrap tbody tr.data-rejected td:first-child::before {
+  background: rgba(248, 113, 113, 0.7);
+}
+
+.table-wrap tbody tr.data-pending td:first-child::before {
+  background: rgba(250, 204, 21, 0.7);
+}
+
+.table-wrap tbody tr.data-no td:first-child::before {
+  background: rgba(0, 102, 255, 0.6);
+}
+
+@media (min-width: 641px) and (max-width: 1024px) {
+  .table-wrap--tablet-scroll {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .table-wrap--tablet-scroll .jobs-table {
+    min-width: 980px;
+  }
+}

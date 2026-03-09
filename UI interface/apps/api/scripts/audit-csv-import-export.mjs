@@ -146,13 +146,14 @@ async function exportCsvAll() {
   return res.text();
 }
 
-async function getJobsPage({ page = 1, limit = LIMIT, company = "", status = "all" } = {}) {
+async function getJobsPage({ page = 1, limit = LIMIT, search = "", company = "", status = "all" } = {}) {
   const q = new URLSearchParams({
     page: String(page),
     limit: String(limit),
     status,
   });
-  if (company) q.set("company", company);
+  const searchQuery = String(search || company || "").trim();
+  if (searchQuery) q.set("search", searchQuery);
   return api(`/api/jobs?${q.toString()}`);
 }
 
@@ -161,7 +162,7 @@ async function getAllJobsByPrefix(prefix) {
   let page = 1;
   let total = Number.POSITIVE_INFINITY;
   while (rows.length < total) {
-    const payload = await getJobsPage({ page, company: prefix, status: "all" });
+    const payload = await getJobsPage({ page, search: prefix, status: "all" });
     const data = Array.isArray(payload?.data) ? payload.data : [];
     total = Number(payload?.total ?? rows.length + data.length);
     rows.push(...data);

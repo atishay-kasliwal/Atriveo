@@ -8,9 +8,9 @@ import {
   Tooltip,
   XAxis,
   YAxis,
-  type TooltipProps,
 } from "recharts";
-import type { NameType, ValueType } from "recharts/types/component/DefaultTooltipContent";
+import CompetitionTooltip from "./CompetitionTooltip";
+import { resolveTheme, rgba, type CanvasTheme } from "./weeklyCompetitionUtils";
 
 type WeeklyCompetitionChartProps = {
   labels: string[];
@@ -21,19 +21,6 @@ type WeeklyCompetitionChartProps = {
   goalTarget?: number | null;
 };
 
-type CanvasTheme = {
-  mode: "light" | "dark";
-  fontFamily: string;
-  textPrimary: string;
-  textSecondary: string;
-  textMuted: string;
-  grid: string;
-  gridOpacity: number;
-  tooltipBg: string;
-  tooltipBorder: string;
-  tooltipShadow: string;
-};
-
 type WeeklyPoint = {
   label: string;
   you: number;
@@ -41,91 +28,6 @@ type WeeklyPoint = {
   youAhead: [number, number] | null;
   friendAhead: [number, number] | null;
 };
-
-function rgba(hex: string, alpha: number): string {
-  const normalized = hex.replace("#", "");
-  const safe = normalized.length === 3
-    ? normalized.split("").map((c) => `${c}${c}`).join("")
-    : normalized;
-  const r = Number.parseInt(safe.slice(0, 2), 16);
-  const g = Number.parseInt(safe.slice(2, 4), 16);
-  const b = Number.parseInt(safe.slice(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
-function resolveTheme(modeOverride?: "light" | "dark"): CanvasTheme {
-  const fallback: CanvasTheme = {
-    mode: "dark",
-    fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif",
-    textPrimary: "#F8FAFC",
-    textSecondary: "#CBD5E1",
-    textMuted: "#94A3B8",
-    grid: "rgba(51,65,85,0.35)",
-    gridOpacity: 0.42,
-    tooltipBg: "#0F172A",
-    tooltipBorder: "rgba(148,163,184,0.34)",
-    tooltipShadow: "0 14px 28px rgba(2, 6, 23, 0.5)",
-  };
-
-  if (typeof window === "undefined") return fallback;
-
-  const styles = window.getComputedStyle(document.documentElement);
-  const value = (name: string, backup: string) => styles.getPropertyValue(name).trim() || backup;
-
-  const mode = modeOverride ?? ((document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark") as "light" | "dark");
-  return {
-    mode,
-    fontFamily: value("--font-header", fallback.fontFamily),
-    textPrimary: mode === "light" ? "#0F172A" : value("--chart-text", fallback.textPrimary),
-    textSecondary: mode === "light" ? "#334155" : value("--chart-text-secondary", fallback.textSecondary),
-    textMuted: mode === "light" ? "#64748B" : "#94A3B8",
-    grid: mode === "light" ? "#C7D2E4" : value("--network-chart-grid", fallback.grid),
-    gridOpacity: mode === "light" ? 0.72 : 0.42,
-    tooltipBg: mode === "light" ? "#FFFFFF" : value("--chart-tooltip-bg", fallback.tooltipBg),
-    tooltipBorder: mode === "light" ? "#DCE6F5" : value("--chart-tooltip-border", fallback.tooltipBorder),
-    tooltipShadow: mode === "light" ? "0 12px 28px rgba(15, 23, 42, 0.14)" : value("--chart-tooltip-shadow", fallback.tooltipShadow),
-  };
-}
-
-type CompetitionTooltipProps = TooltipProps<ValueType, NameType> & {
-  friendName: string;
-  theme: CanvasTheme;
-};
-
-function CompetitionTooltip({ active, payload, label, friendName, theme }: CompetitionTooltipProps) {
-  if (!active || !payload?.length) return null;
-
-  const youPoint = payload.find((entry) => String(entry.dataKey) === "you");
-  const friendPoint = payload.find((entry) => String(entry.dataKey) === "friend");
-  if (!youPoint && !friendPoint) return null;
-
-  const youValue = Number(youPoint?.value ?? 0);
-  const friendValue = Number(friendPoint?.value ?? 0);
-
-  return (
-    <div
-      style={{
-        background: theme.tooltipBg,
-        color: theme.textPrimary,
-        border: `1px solid ${theme.tooltipBorder}`,
-        borderRadius: 12,
-        padding: "10px 13px",
-        boxShadow: theme.tooltipShadow,
-        fontFamily: theme.fontFamily,
-        minWidth: 170,
-      }}
-    >
-      <p style={{ margin: "0 0 8px", fontSize: 12, fontWeight: 700, color: theme.textPrimary }}>{String(label ?? "")}</p>
-      <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: theme.textSecondary }}>You: {youValue} applications</p>
-      <p style={{ margin: "4px 0 0", fontSize: 12, fontWeight: 600, color: theme.textSecondary }}>
-        {friendName}: {friendValue} applications
-      </p>
-      <p style={{ margin: "7px 0 0", fontSize: 11, fontWeight: 600, color: theme.textMuted }}>
-        {youValue === friendValue ? "Even today" : youValue > friendValue ? `You lead by +${youValue - friendValue}` : `${friendName} leads by +${friendValue - youValue}`}
-      </p>
-    </div>
-  );
-}
 
 export default function WeeklyCompetitionChart({
   labels,
@@ -220,7 +122,7 @@ export default function WeeklyCompetitionChart({
         const ringStroke = isFuture ? rgba("#FFFFFF", 0.42) : "#FFFFFF";
 
         return (
-          <g style={{ pointerEvents: "none" }}>
+          <g key={`dot-${series}-${idx}`} style={{ pointerEvents: "none" }}>
             {isToday && hasValue ? <circle cx={cx} cy={cy} r={radius + 4} fill={rgba(core, 0.24)} /> : null}
             <circle cx={cx} cy={cy} r={radius} fill={core} stroke={ringStroke} strokeWidth={isToday ? 2 : 1.4} />
           </g>
@@ -332,6 +234,7 @@ export default function WeeklyCompetitionChart({
           <Area type="monotone" dataKey="you" stroke="none" fill={`url(#userArea-${idBase})`} isAnimationActive={false} />
 
           <Line
+            key="line-friend"
             type="monotone"
             dataKey="friend"
             stroke="#F59E0B"
@@ -358,6 +261,7 @@ export default function WeeklyCompetitionChart({
             isAnimationActive={false}
           />
           <Line
+            key="line-you-glow"
             type="monotone"
             dataKey="you"
             stroke={`url(#userStroke-${idBase})`}

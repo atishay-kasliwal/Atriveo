@@ -181,21 +181,53 @@ export function getDashboardSummary(days?: number) {
 export type GetJobsParams = {
   page?: number;
   limit?: number;
-  company?: string;
+  search?: string;
+  company?: string; // Backward-compatible alias for search
+  stage?: "Applied" | "OA" | "Interview" | "Offer" | "Archive";
+  applicationStatus?: "Applied" | "Under consideration" | "Rejected";
+  timeRange?: "0" | "7" | "14" | "21" | "30" | "all";
+  referral?: "yes" | "no" | "all";
+  oa?: "yes" | "no" | "all";
   sort?: "date_saved" | "applied_at" | "company" | "role" | "referral_status" | "job_link";
   order?: "asc" | "desc";
-  status?: string; // 'active' | 'rejected' | 'all'
+  status?: string; // 'active' | 'rejected' | 'archive' | 'all'
+  anchorDay?: string;
 };
 
 export function getJobs(params: GetJobsParams = {}) {
-  const { page = 1, limit = 25, company, sort = "applied_at", order = "desc" } = params;
+  const {
+    page = 1,
+    limit = 25,
+    search: rawSearch,
+    company,
+    stage,
+    applicationStatus,
+    timeRange,
+    referral,
+    oa,
+    sort = "applied_at",
+    order = "desc",
+    anchorDay,
+  } = params;
+  const searchQuery = rawSearch ?? company;
   const search = new URLSearchParams();
   search.set("page", String(page));
   search.set("limit", String(Math.min(limit, 100)));
-  if (company?.trim()) search.set("company", company.trim());
+  if (searchQuery?.trim()) {
+    const normalizedSearch = searchQuery.trim();
+    search.set("search", normalizedSearch);
+    // Backward-compat: some API deployments only honor `company`.
+    search.set("company", normalizedSearch);
+  }
+  if (stage) search.set("stage", stage);
+  if (applicationStatus) search.set("applicationStatus", applicationStatus);
+  if (timeRange) search.set("timeRange", timeRange);
+  if (referral) search.set("referral", referral);
+  if (oa) search.set("oa", oa);
   search.set("sort", sort);
   search.set("order", order);
   if ((params as any).status) search.set("status", String((params as any).status));
+  search.set("anchorDay", anchorDay ?? getLocalISODate());
   return request<{ page: number; limit: number; total: number; data: Array<Record<string, unknown>> }>(
     `/api/jobs?${search.toString()}`,
     { cache: "no-store" }
@@ -254,13 +286,14 @@ export async function exportJobsCsv(range: JobsCsvExportRange): Promise<Blob> {
 
 export type GetListParams = { page?: number; limit?: number };
 
-export type GetReferralsParams = GetListParams & { filter?: "open" | "applied" };
+export type GetReferralsParams = GetListParams & { filter?: "open" | "applied"; search?: string };
 
 export function getReferrals(params: GetReferralsParams = {}) {
-  const { page = 1, limit = 25, filter } = params;
+  const { page = 1, limit = 25, filter, search: rawSearch } = params;
   const search = new URLSearchParams({ page: String(page), limit: String(Math.min(limit, 100)) });
   if (filter === "open" || filter === "applied") search.set("filter", filter);
-  return request<{ page: number; limit: number; data: Array<Record<string, unknown>> }>(
+  if (rawSearch?.trim()) search.set("search", rawSearch.trim());
+  return request<{ page: number; limit: number; total: number; data: Array<Record<string, unknown>> }>(
     `/api/referrals?${search.toString()}`
   );
 }
@@ -627,4 +660,87 @@ export function getReferralsTrend(days?: number) {
   if (days) search.set("days", String(days));
   search.set("anchorDay", getLocalISODate());
   return request<{ data: ReferralsTrendData }>(`/api/referrals/trend?${search.toString()}`, { cache: "no-store" });
+}
+
+export type MediaKind = "general" | "profile" | "job" | "note" | "network" | "other";
+
+export type MediaAsset = {
+  id: number;
+  object_key: string;
+  bucket_name: string;
+  file_name: string | null;
+  mime_type: string;
+  byte_size: number;
+  sha256_hex: string;
+  source_url: string | null;
+  kind: MediaKind | string;
+  related_job_id: number | null;
+  related_note_id: number | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+  public_url: string | null;
+  signed_url: string | null;
+};
+
+export function uploadMediaBase64(payload: {
+  file_name?: string;
+  mime_type: string;
+  data_base64: string;
+  kind?: MediaKind;
+  source_url?: string;
+  related_job_id?: number | null;
+  related_note_id?: number | null;
+}) {
+  return request<{ data: MediaAsset; deduplicated: boolean }>("/api/media/upload", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function ingestMediaFromUrl(payload: {
+  source_url: string;
+  file_name?: string;
+  mime_type?: string;
+  kind?: MediaKind;
+  related_job_id?: number | null;
+  related_note_id?: number | null;
+}) {
+  return request<{ data: MediaAsset; deduplicated: boolean }>("/api/media/ingest", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function listMedia(params: {
+  page?: number;
+  limit?: number;
+  kind?: MediaKind;
+  ttl?: number;
+} = {}) {
+  const search = new URLSearchParams();
+  search.set("page", String(Math.max(1, Number(params.page ?? 1) || 1)));
+  search.set("limit", String(Math.min(Math.max(Number(params.limit ?? 25) || 25, 1), 100)));
+  if (params.kind) search.set("kind", params.kind);
+  if (params.ttl) search.set("ttl", String(params.ttl));
+  return request<{ page: number; limit: number; total: number; data: MediaAsset[] }>(
+    `/api/media?${search.toString()}`,
+    { cache: "no-store" },
+  );
+}
+
+export function getMediaSignedUrl(mediaId: number | string, ttl?: number) {
+  const search = new URLSearchParams();
+  if (ttl) search.set("ttl", String(ttl));
+  const suffix = search.toString();
+  return request<{ id: number; ttl_seconds: number; signed_url: string | null; public_url: string | null }>(
+    `/api/media/${mediaId}/signed-url${suffix ? `?${suffix}` : ""}`,
+    { cache: "no-store" },
+  );
+}
+
+export function deleteMedia(mediaId: number | string) {
+  return request<{ ok: boolean; id: number }>(`/api/media/${mediaId}`, {
+    method: "DELETE",
+  });
 }

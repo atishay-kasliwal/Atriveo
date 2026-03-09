@@ -17,3 +17,10 @@ SIGNUPS_ENABLED=true
 GOOGLE_CLIENT_ID=
 # Comma-separated allowlist (useful for multiple envs/domains).
 GOOGLE_CLIENT_IDS=
+
+# Optional: media signed URL secret. If unset, API_SHARED_TOKEN is used as fallback.
+MEDIA_URL_SIGNING_SECRET=
+
+# Optional: if you expose your R2 bucket via custom/public domain, set base URL here.
+# Example: https://media.atriveo.com
+MEDIA_PUBLIC_BASE_URL=

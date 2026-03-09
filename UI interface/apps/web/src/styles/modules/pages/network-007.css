@@ -1,0 +1,230 @@
+
+.network-cell-index {
+  color: #3385ff;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.network-job-row {
+  cursor: pointer;
+}
+
+.network-link-chip {
+  display: inline;
+  padding: 0;
+  border: 0;
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  background: transparent;
+  white-space: nowrap;
+}
+
+.network-link-chip:hover {
+  color: #3385ff;
+  text-decoration: underline;
+}
+
+.network-add-btn {
+  font-size: 0.72rem;
+  padding: 4px 8px;
+  white-space: nowrap;
+  border-radius: 999px;
+  border: 1px solid rgba(110, 231, 183, 0.35);
+  background: linear-gradient(135deg, rgba(0, 102, 255, 0.22), rgba(110, 231, 183, 0.2));
+  color: #d1fae5;
+  line-height: 1.1;
+}
+
+.network-add-btn:hover {
+  border-color: rgba(110, 231, 183, 0.55);
+  background: linear-gradient(135deg, rgba(0, 102, 255, 0.32), rgba(110, 231, 183, 0.3));
+  color: #ecfeff;
+}
+
+.network-add-btn-text--short {
+  display: none;
+}
+
+.network-cell-deadline,
+.network-cell-jobid {
+  overflow-wrap: anywhere;
+}
+
+.network-cell-action {
+  white-space: nowrap;
+}
+
+.network-status-pill {
+  display: inline;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  background: transparent;
+}
+
+.network-status-pill.applied {
+  color: #bbf7d0;
+}
+
+.network-status-pill.pending {
+  color: #fde68a;
+}
+
+.network-status-pill.rejected {
+  color: #fecaca;
+}
+
+.network-trend-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.network-mini-chart {
+  height: 180px;
+}
+
+.network-combined-card {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  backdrop-filter: none;
+  box-shadow: none;
+}
+
+.network-applications-row {
+  display: grid;
+  grid-template-columns: 80fr 20fr;
+  gap: 16px;
+  align-items: stretch;
+  margin-top: 12px;
+}
+
+.network-applications-row .network-applications-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.network-applications-row .network-applications-main > .card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.network-applications-row .network-applications-main .network-card-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.network-applications-row .network-applications-main .network-empty-state--today,
+.network-applications-row .network-applications-main .network-today-grid {
+  flex: 1;
+  min-height: 0;
+}
+
+.network-applications-row .network-signals-sidebar {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.network-applications-row .network-signals-sidebar .target-signals {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  margin-top: 0;
+  padding-top: 12px;
+  padding-left: 16px;
+  padding-right: 16px;
+  padding-bottom: 14px;
+}
+
+
+.network-applications-row .network-signals-sidebar .target-signals .target-signals-empty {
+  flex: 1;
+  min-height: 0;
+}
+
+.network-applications-row .network-signals-sidebar .target-signals .target-signals-grid {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  align-content: start;
+  padding-right: 4px;
+}
+
+.network-applications-row .network-signals-sidebar .target-signals .target-signals-grid.is-scrollable {
+  overflow-y: auto;
+}
+
+@media (max-width: 900px) {
+  .network-applications-row {
+    grid-template-columns: 1fr;
+  }
+
+  .network-applications-row .network-signals-sidebar {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible;
+  }
+
+  .network-applications-row .network-signals-sidebar .target-signals {
+    overflow: visible;
+  }
+
+  .network-applications-row .network-signals-sidebar .target-signals .target-signals-grid {
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
+  }
+}
+
+.network-insight-card {
+  background:
+    linear-gradient(160deg, color-mix(in srgb, var(--bg-card-elevated) 82%, transparent), transparent 70%),
+    radial-gradient(circle at 12% 4%, rgba(0, 102, 255, 0.12), transparent 46%),
+    radial-gradient(circle at 86% 10%, rgba(56, 189, 248, 0.1), transparent 44%),
+    var(--bg-card);
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 92%, transparent);
+  border-radius: 18px;
+  backdrop-filter: blur(14px) saturate(1.1);
+  box-shadow: 0 14px 30px rgba(2, 6, 23, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.network-weekly-card {
+  padding-right: 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+.network-insight-card-head {
+  margin-bottom: 8px;
+  min-height: 42px;
+  align-items: flex-start;
+}
+.network-ticker-overlay {
+  display: grid;
+  grid-template-columns: minmax(0, 9fr) auto;
+  gap: 8px;
+  align-items: center;
+  background: rgba(8, 12, 20, 0.9);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 0 8px 0 0;
+}

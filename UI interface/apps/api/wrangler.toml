@@ -5,6 +5,16 @@ compatibility_date = "2025-02-22"
 [vars]
 APP_ENV = "development"
 SIGNUPS_ENABLED = "true"
+# Optional for signed media URLs:
+# MEDIA_URL_SIGNING_SECRET = "set-a-strong-secret"
+# Optional if bucket is public via custom domain:
+# MEDIA_PUBLIC_BASE_URL = "https://media.example.com"
+
+# Optional R2 binding (recommended for image storage):
+# [[r2_buckets]]
+# binding = "MEDIA_BUCKET"
+# bucket_name = "atriveo-media"
+# preview_bucket_name = "atriveo-media-dev"
 
 # Local development config:
 # - Put secrets in `apps/api/.dev.vars` (Wrangler reads it automatically for `wrangler dev`)

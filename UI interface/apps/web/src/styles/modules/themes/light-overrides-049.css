@@ -1,0 +1,222 @@
+
+:root[data-theme="light"] .pending-due-chip--ok {
+  border-color: #bbf7d0;
+  color: #15803d;
+  background: #f0fdf4;
+}
+
+:root[data-theme="light"] .pending-due-chip--warn {
+  border-color: #fde68a;
+  color: #a16207;
+  background: #fffbeb;
+}
+
+:root[data-theme="light"] .pending-due-chip--danger {
+  border-color: #fecaca;
+  color: #b91c1c;
+  background: #fef2f2;
+}
+
+:root[data-theme="light"] .pending-due-chip--neutral {
+  border-color: #e2e8f0;
+  color: #64748b;
+  background: #f8fafc;
+}
+
+:root[data-theme="light"] .pending-archive-toggle {
+  margin-bottom: 12px;
+}
+
+:root[data-theme="light"] .pending-archive-select {
+  background: #ffffff;
+  border-color: #dbe4f0;
+  color: #1e293b;
+}
+
+/* Landing page */
+.landing-shell {
+  position: relative;
+  max-width: 1180px;
+  margin: 0 auto;
+  min-height: 100vh;
+  padding: 1.4rem 1.5rem 3rem;
+  color: #1f2d3d;
+}
+
+.landing-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 0.2rem 0;
+}
+
+.landing-logo-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.landing-logo {
+  height: 40px;
+}
+
+.landing-nav-links {
+  display: inline-flex;
+  align-items: center;
+  gap: 1.4rem;
+  margin-left: auto;
+}
+
+.landing-nav-links a {
+  text-decoration: none;
+  color: #5c6a7d;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.landing-nav-links a:hover {
+  color: #1f2d3d;
+}
+
+.landing-nav-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.landing-outline-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: 1px solid #9ed6ef;
+  color: #0284c7;
+  font-weight: 700;
+  text-decoration: none;
+  background: #ffffff;
+}
+
+.landing-outline-btn:hover {
+  background: #f0f8fc;
+}
+
+.landing-main {
+  display: grid;
+  gap: 1.35rem;
+  margin-top: 0.9rem;
+}
+
+.landing-hero {
+  text-align: center;
+  max-width: 900px;
+  margin: 0 auto;
+  padding-top: 0.75rem;
+}
+
+.landing-eyebrow {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #1f8fc6;
+}
+
+.landing-hero h1 {
+  margin: 0.8rem 0 0;
+  font-family: var(--font-display);
+  font-size: 4.05rem;
+  line-height: 1.06;
+  letter-spacing: -0.04em;
+  color: #24313f;
+}
+
+.landing-subtitle {
+  margin: 1rem auto 0;
+  max-width: 760px;
+  color: #546579;
+  font-size: 1.12rem;
+  line-height: 1.55;
+}
+
+.landing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 1.4rem;
+}
+
+.landing-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px 22px;
+  border-radius: 999px;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid transparent;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.landing-btn.primary {
+  background: linear-gradient(135deg, #1da0d8 0%, #0f8bc5 100%);
+  color: #ffffff;
+  box-shadow: 0 14px 32px rgba(15, 139, 197, 0.24);
+}
+
+.landing-btn.ghost {
+  border-color: #d1dfed;
+  color: #304258;
+  background: #ffffff;
+}
+
+.landing-btn:hover {
+  transform: translateY(-1px);
+}
+
+.landing-trust-line {
+  margin: 1rem 0 0;
+  font-size: 0.92rem;
+  color: #5c6f86;
+}
+
+.landing-pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid #d9e4f1;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.landing-pill-item {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid #dce7f2;
+  background: #f8fbff;
+  font-size: 0.9rem;
+  color: #304258;
+  font-weight: 600;
+}
+
+.landing-preview {
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  gap: 1rem;
+  border-radius: 20px;
+  border: 1px solid #d8e3ef;
+  background: #ffffff;
+  min-height: 320px;
+  overflow: hidden;
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.08);
+}

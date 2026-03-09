@@ -1,0 +1,230 @@
+
+.auth-card-wrap .auth-card {
+  width: 364px;
+  max-width: 364px;
+}
+
+.auth-card {
+  align-self: start;
+  position: relative;
+  width: 100%;
+  height: 572px;
+  background: var(--marketing-surface);
+  border: 1px solid var(--marketing-border);
+  border-radius: 18px;
+  padding: 24px 22px;
+  box-shadow:
+    0 2px 4px rgba(15, 23, 42, 0.04),
+    var(--marketing-shadow);
+  overflow: hidden;
+}
+
+.auth-card-accent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(0, 102, 255, 0.65),
+    rgba(51, 133, 255, 0.32),
+    transparent
+  );
+  opacity: 0.9;
+}
+
+.auth-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  margin: 0 auto 14px;
+  background: rgba(0, 102, 255, 0.14);
+  border-radius: 12px;
+  color: var(--brand-primary);
+}
+
+.auth-card-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--marketing-text);
+  text-align: center;
+  letter-spacing: -0.02em;
+  min-height: 2.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-card-subtitle {
+  margin: 4px 0 0;
+  color: var(--marketing-muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  text-align: center;
+  min-height: 2.4rem;
+}
+
+.auth-error {
+  margin-top: 4px;
+  padding: 10px 12px;
+  background: var(--error-bg);
+  color: var(--error-text);
+  border: 1px solid var(--error-border);
+  border-radius: 10px;
+  font-size: 0.85rem;
+}
+
+.auth-form {
+  margin-top: 18px;
+  display: grid;
+  gap: 10px;
+}
+
+.auth-name-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.auth-label {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--marketing-kicker);
+}
+
+.auth-input {
+  width: 100%;
+  border: 1px solid var(--marketing-border);
+  border-radius: 11px;
+  padding: 10px 12px;
+  background: var(--marketing-surface);
+  color: var(--marketing-text);
+  font: inherit;
+  font-size: 0.95rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.auth-input:focus {
+  outline: none;
+  border-color: rgba(0, 102, 255, 0.55);
+  box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.16);
+}
+
+.auth-input::placeholder {
+  color: var(--marketing-kicker);
+  opacity: 0.8;
+}
+
+.auth-submit {
+  margin-top: 4px;
+  border: 0;
+  border-radius: 12px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, var(--brand-primary-light) 0%, var(--brand-primary-dark) 100%);
+  color: #f8fafc;
+  font-weight: 700;
+  font-size: 0.93rem;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.15s;
+  box-shadow: 0 6px 16px rgba(0, 82, 204, 0.24);
+}
+
+.auth-submit:hover:not(:disabled) {
+  opacity: 0.95;
+  transform: translateY(-1px);
+}
+
+.auth-submit:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.auth-submit:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.auth-submit-loading {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.auth-divider {
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  text-align: center;
+  color: var(--marketing-kicker);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  border-bottom: 1px solid var(--marketing-border);
+}
+
+.auth-divider span {
+  padding: 0 10px;
+}
+
+.auth-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(248, 250, 252, 0.32);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: auth-spin 0.7s linear infinite;
+}
+
+@keyframes auth-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.auth-switch {
+  margin-top: auto;
+  padding-top: 10px;
+  font-size: 0.82rem;
+  color: var(--marketing-muted);
+}
+
+.auth-switch a {
+  color: var(--marketing-link);
+  text-decoration: none;
+}
+
+.auth-switch a:hover {
+  text-decoration: underline;
+}
+
+.auth-switch-separator {
+  margin: 0 8px;
+  color: rgba(148, 163, 184, 0.7);
+}
+
+.theme-toggle {
+  position: relative;
+  width: 66px;
+  height: 34px;
+  display: inline-block;
+  border: 1px solid var(--toggle-border);
+  border-radius: 999px;
+  background: var(--toggle-track-bg);
+  box-shadow: var(--toggle-shadow);
+  padding: 0;
+  color: #dbe8ff;
+  cursor: pointer;
+  opacity: 0.88;
+  transition: opacity 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}

@@ -1,0 +1,230 @@
+
+.theme-toggle:hover {
+  opacity: 1;
+  border-color: color-mix(in srgb, var(--toggle-border) 88%, #ffffff 12%);
+  box-shadow: var(--toggle-shadow-hover);
+}
+
+.theme-toggle:focus-visible {
+  opacity: 1;
+  outline: 2px solid color-mix(in srgb, var(--toggle-border) 86%, #3b82f6 14%);
+  outline-offset: 2px;
+}
+
+.theme-toggle-track {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.theme-toggle-track::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 999px;
+  border: 1px solid var(--toggle-track-inner-border);
+  pointer-events: none;
+}
+
+.theme-toggle-glyph {
+  position: absolute;
+  top: 50%;
+  width: 11px;
+  height: 11px;
+  transform: translateY(-50%);
+  transition: opacity 180ms ease, color 180ms ease;
+}
+
+.theme-toggle-glyph--sun {
+  left: 10px;
+}
+
+.theme-toggle-glyph--moon {
+  right: 10px;
+}
+
+.theme-toggle-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: linear-gradient(140deg, var(--brand-primary-light), var(--brand-primary));
+  border: 1px solid var(--toggle-thumb-border);
+  box-shadow: var(--toggle-thumb-shadow);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 220ms cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+.theme-toggle-thumb-icon {
+  width: 12px;
+  height: 12px;
+  color: #ffffff;
+}
+
+.theme-toggle--light .theme-toggle-glyph--sun {
+  opacity: 0.84;
+  color: var(--toggle-glyph-bright);
+}
+
+.theme-toggle--light .theme-toggle-glyph--moon {
+  opacity: 0.28;
+  color: var(--toggle-glyph-dim);
+}
+
+.theme-toggle--dark .theme-toggle-glyph--sun {
+  opacity: 0.28;
+  color: var(--toggle-glyph-dim);
+}
+
+.theme-toggle--dark .theme-toggle-glyph--moon {
+  opacity: 0.84;
+  color: var(--toggle-glyph-bright);
+}
+
+.theme-toggle--dark .theme-toggle-thumb {
+  transform: translateX(32px);
+}
+
+.auth-theme-toggle {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 80;
+}
+.auth-top-logo {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 80;
+  color: var(--marketing-text);
+  font-family: var(--font-header);
+  font-size: 1.65rem;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.auth-top-logo span {
+  color: var(--brand-primary);
+}
+
+.legal-page {
+  min-height: 100vh;
+  padding: 86px 20px 32px;
+  background:
+    radial-gradient(circle at 50% -12%, color-mix(in srgb, var(--brand-primary) 18%, transparent), transparent 55%),
+    var(--marketing-bg);
+}
+
+.legal-card {
+  width: min(920px, 100%);
+  margin: 0 auto;
+  border-radius: 20px;
+  padding: clamp(22px, 3vw, 34px);
+  background: color-mix(in srgb, var(--bg-card) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 76%, transparent);
+  box-shadow: 0 18px 42px rgba(2, 8, 23, 0.22);
+}
+
+.legal-kicker {
+  margin: 0 0 8px;
+  color: var(--brand-primary);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.legal-card h1 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: clamp(1.8rem, 3.8vw, 2.45rem);
+  line-height: 1.08;
+}
+
+.legal-meta {
+  margin: 10px 0 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.legal-section {
+  margin-top: 20px;
+}
+
+.legal-section h2 {
+  margin: 0 0 8px;
+  color: var(--text-primary);
+  font-size: 1.04rem;
+  letter-spacing: -0.01em;
+}
+
+.legal-section p,
+.legal-section li {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.legal-section ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 8px;
+}
+
+.legal-section a {
+  color: var(--brand-primary);
+  text-decoration: none;
+}
+
+.legal-section a:hover {
+  text-decoration: underline;
+}
+
+.extension-install-card {
+  width: min(1040px, 100%);
+}
+
+.extension-install-hero {
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 74%, transparent);
+  background:
+    radial-gradient(circle at 84% -20%, color-mix(in srgb, var(--brand-primary) 22%, transparent), transparent 54%),
+    color-mix(in srgb, var(--bg-card-elevated) 84%, transparent);
+  padding: clamp(16px, 2.5vw, 24px);
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 14px;
+  align-items: stretch;
+}
+
+.extension-install-status {
+  margin-top: 14px;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  color: var(--text-secondary);
+  font-size: 0.86rem;
+}
+
+.extension-install-status-badge {
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 0.74rem;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--brand-primary) 88%, #7ab2ff);
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 38%, transparent);
+  background: color-mix(in srgb, var(--brand-primary) 10%, transparent);
+}

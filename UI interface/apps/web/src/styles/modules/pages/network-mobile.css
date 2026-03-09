@@ -1,0 +1,383 @@
+/* Network page mobile responsiveness */
+
+/* Mobile only: reduce page padding, stack layouts */
+@media (max-width: 640px) {
+  .page--network {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .page--network .network-stack {
+    gap: 10px;
+  }
+
+  .page--network .network-shell-card {
+    padding: 10px 12px;
+  }
+
+  .page--network .network-shell-card.is-open {
+    padding-bottom: 10px;
+  }
+
+  .page--network .network-main-head {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .page--network .network-main-head h2 {
+    font-size: 0.95rem;
+  }
+
+  .page--network .network-main-right .pending-meta {
+    font-size: 0.74rem;
+  }
+
+  /* Ticker: stack actions below marquee on narrow screens */
+  .page--network .network-ticker-overlay {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 8px 10px 8px 10px;
+  }
+
+  .page--network .network-ticker-track {
+    height: 36px;
+  }
+
+  .page--network .network-ticker-tag {
+    padding: 0 12px 0 10px;
+    font-size: 0.72rem;
+  }
+
+  .page--network .network-ticker-marquee {
+    font-size: 0.82rem;
+  }
+
+  .page--network .network-ticker-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .page--network .network-add-friends-btn {
+    font-size: 0.86rem;
+  }
+
+  .page--network .network-field-visibility-btn {
+    font-size: 0.78rem;
+    padding: 0 10px;
+    height: 32px;
+  }
+
+  /* Today's applications: card layout on mobile */
+  .page--network .network-today-wrap {
+    overflow-x: visible;
+  }
+
+  .page--network .network-today-table {
+    display: block;
+  }
+
+  .page--network .network-today-table thead {
+    display: none;
+  }
+
+  .page--network .network-today-table tbody tr {
+    display: block;
+    border: 1px solid var(--bg-card-border);
+    border-radius: 12px;
+    margin-bottom: 10px;
+    padding: 12px;
+    background: color-mix(in srgb, var(--table-body-bg) 82%, transparent);
+  }
+
+  .page--network .network-today-table tbody tr:nth-child(odd) {
+    background: color-mix(in srgb, var(--table-body-bg) 88%, transparent);
+  }
+
+  .page--network .network-today-table tbody td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 6px 0;
+    border: none;
+    font-size: 0.85rem;
+  }
+
+  .page--network .network-today-table tbody td:not(:last-child) {
+    border-bottom: 1px solid color-mix(in srgb, var(--bg-card-border) 60%, transparent);
+  }
+
+  .page--network .network-today-table tbody td[data-label]::before {
+    content: attr(data-label);
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+
+  .page--network .network-today-table tbody td[data-label=""]::before {
+    content: none;
+  }
+
+  .page--network .network-today-table .network-cell-company-role,
+  .page--network .network-today-table .network-cell-notes {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .page--network .network-today-table .network-cell-action {
+    justify-content: flex-end;
+    padding-top: 10px;
+    border-bottom: none !important;
+  }
+
+
+  /* Insight cards: reduce padding, better chart spacing */
+  .page--network .network-trend-card,
+  .page--network .network-insight-card {
+    padding: 14px 12px;
+  }
+
+  .page--network .network-mini-chart {
+    height: 160px;
+  }
+
+  .page--network .network-chart-stage {
+    padding-left: 8px;
+  }
+
+  .page--network .network-weekly-line-stage {
+    min-height: 260px;
+  }
+
+  /* Leaderboard card: compact, readable */
+  .page--network .network-ticker-overlay {
+    border-radius: 12px;
+  }
+
+  .page--network .network-ticker-overlay--above {
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .page--network .network-empty-state {
+    padding: 24px 16px;
+  }
+
+  .page--network .network-empty-state-title {
+    font-size: 1rem;
+  }
+
+  .page--network .network-empty-state-copy {
+    font-size: 0.88rem;
+  }
+}
+
+/* Mobile-only job detail rows: stack label above value to prevent overflow */
+@media (max-width: 640px) {
+  .page--network .network-ticker-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .page--network .network-add-friends-btn,
+  .page--network .network-field-visibility-btn {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-sizing: border-box;
+  }
+
+  .page--network .network-applications-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .page--network .network-applications-main,
+  .page--network .network-signals-sidebar,
+  .page--network .network-applications-main > .card {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .page--network .network-today-grid,
+  .page--network .network-today-item,
+  .page--network .network-card-content {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .page--network .network-today-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .page--network .network-today-wrap,
+  .page--network .network-today-table,
+  .page--network .network-today-table tbody,
+  .page--network .network-today-table tbody tr {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .page--network .network-today-wrap {
+    overflow-x: hidden;
+  }
+
+  .page--network .network-today-table tbody td {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 4px;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .page--network .network-today-table tbody td[data-label]::before {
+    margin-bottom: 2px;
+  }
+
+  .page--network .network-today-table tbody td[data-label="#"]::before {
+    content: none;
+  }
+
+  .page--network .network-today-table tbody td > * {
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .page--network .network-today-table .network-cell-referral,
+  .page--network .network-today-table .network-cell-notes,
+  .page--network .network-today-table .network-cell-primary,
+  .page--network .network-today-table .network-cell-secondary {
+    max-width: 100%;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+}
+
+/* Phone: tighter layout */
+@media (max-width: 480px) {
+  .page--network {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .page--network .network-stack {
+    gap: 8px;
+  }
+
+  .page--network .network-shell-card {
+    padding: 8px 10px;
+  }
+
+  .page--network .network-main-head h2 {
+    font-size: 0.88rem;
+  }
+
+  .page--network .network-ticker-overlay {
+    padding: 6px 8px 6px 8px;
+  }
+
+  .page--network .network-ticker-track {
+    height: 32px;
+  }
+
+  .page--network .network-ticker-tag {
+    padding: 0 10px 0 8px;
+    font-size: 0.68rem;
+  }
+
+  .page--network .network-ticker-marquee {
+    font-size: 0.76rem;
+  }
+
+  .page--network .network-ticker-item {
+    padding: 0 12px;
+  }
+
+  /* Keep mobile action buttons balanced and tappable */
+  .page--network .network-ticker-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .page--network .network-add-friends-btn,
+  .page--network .network-field-visibility-btn {
+    width: 100%;
+    min-height: 44px;
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 8px;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Shorter "Add" button text on phone */
+  .page--network .network-add-btn-text {
+    display: none;
+  }
+
+  .page--network .network-add-btn-text--short {
+    display: inline;
+  }
+
+  .page--network .network-trend-card,
+  .page--network .network-insight-card {
+    padding: 12px 10px;
+  }
+
+  .page--network .network-mini-chart {
+    height: 140px;
+  }
+
+  .page--network .network-weekly-line-stage {
+    min-height: 220px;
+  }
+
+  .page--network .network-empty-state {
+    padding: 20px 12px;
+  }
+
+  .page--network .network-empty-state-icon {
+    width: 48px;
+    height: 48px;
+    font-size: 1.2rem;
+  }
+}

@@ -1,0 +1,170 @@
+
+:root[data-theme="light"] .lv-hero::before {
+  opacity: 0.42;
+}
+
+:root[data-theme="light"] .lv-hero h1 {
+  color: #0f172a;
+}
+
+:root[data-theme="light"] .lv-hero h1 span {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+:root[data-theme="light"] .lv-hero p {
+  color: #334155;
+}
+
+:root[data-theme="light"] .lv-hero-footnote {
+  color: #64748b;
+}
+
+:root[data-theme="light"] .lv-particles span {
+  background: rgba(37, 99, 235, 0.78);
+  box-shadow: 0 0 10px rgba(37, 99, 235, 0.32);
+}
+
+:root[data-theme="light"] .lv-dashboard-card,
+:root[data-theme="light"] .lv-feature-card,
+:root[data-theme="light"] .lv-compete-board,
+:root[data-theme="light"] .lv-compete-kpi,
+:root[data-theme="light"] .lv-compete-panel,
+:root[data-theme="light"] .lv-float-card,
+:root[data-theme="light"] .lv-signal-row {
+  background: #ffffff;
+  border-color: #dbe3ef;
+}
+
+:root[data-theme="light"] .lv-dashboard-row,
+:root[data-theme="light"] .lv-dashboard-table-head,
+:root[data-theme="light"] .lv-dashboard-top,
+:root[data-theme="light"] .lv-dashboard-side,
+:root[data-theme="light"] .lv-compete-strip {
+  border-color: #e2e8f0;
+}
+
+:root[data-theme="light"] .lv-testimonial-feature,
+:root[data-theme="light"] .lv-testimonial-mini {
+  background: #ffffff;
+  border-color: #dbe3ef;
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.08);
+}
+
+:root[data-theme="light"] .lv-extension-pill,
+:root[data-theme="light"] .lv-extension-browser {
+  background: #ffffff;
+  border-color: #dbe3ef;
+  box-shadow: 0 18px 34px rgba(15, 23, 42, 0.08);
+}
+
+:root[data-theme="light"] .lv-extension-metric,
+:root[data-theme="light"] .lv-extension-mini-funnel {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+:root[data-theme="light"] .lv-extension-mini-popup {
+  background: #ffffff;
+  border-color: #dbe3ef;
+  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.1);
+}
+
+:root[data-theme="light"] .lv-extension-mini-line {
+  background: #cbd5e1;
+}
+
+:root[data-theme="light"] .lv-extension-browser-head {
+  background: #f8fafc;
+  border-bottom-color: #e2e8f0;
+}
+
+:root[data-theme="light"] .lv-extension-browser-tab,
+:root[data-theme="light"] .lv-extension-skeleton span {
+  background: #e2e8f0;
+}
+
+:root[data-theme="light"] .lv-extension-browser-add {
+  border-color: #dbe3ef;
+}
+
+:root[data-theme="light"] .lv-extension-browser-action {
+  border-color: rgba(37, 99, 235, 0.32);
+  background: rgba(37, 99, 235, 0.16);
+}
+
+:root[data-theme="light"] .lv-extension-company-mark {
+  background: rgba(37, 99, 235, 0.14);
+  color: #2563eb;
+}
+
+:root[data-theme="light"] .lv-extension-kicker span {
+  background: #ffffff;
+  border-color: #dbe3ef;
+}
+
+:root[data-theme="light"] .lv-extension-cta-secondary {
+  color: #1d4ed8;
+  border-color: rgba(37, 99, 235, 0.36);
+  background: #ffffff;
+}
+
+:root[data-theme="light"] .lv-extension-cta-secondary:hover {
+  background: #eff6ff;
+}
+
+:root[data-theme="light"] .lv-window-dots span {
+  background: #cbd5e1;
+}
+
+
+:root[data-theme="light"] .lv-btn-ghost:hover {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+:root[data-theme="light"] .lv-btn-outline {
+  background: #ffffff;
+  border-color: #cbd5e1;
+}
+
+:root[data-theme="light"] .lv-btn-outline:hover {
+  background: #f8fafc;
+  border-color: #bfdbfe;
+}
+
+:root[data-theme="light"] .lv-nav.is-scrolled {
+  background: rgba(255, 255, 255, 0.84);
+  border-bottom-color: #dbe3ef;
+}
+
+:root[data-theme="light"] .lv-footer-mini {
+  background: #f8fafc;
+  border-top-color: #dbe3ef;
+}
+
+:root[data-theme="dark"] .lv-compete-kpi,
+:root[data-theme="dark"] .lv-step-card,
+:root[data-theme="dark"] .lv-testimonial-feature,
+:root[data-theme="dark"] .lv-testimonial-mini {
+  border-color: rgba(96, 165, 250, 0.26);
+  background: linear-gradient(160deg, rgba(11, 22, 49, 0.94) 0%, rgba(6, 14, 34, 0.97) 100%);
+  box-shadow: 0 16px 30px rgba(2, 6, 23, 0.36);
+}
+
+:root[data-theme="dark"] .lv-step-card:hover,
+:root[data-theme="dark"] .lv-testimonial-mini:hover {
+  border-color: rgba(96, 165, 250, 0.38);
+}
+
+:root[data-theme="dark"] .lv-extension-pill,
+:root[data-theme="dark"] .lv-extension-browser {
+  border-color: rgba(96, 165, 250, 0.3);
+  background: linear-gradient(160deg, rgba(11, 22, 49, 0.93) 0%, rgba(6, 14, 34, 0.98) 100%);
+}
+
+:root[data-theme="dark"] .lv-extension-mini-popup {
+  border-color: rgba(96, 165, 250, 0.3);
+  background: linear-gradient(160deg, rgba(17, 31, 62, 0.92) 0%, rgba(10, 22, 44, 0.98) 100%);
+}

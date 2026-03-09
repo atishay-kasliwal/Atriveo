@@ -1,0 +1,222 @@
+
+.lv-compete-strip {
+  min-height: 40px;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow-x: auto;
+}
+
+.lv-compete-strip span {
+  white-space: nowrap;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 64%, transparent);
+  background: color-mix(in srgb, var(--bg-card-elevated) 66%, transparent);
+  padding: 4px 10px;
+  color: var(--text-muted);
+  font-size: 0.74rem;
+}
+
+.lv-compete-panel {
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 62%, transparent);
+  background: color-mix(in srgb, var(--bg-card-elevated) 72%, transparent);
+  padding: 12px;
+}
+
+.lv-compete-panel h3 {
+  margin: 0 0 3px;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.lv-panel-subtitle {
+  margin: 0 0 10px;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.lv-velocity-series {
+  display: grid;
+  gap: 10px;
+}
+
+.lv-velocity-row {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.lv-velocity-row small {
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+}
+.lv-velocity-bars {
+  min-height: 82px;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+  align-items: end;
+}
+
+.lv-velocity-bars span {
+  display: block;
+}
+
+.lv-velocity-bars i {
+  display: block;
+  width: 100%;
+  border-radius: 6px 6px 0 0;
+  background: color-mix(in srgb, var(--accent) 68%, transparent);
+}
+
+.lv-velocity-bars--alt i {
+  background: color-mix(in srgb, #14b8a6 56%, transparent);
+}
+
+.lv-velocity-labels {
+  margin-left: 80px;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.lv-velocity-labels span {
+  text-align: center;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.lv-funnel-list {
+  display: grid;
+  gap: 8px;
+}
+
+.lv-funnel-row {
+  display: grid;
+  grid-template-columns: 68px minmax(0, 1fr) 28px 14px;
+  gap: 8px;
+  align-items: center;
+}
+
+.lv-funnel-row small {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.lv-funnel-bar {
+  height: 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-card-elevated) 86%, transparent);
+  overflow: hidden;
+}
+
+.lv-funnel-bar span {
+  height: 100%;
+  border-radius: inherit;
+  display: block;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 72%, #8db6ff), var(--accent));
+}
+
+.lv-funnel-row strong {
+  font-size: 0.8rem;
+  color: var(--text-primary);
+}
+
+.lv-funnel-row em {
+  font-style: normal;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.lv-impact-list {
+  display: grid;
+  gap: 8px;
+}
+
+.lv-impact-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.lv-impact-row small {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-primary);
+}
+
+.lv-impact-row span {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.lv-impact-meter {
+  height: 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-card-elevated) 86%, transparent);
+  overflow: hidden;
+}
+
+.lv-impact-meter i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #22c55e, #16a34a);
+}
+
+.lv-impact-row strong {
+  font-size: 0.78rem;
+  color: var(--text-primary);
+}
+
+.lv-leaderboard-list {
+  display: grid;
+  gap: 4px;
+}
+
+.lv-leaderboard-row {
+  display: grid;
+  grid-template-columns: 20px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  border-radius: 8px;
+  padding: 5px 8px;
+  color: var(--text-secondary);
+  transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.lv-leaderboard-row:hover {
+  background: color-mix(in srgb, var(--bg-card) 74%, transparent);
+  transform: translateY(-1px);
+}
+
+.lv-leaderboard-row.is-leader {
+  border: 1px solid color-mix(in srgb, var(--accent) 36%, transparent);
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+  color: var(--text-primary);
+}
+
+.lv-leaderboard-row span {
+  font-size: 0.75rem;
+}
+
+.lv-leaderboard-row strong {
+  font-size: 0.82rem;
+}
+
+.lv-leaderboard-row em {
+  font-style: normal;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.lv-signal-list {
+  display: grid;
+  gap: 6px;
+}

@@ -18,7 +18,6 @@ import {
   type JobsCsvExportRange,
   type OutgoingFriendRequest,
 } from "../lib/api";
-import { getLocalISODate } from "../lib/formatDate";
 import {
   ANALYTICS_EVENTS,
   trackErrorEvent,
@@ -31,6 +30,14 @@ import {
 import NotificationBell from "./layout/NotificationBell";
 import QuickCreateSplitButton from "./layout/QuickCreateSplitButton";
 import HeaderAvatarMenu from "./layout/HeaderAvatarMenu";
+import {
+  COUNTRY_OPTIONS,
+  SLOW_APPLICATION_CREATE_THRESHOLD_MS,
+  emptyJobForm,
+  emptyNoteForm,
+  emptyPendingForm,
+} from "./layout/quickCreateConfig";
+import { computeUserInitials } from "./layout/utils";
 import { ThemeToggle } from "./ThemeToggle";
 import useConfirmDialog from "./ui/useConfirmDialog";
 
@@ -42,78 +49,6 @@ type LayoutProps = {
   theme: "light" | "dark";
   onToggleTheme: () => void;
 };
-
-const emptyJobForm = {
-  role: "",
-  company: "",
-  location_raw: "United States",
-  job_link: "",
-  job_application_id: "",
-  oa_deadline_date: "",
-  keyword_matching: "Medium",
-  oa_status: "No",
-  referral_status: "No",
-  referred_by_name: "",
-  notes: "",
-  date_saved: getLocalISODate(),
-};
-
-const emptyPendingForm = {
-  company: "",
-  position_name: "",
-  pending_date: getLocalISODate(),
-  end_date: "",
-  comment: "",
-  link: "",
-};
-
-function getLocalISODatePlusDays(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  return getLocalISODate(d);
-}
-
-const emptyNoteForm = {
-  title: "",
-  currentDate: getLocalISODate(),
-  lastDate: getLocalISODatePlusDays(7),
-  priority: "High",
-  show_on_dashboard: "Yes",
-  note: "",
-};
-
-const COUNTRY_OPTIONS = [
-  "United States",
-  "Canada",
-  "United Kingdom",
-  "India",
-  "Germany",
-  "Australia",
-];
-
-const SLOW_APPLICATION_CREATE_THRESHOLD_MS = 1500;
-
-function computeUserInitials(firstName: string | null | undefined, lastName: string | null | undefined, email: string): string {
-  const first = String(firstName ?? "").trim();
-  const last = String(lastName ?? "").trim();
-  if (first || last) {
-    const firstLetter = first ? first[0] : "";
-    const lastLetter = last ? last[0] : "";
-    const pair = `${firstLetter}${lastLetter}`.toUpperCase();
-    if (pair) return pair.slice(0, 2);
-  }
-
-  const local = String(email || "")
-    .split("@")[0]
-    ?.replace(/[^a-zA-Z0-9]+/g, " ")
-    .trim();
-  if (!local) return "U";
-  const parts = local.split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) {
-    return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
-  }
-  return (parts[0]?.slice(0, 2) || "U").toUpperCase();
-}
 
 type SectionHeaderProps = {
   icon: ReactNode;
@@ -287,9 +222,17 @@ function KeywordMatchRadio({ id, label, value, onChange }: KeywordMatchRadioProp
   );
 }
 
-export default function Layout({ userEmail, userFirstName, userLastName, onLogout, theme, onToggleTheme }: LayoutProps) {
+export default function Layout({
+  userEmail,
+  userFirstName,
+  userLastName,
+  onLogout,
+  theme,
+  onToggleTheme,
+}: LayoutProps) {
   const location = useLocation();
   const isNetworkView = location.pathname.includes("/network");
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [showPendingTask, setShowPendingTask] = useState(false);
   const [showNoteModal, setShowNoteModal] = useState(false);
@@ -363,6 +306,10 @@ export default function Layout({ userEmail, userFirstName, userLastName, onLogou
       window.removeEventListener("open-import-csv", onOpenImportCsvModal);
     };
   }, []);
+
+  useEffect(() => {
+    setIsMobileNavOpen(false);
+  }, [location.pathname]);
 
   useEffect(() => {
     if (!showFriendModal) return;
@@ -776,14 +723,67 @@ export default function Layout({ userEmail, userFirstName, userLastName, onLogou
     <div className={`page${isNetworkView ? " page--network" : ""}`}>
       <nav className={`app-nav${isNetworkView ? " app-nav--network" : ""}`}>
         <div className="app-nav-top">
-          <Link to="/" className="app-nav-brand" aria-label="Atriveo home">
-            Atriveo<span>.</span>
-          </Link>
+          <div className="app-nav-left">
+            <Link to="/" className="app-nav-brand" aria-label="Atriveo home">
+              Atriveo<span>.</span>
+            </Link>
+          </div>
+          <button
+            type="button"
+            className={`app-nav-menu-toggle${isMobileNavOpen ? " is-open" : ""}`}
+            aria-label="Toggle navigation menu"
+            aria-controls="app-top-navigation"
+            aria-expanded={isMobileNavOpen}
+            onClick={() => setIsMobileNavOpen((prev) => !prev)}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M4 7h16M4 12h16M4 17h16" />
+            </svg>
+          </button>
+          <div id="app-top-navigation" className={`app-nav-center${isMobileNavOpen ? " is-mobile-open" : ""}`}>
+            <div className="app-nav-links">
+              <NavLink
+                to="network"
+                className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}
+                onClick={() => setIsMobileNavOpen(false)}
+              >
+                Network
+              </NavLink>
+              <NavLink
+                to="."
+                end
+                className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}
+                onClick={() => setIsMobileNavOpen(false)}
+              >
+                Dashboard
+              </NavLink>
+              <NavLink
+                to="jobs"
+                className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}
+                onClick={() => setIsMobileNavOpen(false)}
+              >
+                Active Jobs
+              </NavLink>
+              <NavLink
+                to="pending"
+                className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}
+                onClick={() => setIsMobileNavOpen(false)}
+              >
+                Follow Up
+              </NavLink>
+            </div>
+          </div>
           <div className="app-nav-actions">
             <div className="app-nav-actions-main">
-              <ThemeToggle theme={theme} onToggle={onToggleTheme} className="app-nav-theme-toggle app-nav-theme-toggle--top" />
+              <QuickCreateSplitButton
+                className="app-split-create--nav-primary"
+                onNewApplication={openNewApplicationModal}
+                onCreateTask={openCreateTaskModal}
+                onLogNote={openLogNoteModal}
+              />
             </div>
             <div className="app-nav-actions-utility">
+              <ThemeToggle theme={theme} onToggle={onToggleTheme} className="app-nav-theme-toggle app-nav-theme-toggle--top" />
               <NotificationBell
                 userEmail={userEmail}
                 onOpenFriendModal={openFriendModal}
@@ -798,34 +798,6 @@ export default function Layout({ userEmail, userFirstName, userLastName, onLogou
               />
             </div>
           </div>
-        </div>
-        <div className="app-nav-bottom">
-          <div className="app-nav-links">
-            <NavLink to="network" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
-              Network
-            </NavLink>
-            <NavLink to="." end className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
-              Dashboard
-            </NavLink>
-            <NavLink to="jobs" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
-              Active Jobs
-            </NavLink>
-            <NavLink to="referrals" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
-              Referrals
-            </NavLink>
-            <NavLink to="pending" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
-              Follow Up
-            </NavLink>
-            <NavLink to="archive" className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}>
-              Archive
-            </NavLink>
-          </div>
-          <QuickCreateSplitButton
-            className="app-split-create--nav-bottom"
-            onNewApplication={openNewApplicationModal}
-            onCreateTask={openCreateTaskModal}
-            onLogNote={openLogNoteModal}
-          />
         </div>
       </nav>
       <main className="page-main">

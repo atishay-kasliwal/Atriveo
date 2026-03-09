@@ -1,0 +1,229 @@
+
+@media (max-width: 860px) {
+  .lp-navbar {
+    height: auto;
+  }
+
+  .lp-navbar-inner {
+    padding: 12px 0;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .lp-nav {
+    order: 3;
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 12px 16px;
+  }
+
+  .lp-nav-right {
+    margin-left: 0;
+  }
+
+  .lp-split,
+  .lp-split--reverse {
+    grid-template-columns: 1fr;
+  }
+
+  .lp-split--reverse .lp-copy,
+  .lp-split--reverse .lp-visual-card {
+    order: initial;
+  }
+
+  .lp-tools-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .lp-copy p {
+    max-width: none;
+  }
+
+  .lp-inline-actions {
+    width: 100%;
+  }
+}
+
+@media (min-width: 1024px) {
+  .lp-headline-line {
+    white-space: nowrap;
+  }
+}
+@media (max-width: 640px) {
+  .auth-top-logo {
+    top: 10px;
+    left: 10px;
+    font-size: 1.4rem;
+  }
+
+  .auth-theme-toggle {
+    top: 10px;
+    right: 10px;
+  }
+
+  .legal-page {
+    padding-top: 70px;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .legal-card {
+    border-radius: 14px;
+    padding: 18px 14px;
+  }
+
+  .extension-install-actions {
+    width: 100%;
+  }
+
+  .extension-install-actions .lv-btn {
+    width: 100%;
+  }
+
+  .extension-install-hero {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .extension-install-visual-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .extension-install-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .legal-section p,
+  .legal-section li {
+    font-size: 0.9rem;
+  }
+
+  .lp-container {
+    padding: 0 16px;
+  }
+
+  .lp-section {
+    padding: 64px 0;
+  }
+
+  .lp-hero {
+    padding-top: 64px;
+  }
+
+  .lp-hero-actions,
+  .lp-inline-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .lp-btn,
+  .lp-dashboard-button {
+    width: 100%;
+  }
+
+  .lp-tab-strip {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    max-width: 520px;
+    border-radius: 18px;
+  }
+
+  .lp-tab {
+    border-radius: 14px;
+  }
+
+  .lp-curated-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .lp-footer {
+    padding-top: 56px;
+  }
+
+  .lp-footer-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .lp-footer-columns {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .lp-footer-bottom-strip {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .lp-footer-bottom-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .lp-faq-trigger {
+    font-size: 1rem;
+  }
+
+  .lp-auth-modal {
+    padding: 18px 16px;
+  }
+
+  .lp-auth-name-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-btn,
+  .lp-dashboard-button,
+  .lp-curated-card,
+  .lp-tool-card,
+  .lp-reveal {
+    transition: none;
+    animation: none;
+    transform: none;
+    opacity: 1;
+  }
+}
+
+/* Header test page */
+.header-test-page {
+  min-height: 100vh;
+  background: radial-gradient(circle at 16% -20%, rgba(51, 133, 255, 0.22), transparent 44%), #020712;
+  color: #e5e7eb;
+}
+
+.header-test-nav-shell {
+  position: sticky;
+  top: 8px;
+  z-index: 36;
+  padding: 10px 16px 0;
+}
+
+.header-test-container {
+  width: 100%;
+  max-width: none;
+  margin: 0 auto;
+}
+
+.header-test-nav {
+  font-family: var(--font-header);
+  border: 1px solid rgba(51, 133, 255, 0.2);
+  border-radius: 18px;
+  padding: 12px;
+  background: linear-gradient(180deg, rgba(11, 17, 30, 0.96), rgba(8, 12, 21, 0.94));
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+}
+
+.header-test-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid rgba(51, 133, 255, 0.16);
+  padding: 2px 6px 10px;
+}

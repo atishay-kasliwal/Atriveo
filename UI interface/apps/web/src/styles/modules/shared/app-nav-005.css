@@ -1,0 +1,236 @@
+.action-btn {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--bg-card-border);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+}
+
+.action-btn:hover:not(:disabled) {
+  background: rgba(0, 102, 255, 0.18);
+  border-color: rgba(0, 102, 255, 0.35);
+  transform: translateY(-1px);
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .action-btn {
+    min-height: 44px;
+  }
+}
+
+.error {
+  margin-top: 16px;
+  background: var(--error-bg);
+  color: var(--error-text);
+  border: 1px solid var(--error-border);
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 0.9rem;
+}
+
+.error-hint {
+  margin: 8px 0 0;
+  font-size: 0.85rem;
+  opacity: 0.9;
+}
+
+.auth-success {
+  margin-top: 12px;
+  border: 1px solid var(--success-border);
+  background: var(--success-bg);
+  color: var(--success-text);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.network-success-banner {
+  margin: 14px 6px 16px;
+  border: 1px solid var(--success-border);
+  background: var(--success-bg);
+  color: var(--success-text);
+  border-radius: 12px;
+  padding: 14px 16px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.network-success-close {
+  border: 1px solid var(--success-close-border);
+  background: var(--success-close-bg);
+  color: var(--success-close-text);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+.network-success-close:hover {
+  background: var(--success-close-bg-hover);
+}
+
+.network-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.network-shell-card {
+  padding: 12px 16px;
+}
+
+.network-shell-card.is-closed {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.network-shell-card.is-open {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.network-card-content {
+  margin-top: 12px;
+}
+
+.friends-send-form {
+  margin-top: 4px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.friends-layout-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 14px;
+}
+
+.friends-panel {
+  border: 1px solid var(--bg-card-border);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
+  padding: 14px 14px 12px;
+  min-height: 220px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.friends-panel h3 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.network-section-head {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-align: left;
+  cursor: pointer;
+  margin-bottom: 8px;
+}
+
+.network-main-head {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 2px 0 4px;
+  margin-bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-align: left;
+  cursor: pointer;
+  gap: 16px;
+}
+
+.network-main-head--static {
+  cursor: default;
+}
+
+.network-shell-card.is-closed .network-main-head {
+  padding: 3px 0;
+}
+
+.network-main-head h2 {
+  margin: 0;
+  line-height: 1.15;
+  font-size: 1.08rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.network-shell-card .network-main-head h2 {
+  margin: 0;
+}
+
+.network-main-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  line-height: 1;
+}
+
+.network-main-right .pending-meta {
+  font-size: 0.79rem;
+  line-height: 1.25;
+  white-space: nowrap;
+  color: color-mix(in srgb, var(--text-muted) 92%, transparent);
+}
+
+.network-section-head h3 {
+  margin: 0;
+}
+
+.network-section-arrow {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  line-height: 1;
+  transition: transform 0.16s ease;
+  transform: rotate(180deg);
+}
+
+.network-section-arrow.open {
+  transform: rotate(0deg);
+}
+
+.friends-actions-cell {
+  display: flex;
+  gap: 6px;
+  flex-wrap: nowrap;
+  min-width: 0;
+  white-space: nowrap;
+  justify-content: flex-end;
+}
+
+.friends-panel .table-wrap {
+  overflow-x: auto;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  background: rgba(7, 10, 18, 0.35);
+}
+.friends-panel .table-wrap table {
+  min-width: 0;
+  width: 100%;
+  table-layout: fixed;
+}

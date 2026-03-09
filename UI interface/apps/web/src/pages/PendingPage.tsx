@@ -2,25 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import Spinner from "../components/Spinner";
 import { editPending, getDashboardSummary, getPending, markPendingDone } from "../lib/api";
 import { formatTableDate } from "../lib/formatDate";
+import useIsMobileViewport from "../hooks/useIsMobileViewport";
 import NotesPage from "./NotesPage";
+import { getDueTag } from "./pending/utils";
 
 type PendingItem = Record<string, unknown>;
 
-function getDueTag(endDate: unknown): { label: string; tone: "ok" | "warn" | "danger" | "neutral" } {
-  if (!endDate) return { label: "No due date", tone: "neutral" };
-  const raw = String(endDate).slice(0, 10);
-  const due = new Date(`${raw}T00:00:00`);
-  if (Number.isNaN(due.getTime())) return { label: "No due date", tone: "neutral" };
-  const today = new Date();
-  const now = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const diffDays = Math.round((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-  if (diffDays < 0) return { label: `Overdue ${Math.abs(diffDays)}d`, tone: "danger" };
-  if (diffDays === 0) return { label: "Due today", tone: "warn" };
-  if (diffDays <= 3) return { label: `Due in ${diffDays}d`, tone: "warn" };
-  return { label: `Due in ${diffDays}d`, tone: "ok" };
-}
-
 export default function PendingPage() {
+  const isMobile = useIsMobileViewport(640);
   const [pendingData, setPendingData] = useState<PendingItem[]>([]);
   const [archiveData, setArchiveData] = useState<PendingItem[]>([]);
   const [archiveCompany, setArchiveCompany] = useState("all");
@@ -279,6 +268,10 @@ export default function PendingPage() {
             <Spinner />
           ) : archiveData.length === 0 ? (
             <div className="empty-state">No archived items.</div>
+          ) : isMobile ? (
+            <div className="pending-archive-mobile-cards">
+              {archiveRows.map((item) => renderCard(item, true))}
+            </div>
           ) : (
             <>
               <div className="table-wrap pending-archive-wrap">

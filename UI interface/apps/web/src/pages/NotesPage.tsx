@@ -3,53 +3,9 @@ import Spinner from "../components/Spinner";
 import useConfirmDialog from "../components/ui/useConfirmDialog";
 import { deleteNote, getNotes, updateNote } from "../lib/api";
 import { formatTableDate } from "../lib/formatDate";
-
-type NotePriority = "High" | "Medium" | "Low" | "Archive";
-type NotesTab = "All" | NotePriority;
-
-type NoteRow = Record<string, any>;
-const NOTE_TABS: NotesTab[] = ["All", "High", "Medium", "Low", "Archive"];
-const NOTE_PAGE_SIZE = 4;
-
-function normalizePriority(note: NoteRow): NotePriority {
-  const raw = String(note.priority ?? "").trim();
-  if (raw === "High" || raw === "Medium" || raw === "Low" || raw === "Archive") {
-    return raw;
-  }
-  return note.is_done ? "Archive" : "Medium";
-}
-
-function splitNote(comments: string): { title: string; body: string } {
-  const [titleLine, ...restLines] = comments.split("\n");
-  const cleaned = restLines
-    .map((line) => line.trim())
-    .map((line) => {
-      const m = /^last\\s*date\\s*:\\s*\\d{4}-\\d{2}-\\d{2}\\s*(.*)$/i.exec(line);
-      if (!m) return line;
-      return (m[1] ?? "").trim();
-    })
-    .filter((line) => line.length > 0)
-    .join("\n");
-  return {
-    title: titleLine?.trim() || "(Untitled)",
-    body: cleaned,
-  };
-}
-
-function splitNoteForEdit(comments: string): { title: string; body: string } {
-  const [titleLine, ...restLines] = comments.split("\n");
-  const title = titleLine?.trim() || "";
-  const body = restLines
-    .map((line) => line.trim())
-    .map((line) => {
-      const m = /^last\s*date\s*:\s*\d{4}-\d{2}-\d{2}\s*(.*)$/i.exec(line);
-      if (!m) return line;
-      return (m[1] ?? "").trim();
-    })
-    .filter((line) => line.length > 0)
-    .join("\n");
-  return { title, body };
-}
+import { NOTE_PAGE_SIZE, NOTE_TABS } from "./notes/constants";
+import type { NotePriority, NoteRow, NotesTab } from "./notes/types";
+import { normalizePriority, splitNote, splitNoteForEdit } from "./notes/utils";
 
 export default function NotesPage() {
   const [activeNotes, setActiveNotes] = useState<NoteRow[]>([]);

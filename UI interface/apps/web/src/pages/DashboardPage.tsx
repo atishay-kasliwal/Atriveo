@@ -2,15 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Area,
   Bar,
-  BarChart,
   CartesianGrid,
-  Cell,
   ComposedChart,
   Legend,
   Line,
   LineChart,
   ReferenceDot,
-  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -25,6 +22,7 @@ import ReferralsPreview from "../components/ReferralsPreview";
 import NotesPreview from "../components/NotesPreview";
 import OaPreview from "../components/OaPreview";
 import quotesData from "../lib/quotes.json";
+import useIsMobileViewport from "../hooks/useIsMobileViewport";
 import {
   getDashboardSummary,
   getTargetProgress,
@@ -39,224 +37,33 @@ import {
   trackPerformanceEvent,
   trackProductEvent,
 } from "../analytics/events";
-
-const defaultSummary: DashboardSummary = {
-  kpis: {
-    jobs: 0,
-    referrals: 0,
-    pending: 0,
-    rejected: 0,
-    jobsThisMonth: 0,
-    jobsThisWeek: 0,
-    jobsToday: 0,
-    jobsWithReferral: 0,
-  },
-  dailyTrend: [],
-  referralDailyTrend: [],
-  rejectedDailyTrend: [],
-  pendingDailyTrend: [],
-  referralTrend: [],
-  weeklyTrend: [],
-  responseStatusTrend: [],
-  oaStatusTrend: [],
-  monthlyTrend: [],
-};
-
-const DEFAULT_TARGETS = {
-  daily: 1,
-  weekly: 7,
-  monthly: 30,
-} as const;
-
-const ENTERPRISE_SERIES_COLORS = [
-  "#2563EB",
-  "#0EA5E9",
-  "#14B8A6",
-  "#22C55E",
-  "#84CC16",
-  "#F59E0B",
-  "#F97316",
-  "#EF4444",
-  "#A855F7",
-  "#EC4899",
-];
-
-const KPI_SPARKLINE_COLORS = {
-  primaryBlue: ENTERPRISE_SERIES_COLORS[0],
-  skyBlue: ENTERPRISE_SERIES_COLORS[1],
-  teal: ENTERPRISE_SERIES_COLORS[2],
-  green: ENTERPRISE_SERIES_COLORS[0],
-  lime: ENTERPRISE_SERIES_COLORS[1],
-  amber: ENTERPRISE_SERIES_COLORS[2],
-  red: ENTERPRISE_SERIES_COLORS[0],
-  purple: ENTERPRISE_SERIES_COLORS[1],
-} as const;
-
-const CHART_COLORS = {
-  trendLine: ENTERPRISE_SERIES_COLORS[0],
-  trendGradientTop: "rgba(37, 99, 235, 0.25)",
-  trendGradientBottom: "rgba(37, 99, 235, 0)",
-  barGradientTop: "rgba(14, 165, 233, 0.9)",
-  barGradientBottom: "rgba(37, 99, 235, 0.72)",
-  weeklyBar: ENTERPRISE_SERIES_COLORS[2],
-  responseBar: ENTERPRISE_SERIES_COLORS[7],
-  grid: "var(--chart-grid)",
-  tooltipBg: "var(--chart-tooltip-bg)",
-  tooltipBorder: "var(--chart-tooltip-border)",
-  axis: "var(--chart-axis)",
-  text: "var(--chart-text)",
-  textSecondary: "var(--chart-text-secondary)",
-  accentSoft: "var(--accent-soft)",
-  targetLine: "color-mix(in srgb, var(--accent-soft) 86%, transparent)",
-  lastMonthBar: "color-mix(in srgb, var(--text-muted) 56%, transparent)",
-  movingAverage: "color-mix(in srgb, var(--text-muted) 74%, transparent)",
-};
-
-function percentChange(current: number, previous: number): number {
-  if (!Number.isFinite(current) || !Number.isFinite(previous)) return 0;
-  if (previous === 0) return current === 0 ? 0 : 100;
-  const raw = Math.round(((current - previous) / Math.abs(previous)) * 100);
-  return Math.max(-100, Math.min(100, raw));
-}
-
-const WEEK_COLORS = [
-  ENTERPRISE_SERIES_COLORS[0],
-  ENTERPRISE_SERIES_COLORS[1],
-  ENTERPRISE_SERIES_COLORS[2],
-  ENTERPRISE_SERIES_COLORS[0],
-];
-
-const SLOW_DASHBOARD_LOAD_THRESHOLD_MS = 1500;
-
-const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-function parseIsoDay(day: string): { y: number; m: number; d: number } | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day);
-  if (!m) return null;
-  const y = Number(m[1]);
-  const month = Number(m[2]);
-  const d = Number(m[3]);
-  if (!y || month < 1 || month > 12 || d < 1 || d > 31) return null;
-  return { y, m: month, d };
-}
-
-function utcDateFromIsoDay(day: string): Date | null {
-  const p = parseIsoDay(day);
-  if (!p) return null;
-  return new Date(Date.UTC(p.y, p.m - 1, p.d));
-}
-
-function isoDayAddDays(day: string, deltaDays: number): string {
-  const d = utcDateFromIsoDay(day);
-  if (!d) return day;
-  d.setUTCDate(d.getUTCDate() + deltaDays);
-  return d.toISOString().slice(0, 10);
-}
-
-function weekStartIsoUtc(day: string): string {
-  const d = utcDateFromIsoDay(day);
-  if (!d) return day;
-  const dayOfWeek = d.getUTCDay(); // 0..6, Sun..Sat
-  const daysFromMonday = (dayOfWeek + 6) % 7;
-  d.setUTCDate(d.getUTCDate() - daysFromMonday);
-  return d.toISOString().slice(0, 10);
-}
-
-function formatDay(day: string) {
-  try {
-    const d = utcDateFromIsoDay(day);
-    if (!d || isNaN(d.getTime())) return day;
-    return new Intl.DateTimeFormat(undefined, {
-      month: "short",
-      day: "numeric",
-      year: "2-digit",
-      timeZone: "UTC",
-    }).format(d);
-  } catch {
-    return day;
-  }
-}
-
-function formatDayShort(day: string) {
-  try {
-    const p = parseIsoDay(day);
-    if (!p) return day;
-    return `${String(p.m).padStart(2, "0")}/${String(p.d).padStart(2, "0")}`;
-  } catch {
-    return day;
-  }
-}
-
-function formatWeek(week: string) {
-  try {
-    const d = utcDateFromIsoDay(week);
-    if (!d || isNaN(d.getTime())) return week;
-    return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", timeZone: "UTC" }).format(d);
-  } catch {
-    return week;
-  }
-}
-
-function formatMonth(month: string) {
-  try {
-    const [y, m] = month.split("-");
-    const d = new Date(Number(y), Number(m) - 1, 1);
-    return isNaN(d.getTime()) ? month : d.toLocaleDateString(undefined, { month: "short", year: "2-digit" });
-  } catch {
-    return month;
-  }
-}
-
-function dayWithSuffix(day: number): string {
-  const mod10 = day % 10;
-  const mod100 = day % 100;
-  if (mod10 === 1 && mod100 !== 11) return `${day}st`;
-  if (mod10 === 2 && mod100 !== 12) return `${day}nd`;
-  if (mod10 === 3 && mod100 !== 13) return `${day}rd`;
-  return `${day}th`;
-}
-
-function MtdTooltip({
-  active,
-  payload,
-  label,
-}: {
-  active?: boolean;
-  payload?: Array<{ dataKey?: string; value?: number }>;
-  label?: string | number;
-}) {
-  if (!active || !payload?.length) return null;
-  const byKey = new Map<string, number>();
-  payload.forEach((p) => {
-    const key = String(p.dataKey ?? "");
-    if (!key) return;
-    if (!byKey.has(key)) byKey.set(key, Number(p.value ?? 0));
-  });
-  const thisMonth = byKey.get("thisMonth") ?? 0;
-  const lastMonth = byKey.get("lastMonth") ?? 0;
-  return (
-    <div
-      style={{
-        background: CHART_COLORS.tooltipBg,
-        border: `1px solid ${CHART_COLORS.tooltipBorder}`,
-        borderRadius: 6,
-        padding: "10px 14px",
-      }}
-    >
-      <p style={{ margin: "0 0 6px 0", fontSize: 11, color: CHART_COLORS.text }}>
-        Day {label}
-      </p>
-      <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: CHART_COLORS.trendLine }}>
-        This month: {thisMonth}
-      </p>
-      <p style={{ margin: "4px 0 0 0", fontSize: 13, fontWeight: 600, color: CHART_COLORS.accentSoft }}>
-        Last month: {lastMonth}
-      </p>
-    </div>
-  );
-}
+import ApplicationsTrendCard from "./dashboard/components/ApplicationsTrendCard";
+import MonthTargetViewCard from "./dashboard/components/MonthTargetViewCard";
+import DailyActivityHeatmapCard from "./dashboard/components/DailyActivityHeatmapCard";
+import {
+  CHART_COLORS,
+  DEFAULT_TARGETS,
+  ENTERPRISE_SERIES_COLORS,
+  KPI_SPARKLINE_COLORS,
+  MONTH_NAMES,
+  SLOW_DASHBOARD_LOAD_THRESHOLD_MS,
+  defaultSummary,
+} from "./dashboard/constants";
+import {
+  dayWithSuffix,
+  formatDayShort,
+  formatMonth,
+  formatWeek,
+  isoDayAddDays,
+  parseIsoDay,
+  percentChange,
+  utcDateFromIsoDay,
+  weekStartIsoUtc,
+} from "./dashboard/utils";
 
 export default function DashboardPage() {
+  const isMobileDashboard = useIsMobileViewport(640);
+  const [mobileDashboardPanel, setMobileDashboardPanel] = useState<"pending" | "referrals" | "oa" | "notes">("pending");
   const [summary, setSummary] = useState<DashboardSummary>(defaultSummary);
   const [mtdSummary, setMtdSummary] = useState<DashboardSummary>(defaultSummary);
   const [targetProgress, setTargetProgress] = useState<TargetProgress | null>(null);
@@ -348,6 +155,10 @@ export default function DashboardPage() {
     window.addEventListener("dashboard-refresh", onRefresh);
     return () => window.removeEventListener("dashboard-refresh", onRefresh);
   }, [days]);
+
+  useEffect(() => {
+    if (!isMobileDashboard) setMobileDashboardPanel("pending");
+  }, [isMobileDashboard]);
 
   const trendData = useMemo(() => {
     const raw = summary.dailyTrend ?? [];
@@ -1007,7 +818,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <>
+    <div className="dashboard-page">
       {error ? (
         <div className="error">
           {error}
@@ -1167,368 +978,135 @@ export default function DashboardPage() {
           </div>
         </div>
       ) : null}
-      <section className="chart-grid chart-grid-trend">
-        <div className="card card-chart-trend" style={{ paddingBottom: 24 }}>
-          <div className="chart-header">
-            <div className="chart-title-group">
-              <h2>Applications Trend</h2>
-              <p className="chart-subtitle">Daily applications</p>
-            </div>
-            <div className="chart-filter">
-              {weeklyInsights ? (
-                <span
-                  className={`delta-pill ${
-                    weeklyInsights.diff < 0 ? "delta-pill--down" : weeklyInsights.diff > 0 ? "delta-pill--up" : "delta-pill--neutral"
-                  }`}
-                >
-                  {weeklyInsights.diff === 0
-                    ? "Same as last week"
-                    : `${weeklyInsights.diff > 0 ? "+" : "−"}${Math.abs(weeklyInsights.diff)} vs last week`}
-                </span>
-              ) : null}
-              <span className="delta-pill delta-pill--target">
-                Daily target hit <strong>{targetHeaderMetrics.dailyHits}/{targetHeaderMetrics.daysInMonth}</strong>
-                <span className="delta-pill-sep">•</span>
-                Behind <strong>{targetHeaderMetrics.monthlyBehind}</strong>
-              </span>
-              <label className="chart-filter-label" htmlFor="trend-days">
-                Show last
-              </label>
-              <select
-                id="trend-days"
-                className="chart-filter-select"
-                value={days}
-                onChange={(e) => setDays(Number(e.target.value))}
-              >
-                {[60, 30, 15, 10, 7].map((d) => (
-                  <option key={d} value={d}>
-                    {d} days
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <ResponsiveContainer width="100%" height={520}>
-            <ComposedChart data={trendData} margin={{ top: 16, right: 24, left: 8, bottom: 8 }}>
-              <defs>
-                <linearGradient id="trendAreaGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={CHART_COLORS.trendLine} stopOpacity={0.5} />
-                  <stop offset="100%" stopColor={CHART_COLORS.trendLine} stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="trendBarGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={CHART_COLORS.barGradientTop} />
-                  <stop offset="100%" stopColor={CHART_COLORS.barGradientBottom} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
-              <XAxis
-                dataKey="label"
-                stroke={CHART_COLORS.axis}
-                tick={{ fill: CHART_COLORS.textSecondary, fontSize: 10, fontWeight: 400 }}
-                axisLine={{ stroke: CHART_COLORS.axis, strokeWidth: 1 }}
-                tickLine={false}
-                ticks={dailyTrendTicks.length > 0 ? dailyTrendTicks : undefined}
-                interval={0}
-                height={24}
-              />
-              <YAxis
-                stroke={CHART_COLORS.axis}
-                tick={{ fill: CHART_COLORS.textSecondary, fontSize: 10, fontWeight: 400 }}
-                axisLine={false}
-                tickLine={false}
-                allowDecimals={false}
-                width={40}
-              />
-              <Tooltip
-                content={(props) => {
-                  if (!props.active || !props.payload?.length) return null;
-                  const data = props.payload[0].payload;
-                  const dateStr = data.day ? formatDay(data.day) : props.label || "";
-                  const title = data.label === todayLabel ? `Today — ${dateStr}` : dateStr;
-                  return (
-                    <div
-                      style={{
-                        background: CHART_COLORS.tooltipBg,
-                        border: `1px solid ${CHART_COLORS.tooltipBorder}`,
-                        borderRadius: 6,
-                        padding: "10px 14px",
-                      }}
-                    >
-                      <p style={{ margin: "0 0 6px 0", fontWeight: 500, fontSize: 11, color: CHART_COLORS.text }}>{title}</p>
-                      <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: CHART_COLORS.trendLine }}>Applications: {data.total}</p>
-                    </div>
-                  );
-                }}
-                cursor={false}
-              />
-              {showTodayLine ? (
-                <ReferenceLine x={todayLabel} stroke={CHART_COLORS.textSecondary} strokeWidth={1.5} strokeDasharray="4 4" label={{ value: "Today", fill: CHART_COLORS.textSecondary, fontSize: 10 }} />
-              ) : null}
-              <Area
-                type="monotone"
-                dataKey="total"
-                stroke="none"
-                fill="url(#trendAreaGradient)"
-              />
-              <Bar
-                dataKey="total"
-                fillOpacity={0.85}
-                radius={[5, 5, 0, 0]}
-                activeBar={false}
-                label={{ position: "top", fill: CHART_COLORS.textSecondary, fontSize: 11, fontWeight: 400, dy: -4 }}
-              >
-                {trendData.map((row, i) => (
-                  <Cell key={row.day ?? i} fill={WEEK_COLORS[row.weekIndex % WEEK_COLORS.length]} />
-                ))}
-              </Bar>
-              
-              <Line
-                type="monotone"
-                dataKey="total"
-                stroke={CHART_COLORS.trendLine}
-                strokeWidth={2}
-                dot={{ r: 3, strokeWidth: 0, fill: CHART_COLORS.trendLine, opacity: 0.9 }}
-                activeDot={false}
-              />
-              <Line
-                type="monotone"
-                dataKey="avg7"
-                stroke={CHART_COLORS.movingAverage}
-                strokeWidth={1.2}
-                strokeDasharray="4 4"
-                dot={false}
-              />
-              <Line
-                type="monotone"
-                dataKey="rejected"
-                stroke={CHART_COLORS.responseBar}
-                strokeWidth={1.4}
-                dot={false}
-                activeDot={false}
-              />
-
-            </ComposedChart>
-          </ResponsiveContainer>
-          {weeklyInsights && (
-            <div
-              style={{
-                marginTop: 0,
-                paddingTop: 8,
-                paddingBottom: 0,
-                borderTop: `1px solid ${CHART_COLORS.grid}`,
-                fontSize: "0.85rem",
-                display: "flex",
-                alignItems: "center",
-                gap: 14,
-                width: "100%",
-              }}
-            >
-              {dailyMotivation ? (
-                <span
-                  style={{
-                    color: CHART_COLORS.textSecondary,
-                    flex: "0 1 auto",
-                    maxWidth: "48%",
-                    minWidth: 0,
-                    whiteSpace: "normal",
-                    lineHeight: 1.35,
-                  }}
-                >
-                  {dailyMotivation.quote} — {dailyMotivation.author}
-                </span>
-              ) : null}
-              <div
-                style={{
-                  display: "flex",
-                  marginLeft: "auto",
-                  justifyContent: "flex-end",
-                  gap: 10,
-                  textAlign: "right",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                <span style={{ color: CHART_COLORS.trendLine }}>
-                  {weeklyInsights.status === "equal"
-                    ? "Same pace as last week"
-                    : `You are ${Math.abs(weeklyInsights.diff)} applications ${weeklyInsights.status} vs last week`}
-                </span>
-                {weeklyInsights.peakLabel ? (
-                  <span style={{ color: CHART_COLORS.accentSoft }}>
-                    • Peak day: {weeklyInsights.peakValue} on {weeklyInsights.peakLabel}
-                  </span>
-                ) : null}
-              <span style={{ color: CHART_COLORS.textSecondary }}>
-                • You are {weeklyInsights.behindPeak} behind your peak
-              </span>
-              </div>
-            </div>
-          )}
-        </div>
-        
-      </section>
+      <ApplicationsTrendCard
+        trendData={trendData}
+        weeklyInsights={weeklyInsights}
+        targetHeaderMetrics={targetHeaderMetrics}
+        days={days}
+        setDays={setDays}
+        dailyTrendTicks={dailyTrendTicks}
+        todayLabel={todayLabel}
+        showTodayLine={showTodayLine}
+        dailyMotivation={dailyMotivation}
+        isMobile={isMobileDashboard}
+      />
 
       <section className="chart-grid chart-grid-two chart-grid-70-30" style={{ gridTemplateColumns: "minmax(0, 7fr) minmax(0, 3fr)" }}>
-        <div className="card card-mtd">
-          <div className="chart-header">
-            <div className="chart-title-group">
-              <h2>Month Target View</h2>
-            </div>
-          </div>
-          {mtdStats ? (
-            <div className="mtd-stats">
-              <div>
-                <span className="mtd-label">This month total</span>
-                <strong>{Math.round(mtdStats.thisTotal)}</strong>
-                <span className="mtd-sub">Avg/day {mtdStats.thisAvg.toFixed(1)}</span>
-              </div>
-              <div>
-                <span className="mtd-label">Last month total</span>
-                <strong>{Math.round(mtdStats.lastTotal)}</strong>
-                <span className="mtd-sub">Avg/day {mtdStats.lastAvg.toFixed(1)}</span>
-              </div>
-              <div>
-                <span className="mtd-label">Best day (this)</span>
-                <strong>Day {mtdStats.bestThis.day} · {mtdStats.bestThis.value}</strong>
-              </div>
-              <div>
-                <span className="mtd-label">Best day (last)</span>
-                <strong>Day {mtdStats.bestLast.day} · {mtdStats.bestLast.value}</strong>
-              </div>
-            </div>
-          ) : null}
-          {mtdDailyCompare.length ? (
-            <div className="mtd-chart-body">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={mtdDailyCompare} margin={{ top: 8, right: 16, left: 8, bottom: 8 }} barCategoryGap="20%">
-                  <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
-                  <XAxis
-                    dataKey="day"
-                    stroke={CHART_COLORS.axis}
-                    tick={{ fill: CHART_COLORS.textSecondary, fontSize: 9, fontWeight: 400 }}
-                    axisLine={{ stroke: CHART_COLORS.axis, strokeWidth: 1 }}
-                    tickLine={false}
-                    interval={4}
-                  />
-                  <YAxis
-                    stroke={CHART_COLORS.axis}
-                    tick={{ fill: CHART_COLORS.textSecondary, fontSize: 10, fontWeight: 400 }}
-                    axisLine={false}
-                    tickLine={false}
-                    allowDecimals={false}
-                    width={32}
-                  />
-                  <ReferenceLine
-                    y={effectiveTargets.daily}
-                    stroke={CHART_COLORS.targetLine}
-                    strokeDasharray="4 4"
-                    label={{ value: `Target ${effectiveTargets.daily}`, fill: CHART_COLORS.textSecondary, fontSize: 10 }}
-                  />
-                  <Tooltip content={<MtdTooltip />} cursor={false} />
-                  <Bar
-                    dataKey="lastMonth"
-                    name="Last month"
-                    fill={CHART_COLORS.lastMonthBar}
-                    barSize={6}
-                    radius={[3, 3, 0, 0]}
-                    activeBar={false}
-                  />
-                  <Bar dataKey="thisMonth" name="This month" barSize={6} radius={[3, 3, 0, 0]} activeBar={false}>
-                    {mtdDailyCompare.map((row, idx) => (
-                      <Cell
-                        key={`mtd-this-${idx}`}
-                        fill={(row.thisMonth ?? 0) >= effectiveTargets.daily ? CHART_COLORS.trendLine : CHART_COLORS.accentSoft}
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <div className="chart-empty">No data yet</div>
-          )}
-        </div>
-        <div className="card card-heatmap">
-          <h2>Daily Activity</h2>
-          <p className="chart-subtitle">
-            {monthHeatmap ? `${MONTH_NAMES[monthHeatmap.month]} ${String(monthHeatmap.year).slice(2)}` : "This month"}
-          </p>
-          <div className="heatmap-weekdays">
-            {["S", "M", "T", "W", "T", "F", "S"].map((d) => (
-              <div key={d} className="heatmap-weekday">
-                {d}
-              </div>
-            ))}
-          </div>
-          <div className="heatmap-grid">
-            {monthHeatmap?.cells.map((cell, idx) => {
-              if (!cell.dayNum) return <div key={`empty-${idx}`} className="heatmap-cell heatmap-empty" />;
-              if (cell.dayNum > monthHeatmap.todayDay) {
-                return (
-                  <div key={cell.day} className="heatmap-cell heatmap-future" title={`${cell.day}: future`}>
-                    <span>{cell.dayNum}</span>
-                  </div>
-                );
-              }
-              // Keep a neutral-to-green default heatmap scale across themes.
-              // 0 -> neutral, 1-12 -> light green, 13-24 -> medium green, 25-35 -> strong green, >35 -> peak green.
-              let level = 0;
-              if (cell.value > 35) level = 4;
-              else if (cell.value >= 25) level = 3;
-              else if (cell.value >= 13) level = 2;
-              else if (cell.value >= 1) level = 1;
-              const isToday = monthHeatmap.todayIso === cell.day;
-              return (
-                <div
-                  key={cell.day}
-                  className={`heatmap-cell heatmap-${level}${isToday ? " heatmap-today" : ""}`}
-                  title={`${cell.day}: ${cell.value}`}
-                >
-                  <span>{cell.dayNum}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <MonthTargetViewCard
+          mtdStats={mtdStats}
+          mtdDailyCompare={mtdDailyCompare}
+          dailyTarget={effectiveTargets.daily}
+        />
+        <DailyActivityHeatmapCard monthHeatmap={monthHeatmap} />
       </section>
 
       {/* Bottom row: Pending / Referrals / OA / Notes */}
-      <section className="chart-grid chart-grid-four dashboard-bottom-panels">
-        <div className="card pending-list-card dashboard-panel dashboard-panel--pending">
-          <h2>Pending</h2>
-          <p className="chart-subtitle">Outstanding items</p>
-          <div className="dashboard-panel-body">
-            <PendingPreview />
+      {isMobileDashboard ? (
+        <section className="chart-grid chart-grid-four dashboard-bottom-panels dashboard-bottom-panels--mobile">
+          <div className="dashboard-mobile-panel-tabs" role="tablist" aria-label="Dashboard sections">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mobileDashboardPanel === "pending"}
+              className={`dashboard-mobile-panel-tab${mobileDashboardPanel === "pending" ? " is-active" : ""}`}
+              onClick={() => setMobileDashboardPanel("pending")}
+            >
+              Pending
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mobileDashboardPanel === "referrals"}
+              className={`dashboard-mobile-panel-tab${mobileDashboardPanel === "referrals" ? " is-active" : ""}`}
+              onClick={() => setMobileDashboardPanel("referrals")}
+            >
+              Referrals
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mobileDashboardPanel === "oa"}
+              className={`dashboard-mobile-panel-tab${mobileDashboardPanel === "oa" ? " is-active" : ""}`}
+              onClick={() => setMobileDashboardPanel("oa")}
+            >
+              OA
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mobileDashboardPanel === "notes"}
+              className={`dashboard-mobile-panel-tab${mobileDashboardPanel === "notes" ? " is-active" : ""}`}
+              onClick={() => setMobileDashboardPanel("notes")}
+            >
+              Notes
+            </button>
           </div>
-        </div>
-        <div className="card dashboard-panel dashboard-panel--referrals">
-          <h2>Referrals</h2>
-          <p className="chart-subtitle">Open referral requests</p>
-          <div className="dashboard-panel-body">
-            <ReferralsPreview />
+          <div className="card pending-list-card dashboard-panel dashboard-panel--mobile-active">
+            <h2>
+              {mobileDashboardPanel === "pending"
+                ? "Pending"
+                : mobileDashboardPanel === "referrals"
+                  ? "Referrals"
+                  : mobileDashboardPanel === "oa"
+                    ? "OA Received"
+                    : "Notes"}
+            </h2>
+            <p className="chart-subtitle">
+              {mobileDashboardPanel === "pending"
+                ? "Outstanding items"
+                : mobileDashboardPanel === "referrals"
+                  ? "Open referral requests"
+                  : mobileDashboardPanel === "oa"
+                    ? "Active online assessments"
+                    : "Recent activity"}
+            </p>
+            <div className="dashboard-panel-body">
+              {mobileDashboardPanel === "pending" ? <PendingPreview /> : null}
+              {mobileDashboardPanel === "referrals" ? <ReferralsPreview /> : null}
+              {mobileDashboardPanel === "oa" ? <OaPreview /> : null}
+              {mobileDashboardPanel === "notes" ? <NotesPreview /> : null}
+            </div>
           </div>
-        </div>
-        <div className="card dashboard-panel dashboard-panel--oa">
-          <h2>OA Received</h2>
-          <p className="chart-subtitle">Active online assessments</p>
-          <div className="dashboard-panel-body">
-            <OaPreview />
+        </section>
+      ) : (
+        <section className="chart-grid chart-grid-four dashboard-bottom-panels">
+          <div className="card pending-list-card dashboard-panel dashboard-panel--pending">
+            <h2>Pending</h2>
+            <p className="chart-subtitle">Outstanding items</p>
+            <div className="dashboard-panel-body">
+              <PendingPreview />
+            </div>
           </div>
-        </div>
-        <div className="card dashboard-panel dashboard-panel--notes">
-          <h2>Notes</h2>
-          <p className="chart-subtitle">Recent activity</p>
-          <div className="dashboard-panel-body">
-            <NotesPreview />
+          <div className="card dashboard-panel dashboard-panel--referrals">
+            <h2>Referrals</h2>
+            <p className="chart-subtitle">Open referral requests</p>
+            <div className="dashboard-panel-body">
+              <ReferralsPreview />
+            </div>
           </div>
-        </div>
-      </section>
+          <div className="card dashboard-panel dashboard-panel--oa">
+            <h2>OA Received</h2>
+            <p className="chart-subtitle">Active online assessments</p>
+            <div className="dashboard-panel-body">
+              <OaPreview />
+            </div>
+          </div>
+          <div className="card dashboard-panel dashboard-panel--notes">
+            <h2>Notes</h2>
+            <p className="chart-subtitle">Recent activity</p>
+            <div className="dashboard-panel-body">
+              <NotesPreview />
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="chart-grid chart-grid-trend">
         <div className="card">
           <h2>Weekly Applications</h2>
           <p className="chart-subtitle">Last 12 weeks</p>
           {(summary.weeklyTrend?.length ?? 0) > 0 ? (
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer width="100%" height={isMobileDashboard ? 190 : 220}>
               <ComposedChart data={summary.weeklyTrend} margin={{ top: 16, right: 24, left: 8, bottom: 8 }}>
                 <defs>
                   <linearGradient id="weeklyArea" x1="0" y1="0" x2="0" y2="1">
@@ -1594,6 +1172,6 @@ export default function DashboardPage() {
         </div>
       </section>
 
-    </>
+    </div>
   );
 }

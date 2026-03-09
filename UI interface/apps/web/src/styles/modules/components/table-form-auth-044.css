@@ -1,0 +1,221 @@
+
+.extension-install-actions {
+  margin-top: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.extension-install-preview {
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 74%, transparent);
+  background: color-mix(in srgb, var(--bg-card) 88%, transparent);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.extension-install-preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.extension-install-preview-head strong {
+  color: var(--text-primary);
+  font-size: 0.92rem;
+  letter-spacing: -0.01em;
+}
+
+.extension-install-version {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 40%, transparent);
+  background: color-mix(in srgb, var(--brand-primary) 10%, transparent);
+  color: color-mix(in srgb, var(--brand-primary) 84%, #7ab2ff);
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 5px 8px;
+  white-space: nowrap;
+}
+
+.extension-install-version-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #5ea8ff 0%, #2563eb 100%);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-primary) 14%, transparent);
+  flex-shrink: 0;
+}
+
+.extension-install-preview-list {
+  display: grid;
+  gap: 10px;
+}
+
+.extension-install-preview-list div {
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 68%, transparent);
+  background: color-mix(in srgb, var(--bg-card-elevated) 74%, transparent);
+  padding: 10px;
+  display: grid;
+  gap: 4px;
+}
+
+.extension-install-preview-list small {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+
+.extension-install-preview-list strong {
+  color: var(--text-primary);
+  font-size: 0.87rem;
+  line-height: 1.35;
+  font-weight: 600;
+}
+
+.extension-install-grid {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.extension-install-visuals {
+  margin-top: 14px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 72%, transparent);
+  background: color-mix(in srgb, var(--bg-card) 88%, transparent);
+  padding: 16px;
+}
+
+.extension-install-visuals-head {
+  display: grid;
+  gap: 4px;
+}
+
+.extension-install-visuals-head h2 {
+  margin: 0;
+}
+
+.extension-install-visuals-head p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.extension-install-visual-grid {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.extension-install-shot {
+  margin: 0;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 68%, transparent);
+  background: transparent;
+  overflow: hidden;
+}
+
+.extension-install-shot-label {
+  padding: 9px 10px 8px;
+  display: grid;
+  gap: 2px;
+  border-bottom: 1px solid color-mix(in srgb, var(--bg-card-border) 62%, transparent);
+  background: transparent;
+}
+
+.extension-install-shot-label span {
+  color: var(--brand-primary);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.extension-install-shot-label strong {
+  color: var(--text-primary);
+  font-size: 0.86rem;
+  line-height: 1.3;
+}
+
+.extension-install-shot img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+.extension-install-shot-image-link {
+  display: block;
+}
+
+.extension-install-shot-image-link:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--brand-primary) 72%, transparent);
+  outline-offset: -2px;
+}
+
+.extension-install-shot figcaption {
+  margin: 0;
+  padding: 8px 10px 10px;
+  display: grid;
+  gap: 6px;
+  background: transparent;
+}
+
+.extension-install-shot figcaption p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.83rem;
+  line-height: 1.4;
+}
+
+.extension-install-shot-open-link {
+  color: var(--brand-primary);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  width: fit-content;
+}
+
+.extension-install-shot-open-link:hover {
+  text-decoration: underline;
+}
+
+.extension-install-panel {
+  margin-top: 0;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 72%, transparent);
+  background: color-mix(in srgb, var(--bg-card) 88%, transparent);
+  padding: 16px;
+}
+
+.extension-install-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 9px;
+}
+
+.extension-install-list li {
+  border-radius: 11px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 66%, transparent);
+  background: color-mix(in srgb, var(--bg-card-elevated) 70%, transparent);
+  padding: 10px 11px;
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  align-items: start;
+  gap: 10px;
+}

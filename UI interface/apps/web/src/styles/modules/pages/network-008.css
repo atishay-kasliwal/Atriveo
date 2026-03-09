@@ -1,0 +1,227 @@
+
+.network-ticker-overlay--above {
+  margin: 2px 2px 10px;
+  padding-bottom: 0;
+}
+
+.network-ticker-track {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: 42px;
+  background: transparent;
+}
+
+.network-ticker-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 18px 0 14px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #02131a;
+  text-shadow: none;
+  background: #3385ff;
+  clip-path: polygon(0 0, 92% 0, 100% 50%, 92% 100%, 0 100%);
+}
+
+.network-ticker-tag::before {
+  content: none;
+}
+
+.network-ticker-marquee-wrap {
+  position: relative;
+  overflow: hidden;
+  flex: 1;
+  min-width: 0;
+  mask-image: linear-gradient(90deg, transparent 0, #000 5%, #000 95%, transparent 100%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 5%, #000 95%, transparent 100%);
+}
+
+.network-ticker-marquee {
+  display: inline-flex;
+  gap: 0;
+  min-width: max-content;
+  white-space: nowrap;
+  color: rgba(248, 250, 252, 0.96);
+  font-size: 0.89rem;
+  font-weight: 500;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.48);
+  will-change: transform;
+  animation: networkTickerScroll 58s linear infinite;
+}
+
+.network-ticker-group {
+  display: inline-flex;
+  align-items: center;
+}
+
+.network-ticker-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 0;
+  padding: 0 18px;
+  border: 0;
+  margin-right: 0;
+  line-height: 1;
+  white-space: nowrap;
+  background: transparent;
+  box-shadow: none;
+}
+
+.network-ticker-item:not(:last-child) {
+  border-right: 1px solid rgba(148, 163, 184, 0.32);
+}
+
+.network-ticker-item::after {
+  content: none;
+}
+
+.network-ticker-emoji {
+  font-size: 0.82rem;
+  line-height: 1;
+  color: #f8fafc;
+  opacity: 0.95;
+}
+
+.network-ticker-label {
+  font-weight: 500;
+  color: #9ca3af;
+}
+
+.network-ticker-value {
+  font-weight: 700;
+  color: #e5e7eb;
+}
+
+.network-ticker-item--gold {
+  color: inherit;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.network-ticker-item--blue {
+  color: inherit;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.network-add-friends-btn {
+  width: fit-content;
+  justify-self: end;
+  height: auto;
+  border-radius: 0;
+  border: 0;
+  background: transparent;
+  color: #3385ff;
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  padding: 0 8px;
+  box-shadow: none;
+  text-shadow: none;
+  transition: color 0.15s ease, opacity 0.15s ease;
+}
+
+.network-add-friends-btn:hover {
+  color: #bae6fd;
+}
+
+.network-add-friends-btn:focus-visible {
+  outline: 2px solid rgba(51, 133, 255, 0.45);
+  outline-offset: 2px;
+}
+
+.network-add-friends-btn:active {
+  opacity: 0.9;
+}
+
+.network-ticker-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.network-field-visibility-btn {
+  width: fit-content;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--bg-card-border));
+  background: color-mix(in srgb, var(--bg-card-elevated) 88%, transparent);
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  padding: 0 12px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+.network-field-visibility-btn:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--bg-card-border));
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-card));
+  color: var(--text-primary);
+}
+
+.network-field-visibility-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 36%, transparent);
+  outline-offset: 2px;
+}
+
+.network-not-shared {
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.network-shared-fields-modal {
+  max-width: 820px;
+  border-radius: 14px;
+  padding: 24px;
+}
+
+.network-shared-fields-close {
+  top: 14px;
+  right: 14px;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.network-shared-fields-close svg {
+  width: 16px;
+  height: 16px;
+}
+
+.network-shared-fields-header h3 {
+  margin: 0;
+  padding-right: 32px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+.network-shared-fields-header p {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+.network-shared-fields-grid {
+  margin-top: 20px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+  gap: 28px;
+}

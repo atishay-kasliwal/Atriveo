@@ -1,0 +1,230 @@
+
+:root[data-theme="light"] .dashboard-set-target-btn {
+  background: #f8fafc;
+  color: #334155;
+  border-color: #d4dfec;
+}
+
+:root[data-theme="light"] .dashboard-set-target-btn:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #1e293b;
+}
+
+:root[data-theme="light"] .table-wrap {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+:root[data-theme="light"] .table-wrap table {
+  border-spacing: 0;
+}
+
+:root[data-theme="light"] .table-wrap thead th {
+  background: #f8fafc;
+  color: #475569;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  padding: 10px 10px;
+}
+
+:root[data-theme="light"] .table-wrap tbody td {
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  color: #0f172a;
+  padding: 10px 10px;
+}
+
+:root[data-theme="light"] .table-wrap tbody tr:nth-child(odd) td {
+  background: #ffffff;
+}
+
+:root[data-theme="light"] .table-wrap tbody tr:hover td {
+  background: #f8fbff;
+}
+
+:root[data-theme="light"] .th-sort {
+  color: #475569;
+}
+
+:root[data-theme="light"] .th-sort:hover {
+  color: #1e293b;
+}
+
+:root[data-theme="light"] .jobs-table td.jobs-col-no {
+  color: #475569;
+  font-weight: 600;
+}
+
+:root[data-theme="light"] .jobs-table tbody tr td:nth-child(2)::before {
+  width: 2px;
+  background: #cbd5e1;
+}
+
+:root[data-theme="light"] .jobs-table tbody tr.data-referral td:nth-child(2)::before {
+  background: #22c55e;
+}
+
+:root[data-theme="light"] .jobs-table tbody tr.data-rejected td:nth-child(2)::before {
+  background: #ef4444;
+}
+
+:root[data-theme="light"] .jobs-table tbody tr.data-pending td:nth-child(2)::before {
+  background: #f59e0b;
+}
+
+:root[data-theme="light"] .jobs-table tbody tr.data-no td:nth-child(2)::before {
+  background: #60a5fa;
+}
+
+:root[data-theme="light"] .job-company {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+:root[data-theme="light"] .job-role {
+  color: #64748b;
+}
+
+:root[data-theme="light"] .table-link {
+  color: #1d4ed8;
+  font-weight: 500;
+}
+
+:root[data-theme="light"] .row-actions {
+  opacity: 1;
+  gap: 6px;
+}
+
+:root[data-theme="light"] .row-actions .action-btn {
+  padding: 6px 10px;
+  border-radius: 9px;
+  background: #f8fafc;
+  border-color: #dbe4f0;
+  color: #334155;
+  box-shadow: none;
+}
+:root[data-theme="light"] .row-actions .action-btn:hover:not(:disabled) {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  transform: none;
+}
+
+:root[data-theme="light"] .status-chip {
+  border-color: #dbe4f0;
+  background: #f8fafc;
+  color: #475569;
+}
+
+:root[data-theme="light"] .status-chip--applied {
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+  background: #eff6ff;
+}
+
+:root[data-theme="light"] .status-chip--review {
+  border-color: #fde68a;
+  color: #a16207;
+  background: #fffbeb;
+}
+
+:root[data-theme="light"] .status-chip--open {
+  border-color: #bbf7d0;
+  color: #15803d;
+  background: #f0fdf4;
+}
+
+:root[data-theme="light"] .status-chip--done {
+  border-color: #dbe4f0;
+  color: #475569;
+  background: #f8fafc;
+}
+
+:root[data-theme="light"] .status-chip--rejected {
+  border-color: #fecaca;
+  color: #b91c1c;
+  background: #fef2f2;
+}
+
+:root[data-theme="light"] .status-chip--keyword-strong {
+  border-color: #bbf7d0;
+  color: #166534;
+  background: #f0fdf4;
+}
+
+:root[data-theme="light"] .status-chip--keyword-medium {
+  border-color: #fde68a;
+  color: #92400e;
+  background: #fffbeb;
+}
+
+:root[data-theme="light"] .status-chip--keyword-week {
+  border-color: #fed7aa;
+  color: #9a3412;
+  background: #fff7ed;
+}
+
+:root[data-theme="light"] .pending-card {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+:root[data-theme="light"] .dashboard-bottom-panels--pending .dashboard-panel--pending {
+  background: #ffffff;
+  border-color: #bfdbfe;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.08);
+}
+
+:root[data-theme="light"] .dashboard-bottom-panels--notes .dashboard-panel--notes {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+:root[data-theme="light"] .dashboard-bottom-panels--notes .notes-preview-card {
+  background: #ffffff;
+  border-color: #e2e8f0;
+}
+
+:root[data-theme="light"] .pending-due-line {
+  color: #475569;
+}
+
+:root[data-theme="light"] .pending-due-line strong {
+  color: #0f172a;
+}
+
+:root[data-theme="light"] .pending-due-line--overdue strong {
+  color: #b91c1c;
+}
+
+:root[data-theme="light"] .pending-card--clickable:hover {
+  border-color: #cbd5e1;
+  background: #f8fbff;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
+}
+
+:root[data-theme="light"] .pending-card-company {
+  color: #0f172a;
+  font-size: 1.05rem;
+}
+
+:root[data-theme="light"] .pending-card-role {
+  color: #64748b;
+  font-size: 0.94rem;
+}
+
+:root[data-theme="light"] .pending-card-date {
+  color: #475569;
+  background: #f8fafc;
+}
+
+:root[data-theme="light"] .pending-message-box {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  color: #0f172a;
+}

@@ -1,57 +1,7 @@
 import { useEffect, useMemo } from "react";
 import type { NetworkFieldVisibility } from "../../lib/api";
-
-const FIELD_META: Record<
-  keyof NetworkFieldVisibility,
-  { label: string; description: string }
-> = {
-  share_company: {
-    label: "Company",
-    description: "Company names are always shown for context",
-  },
-  share_role: {
-    label: "Role",
-    description: "Role titles are always shown for context",
-  },
-  share_applied_at: {
-    label: "Applied Date",
-    description: "Application date is always shown for trend consistency",
-  },
-  share_oa_status: {
-    label: "OA Status",
-    description: "See if friends passed the online assessment",
-  },
-  share_oa_deadline: {
-    label: "OA Deadline",
-    description: "Know upcoming deadlines friends are preparing for",
-  },
-  share_referral_used: {
-    label: "Referral Used",
-    description: "Understand where referrals are helping",
-  },
-  share_notes: {
-    label: "Notes",
-    description: "Share personal notes about the application",
-  },
-  share_job_application_id: {
-    label: "Job/Application ID",
-    description: "Let friends see your job or application IDs for reference",
-  },
-};
-
-const ALWAYS_SHARED_ORDER: Array<keyof NetworkFieldVisibility> = [
-  "share_company",
-  "share_role",
-  "share_applied_at",
-  "share_job_application_id",
-];
-
-const OPTIONAL_ORDER: Array<keyof NetworkFieldVisibility> = [
-  "share_oa_status",
-  "share_oa_deadline",
-  "share_referral_used",
-  "share_notes",
-];
+import { CloseGlyph, InfoGlyph, LockGlyph } from "./SharedFieldIcons";
+import { ALWAYS_SHARED_ORDER, FIELD_META, OPTIONAL_ORDER } from "./sharedFieldsConfig";
 
 type ManageSharedFieldsModalProps = {
   open: boolean;
@@ -63,39 +13,6 @@ type ManageSharedFieldsModalProps = {
   onSave: () => void;
   onToggle: (key: keyof NetworkFieldVisibility, value: boolean) => void;
 };
-
-function LockGlyph() {
-  return (
-    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-      <path
-        d="M6.75 8V6.875a3.25 3.25 0 1 1 6.5 0V8h.75A1.75 1.75 0 0 1 15.75 9.75v5.5A1.75 1.75 0 0 1 14 17H6A1.75 1.75 0 0 1 4.25 15.25v-5.5A1.75 1.75 0 0 1 6 8h.75Zm1.5 0h3.5V6.875a1.75 1.75 0 1 0-3.5 0V8Z"
-        fill="currentColor"
-      />
-    </svg>
-  );
-}
-
-function InfoGlyph() {
-  return (
-    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-      <path
-        d="M10 1.5A8.5 8.5 0 1 0 10 18.5A8.5 8.5 0 1 0 10 1.5Zm0 3.75a1.1 1.1 0 1 1 0 2.2a1.1 1.1 0 1 1 0-2.2Zm-1.2 4.2h2.4v5.3H8.8v-5.3Z"
-        fill="currentColor"
-      />
-    </svg>
-  );
-}
-
-function CloseGlyph() {
-  return (
-    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-      <path
-        d="M5.47 4.41a.75.75 0 0 0-1.06 1.06L8.94 10l-4.53 4.53a.75.75 0 1 0 1.06 1.06L10 11.06l4.53 4.53a.75.75 0 0 0 1.06-1.06L11.06 10l4.53-4.53a.75.75 0 0 0-1.06-1.06L10 8.94L5.47 4.41Z"
-        fill="currentColor"
-      />
-    </svg>
-  );
-}
 
 export default function ManageSharedFieldsModal({
   open,

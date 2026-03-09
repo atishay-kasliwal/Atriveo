@@ -1,156 +1,216 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import {
-  Area,
-  Bar,
-  CartesianGrid,
-  Cell,
-  ComposedChart,
-  LabelList,
-  Line,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import Spinner from "../components/Spinner";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import useConfirmDialog from "../components/ui/useConfirmDialog";
-import { formatTableDateTime } from "../lib/formatDate";
 import {
+  createReferral,
   deleteJob,
   deleteOaArchive,
+  getDashboardSummary,
   getJobs,
   getJobsTrend,
   getOaArchive,
+  getReferrals,
+  getTargetProgress,
   updateJob,
   updateOaArchive,
   type JobsTrendData,
 } from "../lib/api";
+import { formatTableDate, formatTableDateTime, getLocalISODate } from "../lib/formatDate";
 import {
   ANALYTICS_EVENTS,
   trackErrorEvent,
   trackFeatureEvent,
   trackProductEvent,
 } from "../analytics/events";
+import {
+  APPLICATION_PIPELINE_STAGES,
+  BASE_SORT_CONFIG,
+  CARD_LIMIT,
+  LIMIT,
+} from "./jobs/constants";
+import ActiveJobsBoard from "./jobs/components/ActiveJobsBoard";
+import AddReferralModal from "./jobs/components/activeBoard/AddReferralModal";
+import EditJobModal from "./jobs/components/EditJobModal";
+import EditOaModal from "./jobs/components/EditOaModal";
+import JobsTable from "./jobs/components/JobsTable";
+import OaArchiveTable from "./jobs/components/OaArchiveTable";
+import JobsTrendCharts from "./jobs/components/JobsTrendCharts";
+import type {
+  SortField,
+  SortOrder,
+  ToolbarBooleanFilter,
+  ToolbarStageFilter,
+  ToolbarStatusFilter,
+  ToolbarTimeRange,
+} from "./jobs/types";
+import {
+  capitalizeFirst,
+  formatDayShort,
+  getOaResultLabel,
+  normalizeOaStatus,
+  normalizeReferralStatus,
+} from "./jobs/utils/formatters";
+import { buildPaginationItems } from "./jobs/utils/pagination";
+import { compareJobs } from "./jobs/utils/sort";
+import { getKeywordMeta, getStatusMeta } from "./jobs/utils/tableMeta";
 
-const LIMIT = 25;
-const REFERRAL_OPTIONS = ["", "Requested", "Yes", "No"];
+type DashboardStage = (typeof APPLICATION_PIPELINE_STAGES)[number];
 
-function normalizeReferralStatus(value: unknown): "Requested" | "Yes" | "No" | "" {
-  const raw = String(value ?? "").trim().toLowerCase();
-  if (!raw) return "";
-  if (raw === "requested") return "Requested";
-  if (raw === "yes") return "Yes";
-  return "No";
-}
-
-function normalizeOaStatus(value: unknown): "Yes" | "No" {
-  const raw = String(value ?? "").trim().toLowerCase();
-  if (raw === "yes" || raw === "pending" || raw === "completed" || raw === "complete" || raw === "done" || raw === "missed" || raw === "missing" || raw === "overdue") return "Yes";
-  return "No";
-}
-
-function getOaResultLabel(row: Record<string, unknown>): "Pending" | "Completed" | "Missed" {
-  const explicit = String((row as any).oa_result ?? "").trim();
-  if (explicit === "Pending") return "Pending";
-  if (explicit === "Missed") return "Missed";
-  if (explicit === "Completed") return "Completed";
-  const source = String(row.source ?? "").toLowerCase();
-  if (source.includes("missed")) return "Missed";
-  const deadline = String(row.oa_deadline_date ?? "").trim();
-  if (deadline) {
-    const d = new Date(`${deadline}T00:00:00`);
-    if (!Number.isNaN(d.getTime())) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      if (d < today) return "Missed";
-    }
-  }
-  return "Completed";
-}
-
-type SortField = "date_saved" | "applied_at" | "company" | "role" | "referral_status" | "job_link";
-type SortOrder = "asc" | "desc";
-
-const BASE_SORT_CONFIG: { key: SortField; label: string }[] = [
-  { key: "applied_at", label: "Applied At" },
-  { key: "company", label: "Company" },
-  { key: "role", label: "Position" },
-  { key: "referral_status", label: "Referral" },
-  { key: "job_link", label: "Link" },
-];
-
-function compareJobs(
-  a: Record<string, unknown>,
-  b: Record<string, unknown>,
-  field: SortField,
-  order: SortOrder,
-  useArchiveDate: boolean,
-): number {
-  const avRaw = a[field];
-  const bvRaw = b[field];
-  const av =
-    field === "date_saved" && useArchiveDate
-      ? // prefer archive_date when present for archive view
-        ((a as any).archive_date ?? avRaw)
-      : avRaw;
-  const bv =
-    field === "date_saved" && useArchiveDate
-      ? ((b as any).archive_date ?? bvRaw)
-      : bvRaw;
-  const empty = (v: unknown) => v == null || v === "";
-  if (empty(av) && empty(bv)) return 0;
-  if (empty(av)) return order === "asc" ? 1 : -1;
-  if (empty(bv)) return order === "asc" ? -1 : 1;
-  if (field === "date_saved" || field === "applied_at") {
-    const da = new Date(String(av)).getTime();
-    const db = new Date(String(bv)).getTime();
-    return order === "asc" ? da - db : db - da;
-  }
-  const sa = String(av).toLowerCase();
-  const sb = String(bv).toLowerCase();
-  const cmp = sa.localeCompare(sb);
-  return order === "asc" ? cmp : -cmp;
-}
-
-// Theme-aware chart tokens used only on Jobs page charts.
-const CHART_COLORS = {
-  applied: "#2563eb",
-  rejected: "#0ea5e9",
-  grid: "var(--chart-grid)",
-  tooltipBg: "var(--chart-tooltip-bg)",
-  tooltipBorder: "var(--chart-tooltip-border)",
-  axis: "var(--chart-axis)",
-  text: "var(--chart-text)",
-  textSecondary: "var(--chart-text-secondary)",
+type ActiveCard = {
+  id: number | string;
+  company: string;
+  role: string;
+  appliedDate: string;
+  appliedDateTime: string;
+  referredBy: string;
+  jobId: string;
+  keywordMatch: string;
+  progress: number;
+  jobLink: string;
+  raw: Record<string, unknown>;
 };
 
-function parseIsoDay(day: string): { y: number; m: number; d: number } | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day);
-  if (!m) return null;
-  const y = Number(m[1]);
-  const month = Number(m[2]);
-  const d = Number(m[3]);
-  if (!y || month < 1 || month > 12 || d < 1 || d > 31) return null;
-  return { y, m: month, d };
+type ActiveReferralRow = {
+  id: number | string;
+  name: string;
+  company: string;
+  role: string;
+};
+
+type ActiveWeeklyCount = {
+  week: string;
+  count: number;
+};
+
+type ActiveDailyCount = {
+  day: string;
+  count: number;
+  iso: string;
+};
+
+type ActiveInsightsState = {
+  weeklyCounts: ActiveWeeklyCount[];
+  totalApplications: number;
+  averagePerWeek: string;
+  peakWeekLabel: string;
+  currentWeekDailyCounts: ActiveDailyCount[];
+  thisWeekTotal: number;
+  previousWeekTotal: number;
+  bestDay: string;
+  targetCount: number;
+  targetProgressPercent: number;
+};
+
+const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+function isDashboardStage(value: string): value is DashboardStage {
+  return (APPLICATION_PIPELINE_STAGES as readonly string[]).includes(value);
 }
 
-function formatDayShort(day: string) {
-  try {
-    const p = parseIsoDay(day);
-    if (!p) return day;
-    return `${String(p.m).padStart(2, "0")}/${String(p.d).padStart(2, "0")}`;
-  } catch {
-    return day;
+function deriveDashboardStage(job: Record<string, unknown>): DashboardStage {
+  const fromApi = String((job as any).dashboard_stage ?? "").trim();
+  if (isDashboardStage(fromApi)) return fromApi;
+
+  const applicationStatus = String(job.application_status ?? "").trim().toLowerCase();
+  const responseStatus = String(job.response_status ?? "").trim().toLowerCase();
+  const oaStatus = String((job as any).oa_status ?? "").trim().toLowerCase();
+
+  if (["rejected", "archive", "archived"].includes(applicationStatus)) return "Archive";
+  if (applicationStatus === "offer" || responseStatus === "offer") return "Offer";
+  if (applicationStatus === "interview" || responseStatus === "interview") return "Interview";
+  if (oaStatus === "yes") return "OA";
+  return "Applied";
+}
+
+function getStageProgress(stage: DashboardStage): number {
+  const idx = APPLICATION_PIPELINE_STAGES.indexOf(stage);
+  return idx >= 0 ? idx : 0;
+}
+
+function parseLocalIsoDate(input: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input)) return null;
+  const parsed = new Date(`${input}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed;
+}
+
+function getMondayStart(date: Date): Date {
+  const copy = new Date(date);
+  copy.setHours(0, 0, 0, 0);
+  const day = copy.getDay();
+  const delta = (day + 6) % 7;
+  copy.setDate(copy.getDate() - delta);
+  return copy;
+}
+
+function formatWeekLabel(isoDay: string): string {
+  return formatDayShort(isoDay);
+}
+
+function buildDefaultWeeklyCounts(anchorIso: string): ActiveWeeklyCount[] {
+  const anchor = parseLocalIsoDate(anchorIso) ?? new Date();
+  const weekStart = getMondayStart(anchor);
+  const weekly: ActiveWeeklyCount[] = [];
+  for (let i = 4; i >= 0; i -= 1) {
+    const weekDate = new Date(weekStart);
+    weekDate.setDate(weekStart.getDate() - i * 7);
+    const iso = getLocalISODate(weekDate);
+    weekly.push({ week: formatWeekLabel(iso), count: 0 });
   }
+  return weekly;
+}
+
+function buildCurrentWeekDailyCounts(
+  dailyTrend: Array<{ day: string; total: number }>,
+  anchorIso: string,
+): ActiveDailyCount[] {
+  const dayMap = new Map<string, number>();
+  for (const row of dailyTrend) {
+    dayMap.set(String(row.day), Number(row.total ?? 0));
+  }
+
+  const anchor = parseLocalIsoDate(anchorIso) ?? new Date();
+  const weekStart = getMondayStart(anchor);
+
+  return WEEKDAY_LABELS.map((label, idx) => {
+    const date = new Date(weekStart);
+    date.setDate(weekStart.getDate() + idx);
+    const iso = getLocalISODate(date);
+    return {
+      day: label,
+      count: dayMap.get(iso) ?? 0,
+      iso,
+    };
+  });
+}
+
+function initialInsightsState(): ActiveInsightsState {
+  return {
+    weeklyCounts: [],
+    totalApplications: 0,
+    averagePerWeek: "0.0",
+    peakWeekLabel: "— (0)",
+    currentWeekDailyCounts: [],
+    thisWeekTotal: 0,
+    previousWeekTotal: 0,
+    bestDay: "Mon",
+    targetCount: 12,
+    targetProgressPercent: 0,
+  };
 }
 
 export default function JobsPage({ statusFilter }: { statusFilter?: string } = {}) {
+  const location = useLocation();
+  const urlSearchQuery = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return String(params.get("search") ?? "").trim();
+  }, [location.search]);
+
   const [data, setData] = useState<Array<Record<string, unknown>>>([]);
   const [totalRows, setTotalRows] = useState(0);
   const [page, setPage] = useState(1);
-  const [company, setCompany] = useState("");
-  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState(urlSearchQuery);
+  const [searchInput, setSearchInput] = useState(urlSearchQuery);
   const [sortBy, setSortBy] = useState<SortField>("applied_at");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const [error, setError] = useState("");
@@ -201,16 +261,307 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
   });
   const [isOaSaving, setIsOaSaving] = useState(false);
   const [oaDeletingId, setOaDeletingId] = useState<number | string | null>(null);
+
   const { confirm, confirmDialog } = useConfirmDialog();
 
+  const [cardSearch, setCardSearch] = useState("");
+  const [debouncedCardSearch, setDebouncedCardSearch] = useState("");
+  const [cardTimeRange, setCardTimeRange] = useState<ToolbarTimeRange>("7");
+  const [cardReferralFilter, setCardReferralFilter] = useState<ToolbarBooleanFilter>("all");
+  const [cardOaFilter, setCardOaFilter] = useState<ToolbarBooleanFilter>("all");
+  const [cardStatusFilter, setCardStatusFilter] = useState<ToolbarStatusFilter>("active");
+  const [cardStageFilter, setCardStageFilter] = useState<ToolbarStageFilter>("All");
+  const [cardPage, setCardPage] = useState(1);
+  const [referralSearch, setReferralSearch] = useState("");
+  const [debouncedReferralSearch, setDebouncedReferralSearch] = useState("");
+  const [activeSmartView, setActiveSmartView] = useState<"default" | "interview" | "referral" | null>("default");
+
+  const [activeCards, setActiveCards] = useState<ActiveCard[]>([]);
+  const [activeCardsTotal, setActiveCardsTotal] = useState(0);
+  const [isLoadingActiveCards, setIsLoadingActiveCards] = useState(true);
+  const [activeCardsError, setActiveCardsError] = useState("");
+
+  const [activeReferrals, setActiveReferrals] = useState<ActiveReferralRow[]>([]);
+  const [activeReferralTotal, setActiveReferralTotal] = useState(0);
+  const [isLoadingActiveReferrals, setIsLoadingActiveReferrals] = useState(true);
+  const [activeReferralsError, setActiveReferralsError] = useState("");
+
+  const [activeInsights, setActiveInsights] = useState<ActiveInsightsState>(() => initialInsightsState());
+  const [isLoadingActiveInsights, setIsLoadingActiveInsights] = useState(true);
+  const [activeInsightsError, setActiveInsightsError] = useState("");
+
+  const [showAddReferralModal, setShowAddReferralModal] = useState(false);
+  const [isAddingReferral, setIsAddingReferral] = useState(false);
+  const [addReferralError, setAddReferralError] = useState("");
+  const [addReferralForm, setAddReferralForm] = useState({
+    name: "",
+    company: "",
+    role: "",
+  });
+
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const activeCardsRequestIdRef = useRef(0);
+
+  useEffect(() => {
+    const trimmed = cardSearch.trim();
+    if (!trimmed) {
+      setDebouncedCardSearch("");
+      return;
+    }
+    if (trimmed.length < 3) {
+      setDebouncedCardSearch("");
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setDebouncedCardSearch(trimmed);
+    }, 180);
+    return () => window.clearTimeout(timer);
+  }, [cardSearch]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedReferralSearch(referralSearch.trim());
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [referralSearch]);
+
+  useEffect(() => {
+    setCardPage(1);
+  }, [debouncedCardSearch, cardTimeRange, cardReferralFilter, cardOaFilter, cardStatusFilter, cardStageFilter]);
+
+  useEffect(() => {
+    function onSlashFocusSearch(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      const tag = target?.tagName.toLowerCase();
+      const isEditingContext = tag === "input" || tag === "textarea" || tag === "select" || target?.isContentEditable;
+      if (isEditingContext) return;
+      const slashPressed = event.key === "/";
+      const commandKPressed = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k";
+      if (!slashPressed && !commandKPressed) return;
+      event.preventDefault();
+      searchInputRef.current?.focus();
+      searchInputRef.current?.select();
+    }
+    window.addEventListener("keydown", onSlashFocusSearch);
+    return () => window.removeEventListener("keydown", onSlashFocusSearch);
+  }, []);
+
+  function applyDefaultCardFilters() {
+    setCardSearch("");
+    setCardTimeRange("7");
+    setCardReferralFilter("all");
+    setCardOaFilter("all");
+    setCardStatusFilter("active");
+    setCardStageFilter("All");
+    setCardPage(1);
+    setActiveSmartView("default");
+  }
+
+  function applyInterviewScenario() {
+    setCardSearch("");
+    setCardTimeRange("30");
+    setCardReferralFilter("all");
+    setCardOaFilter("yes");
+    setCardStatusFilter("active");
+    setCardStageFilter("Interview");
+    setCardPage(1);
+    setActiveSmartView("interview");
+  }
+
+  function applyReferralScenario() {
+    setCardSearch("");
+    setCardTimeRange("14");
+    setCardReferralFilter("yes");
+    setCardOaFilter("all");
+    setCardStatusFilter("active");
+    setCardStageFilter("All");
+    setCardPage(1);
+    setActiveSmartView("referral");
+  }
+
+  function clearCardFilters() {
+    setCardSearch("");
+    setCardTimeRange("all");
+    setCardReferralFilter("all");
+    setCardOaFilter("all");
+    setCardStatusFilter("all");
+    setCardStageFilter("All");
+    setCardPage(1);
+    setActiveSmartView(null);
+  }
+
+  const mapJobToActiveCard = useCallback((job: Record<string, unknown>): ActiveCard => {
+    const stage = deriveDashboardStage(job);
+    const progress = getStageProgress(stage);
+
+    const keywordRaw = String((job as any).keyword_matching ?? "").trim();
+    let keywordMatch = "-";
+    if (keywordRaw) {
+      const numeric = Number(keywordRaw);
+      keywordMatch = Number.isFinite(numeric) ? `${Math.round(numeric)}%` : keywordRaw;
+    }
+
+    const appliedValue = (job as any).applied_at ?? job.date_saved;
+    const appliedDateTime = formatTableDateTime(appliedValue);
+    const appliedDate = formatTableDate(appliedValue);
+
+    return {
+      id: (job.id as number | string | undefined) ?? `${String(job.company ?? "job")}-${String(job.role ?? "role")}`,
+      company: String(job.company ?? "-") || "-",
+      role: String(job.role ?? "-") || "-",
+      appliedDate,
+      appliedDateTime,
+      referredBy: String((job as any).referred_by_name ?? "").trim() || "No referral",
+      jobId: String((job as any).job_application_id ?? "-") || "-",
+      keywordMatch,
+      progress,
+      jobLink: String((job as any).job_link ?? "").trim(),
+      raw: job,
+    };
+  }, []);
+
+  const loadActiveCards = useCallback(async () => {
+    if (statusFilter === "rejected") return;
+    const requestId = activeCardsRequestIdRef.current + 1;
+    activeCardsRequestIdRef.current = requestId;
+    try {
+      setActiveCardsError("");
+      setIsLoadingActiveCards(true);
+      const selectedStage = cardStageFilter === "All" ? undefined : cardStageFilter;
+      // Stage dropdown semantics:
+      // - "All"      => show all jobs (active + archive)
+      // - "Applied"  => only active jobs in Applied stage
+      // - "Archive"  => only archived jobs
+      // - "OA/Interview/Offer" => active jobs in those stages
+      const selectedStatus =
+        cardStageFilter === "All" ? "all" : cardStageFilter === "Archive" ? "archive" : "active";
+      const res = await getJobs({
+        page: cardPage,
+        limit: CARD_LIMIT,
+        search: debouncedCardSearch || undefined,
+        status: selectedStatus,
+        stage: selectedStage,
+        sort: "applied_at",
+        order: "desc",
+      });
+      if (requestId !== activeCardsRequestIdRef.current) return;
+      const mapped = (res.data ?? []).map((row) => mapJobToActiveCard(row));
+      const total = Number(res.total ?? 0);
+      setActiveCards(mapped);
+      setActiveCardsTotal(total);
+
+      const maxPage = Math.max(1, Math.ceil(total / CARD_LIMIT));
+      if (cardPage > maxPage) setCardPage(maxPage);
+    } catch (err) {
+      if (requestId !== activeCardsRequestIdRef.current) return;
+      setActiveCardsError((err as Error).message);
+      setActiveCards([]);
+      setActiveCardsTotal(0);
+    } finally {
+      if (requestId !== activeCardsRequestIdRef.current) return;
+      setIsLoadingActiveCards(false);
+    }
+  }, [
+    statusFilter,
+    cardPage,
+    debouncedCardSearch,
+    cardStageFilter,
+    mapJobToActiveCard,
+  ]);
+
+  const loadActiveReferrals = useCallback(async () => {
+    if (statusFilter === "rejected") return;
+    try {
+      setActiveReferralsError("");
+      setIsLoadingActiveReferrals(true);
+      const res = await getReferrals({
+        page: 1,
+        limit: 12,
+        search: debouncedReferralSearch || undefined,
+      });
+      const rows = (res.data ?? []).map((row) => ({
+        id: (row.id as number | string | undefined) ?? `ref-${String(row.company ?? "")}-${String(row.request_log ?? "")}`,
+        name: String((row as any).referred_by_name ?? "").trim() || "Unknown",
+        company: String(row.company ?? "-") || "-",
+        role: String((row as any).request_log ?? "-") || "-",
+      }));
+      setActiveReferrals(rows);
+      setActiveReferralTotal(Number((res as any).total ?? rows.length));
+    } catch (err) {
+      setActiveReferralsError((err as Error).message);
+      setActiveReferrals([]);
+      setActiveReferralTotal(0);
+    } finally {
+      setIsLoadingActiveReferrals(false);
+    }
+  }, [statusFilter, debouncedReferralSearch]);
+
+  const loadActiveInsights = useCallback(async () => {
+    if (statusFilter === "rejected") return;
+    try {
+      setActiveInsightsError("");
+      setIsLoadingActiveInsights(true);
+
+      const [summary, targets] = await Promise.all([getDashboardSummary(60), getTargetProgress()]);
+      const anchorDay = String(targets.anchorDay ?? getLocalISODate());
+
+      const weeklyRaw = Array.isArray(summary.weeklyTrend) ? summary.weeklyTrend : [];
+      const latestFive = weeklyRaw.slice(-5);
+      const weeklyCounts: ActiveWeeklyCount[] = latestFive.length
+        ? latestFive.map((row) => ({
+            week: formatWeekLabel(String(row.week ?? "")),
+            count: Number(row.total ?? 0),
+          }))
+        : buildDefaultWeeklyCounts(anchorDay);
+
+      const totalApplications = weeklyCounts.reduce((sum, row) => sum + row.count, 0);
+      const averagePerWeek = (totalApplications / Math.max(1, weeklyCounts.length)).toFixed(1);
+      const peakWeek = weeklyCounts.reduce(
+        (peak, row) => (row.count > peak.count ? row : peak),
+        weeklyCounts[0] ?? { week: "—", count: 0 },
+      );
+
+      const currentWeekDailyCounts = buildCurrentWeekDailyCounts(summary.dailyTrend ?? [], anchorDay);
+      const thisWeekTotal = currentWeekDailyCounts.reduce((sum, row) => sum + row.count, 0);
+      const previousWeekTotal = weeklyCounts.length > 1 ? weeklyCounts[weeklyCounts.length - 2].count : 0;
+      const bestDay = currentWeekDailyCounts.reduce(
+        (peak, row) => (row.count > peak.count ? row : peak),
+        currentWeekDailyCounts[0] ?? { day: "Mon", count: 0, iso: anchorDay },
+      );
+
+      const requestedTarget = Number((targets as any)?.weekly?.target);
+      const targetCount = Number.isFinite(requestedTarget) && requestedTarget > 0 ? requestedTarget : 12;
+      const targetProgressPercent = targetCount > 0 ? Math.round((thisWeekTotal / targetCount) * 100) : 0;
+
+      setActiveInsights({
+        weeklyCounts,
+        totalApplications,
+        averagePerWeek,
+        peakWeekLabel: `${peakWeek.week} (${peakWeek.count})`,
+        currentWeekDailyCounts,
+        thisWeekTotal,
+        previousWeekTotal,
+        bestDay: bestDay.day,
+        targetCount,
+        targetProgressPercent,
+      });
+    } catch (err) {
+      setActiveInsightsError((err as Error).message);
+      setActiveInsights(initialInsightsState());
+    } finally {
+      setIsLoadingActiveInsights(false);
+    }
+  }, [statusFilter]);
+
   const load = useCallback(async () => {
+    if (statusFilter !== "rejected") return;
     try {
       setError("");
       setIsLoading(true);
       const res = await getJobs({
         page,
         limit: LIMIT,
-        company: company || undefined,
+        search: searchQuery || undefined,
         sort: sortBy,
         order: sortOrder,
         status: statusFilter ?? "active",
@@ -224,9 +575,10 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     } finally {
       setIsLoading(false);
     }
-  }, [page, company, sortBy, sortOrder, statusFilter]);
+  }, [page, searchQuery, sortBy, sortOrder, statusFilter]);
 
   const loadTrend = useCallback(async () => {
+    if (statusFilter !== "rejected") return;
     try {
       setIsLoadingTrend(true);
       const res = await getJobsTrend(30);
@@ -237,7 +589,7 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     } finally {
       setIsLoadingTrend(false);
     }
-  }, []);
+  }, [statusFilter]);
 
   const loadOaArchive = useCallback(async () => {
     if (statusFilter !== "rejected") return;
@@ -255,31 +607,58 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
   }, [statusFilter]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    if (statusFilter !== "rejected") {
+      loadActiveCards();
+    }
+  }, [statusFilter, loadActiveCards]);
 
   useEffect(() => {
-    loadTrend();
-  }, [loadTrend]);
+    if (statusFilter !== "rejected") {
+      loadActiveReferrals();
+    }
+  }, [statusFilter, loadActiveReferrals]);
+
+  useEffect(() => {
+    if (statusFilter !== "rejected") {
+      loadActiveInsights();
+    }
+  }, [statusFilter, loadActiveInsights]);
 
   useEffect(() => {
     if (statusFilter === "rejected") {
+      load();
+      loadTrend();
       loadOaArchive();
     } else {
+      setData([]);
       setOaArchiveData([]);
       setOaArchiveError("");
     }
-  }, [statusFilter, loadOaArchive]);
+  }, [statusFilter, load, loadTrend, loadOaArchive]);
 
   useEffect(() => {
     const onRefresh = () => {
-      load();
-      loadTrend();
-      if (statusFilter === "rejected") loadOaArchive();
+      if (statusFilter === "rejected") {
+        load();
+        loadTrend();
+        loadOaArchive();
+      } else {
+        loadActiveCards();
+        loadActiveReferrals();
+        loadActiveInsights();
+      }
     };
     window.addEventListener("dashboard-refresh", onRefresh);
     return () => window.removeEventListener("dashboard-refresh", onRefresh);
-  }, [load, loadTrend, loadOaArchive, statusFilter]);
+  }, [
+    statusFilter,
+    load,
+    loadTrend,
+    loadOaArchive,
+    loadActiveCards,
+    loadActiveReferrals,
+    loadActiveInsights,
+  ]);
 
   useEffect(() => {
     trackFeatureEvent(ANALYTICS_EVENTS.filter_used, {
@@ -289,21 +668,28 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     });
   }, [statusFilter]);
 
+  useEffect(() => {
+    if (statusFilter !== "rejected") return;
+    setSearchInput(urlSearchQuery);
+    setSearchQuery(urlSearchQuery);
+    setPage(1);
+  }, [urlSearchQuery, statusFilter]);
+
   function onSearch(e: React.FormEvent) {
     e.preventDefault();
     const query = searchInput.trim();
     trackFeatureEvent(ANALYTICS_EVENTS.search_used, {
       source: "jobs_page",
-      search_scope: "company",
+      search_scope: "global",
       query_length: query.length,
     });
     trackFeatureEvent(ANALYTICS_EVENTS.filter_used, {
       source: "jobs_page",
-      filter_type: "company",
+      filter_type: "search",
       value_length: query.length,
       has_value: query.length > 0,
     });
-    setCompany(query);
+    setSearchQuery(query);
     setPage(1);
   }
 
@@ -321,8 +707,9 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
       setSortOrder(nextOrder);
     } else {
       setSortBy(field);
-      setSortOrder(nextOrder); // datetime: newest first; others: A→Z
+      setSortOrder(nextOrder);
     }
+
     trackFeatureEvent(ANALYTICS_EVENTS.sort_changed, {
       source: "jobs_table",
       sort_field: field,
@@ -383,7 +770,13 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
         notes: editForm.notes.trim() || undefined,
       });
       setEditing(null);
-      await load();
+
+      if (statusFilter === "rejected") {
+        await load();
+      } else {
+        await Promise.all([loadActiveCards(), loadActiveReferrals(), loadActiveInsights()]);
+      }
+
       trackProductEvent(ANALYTICS_EVENTS.application_updated, {
         source: "jobs_edit_modal",
         update_type: "form_save",
@@ -406,26 +799,25 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
   }, [data, sortBy, sortOrder, statusFilter]);
 
   const chartData = useMemo(() => {
-    const data = trendData.map((row) => ({
+    const trendRows = trendData.map((row) => ({
       ...row,
       dayLabel: formatDayShort(row.day),
       fullDate: row.day,
-      hasRejection: row.rejected > 0, // Flag for annotation
+      hasRejection: row.rejected > 0,
     }));
 
-    // Find insights for annotations
-    const maxApplied = Math.max(...data.map((d) => d.applied), 0);
-    const maxAppliedDay = data.find((d) => d.applied === maxApplied);
-    const maxRejected = Math.max(...data.map((d) => d.rejected), 0);
-    const maxRejectedDay = data.find((d) => d.rejected === maxRejected);
-    const rejectionDays = data.filter((d) => d.rejected > 0);
+    const maxApplied = Math.max(...trendRows.map((d) => d.applied), 0);
+    const maxAppliedDay = trendRows.find((d) => d.applied === maxApplied);
+    const maxRejected = Math.max(...trendRows.map((d) => d.rejected), 0);
+    const maxRejectedDay = trendRows.find((d) => d.rejected === maxRejected);
+    const rejectionDays = trendRows.filter((d) => d.rejected > 0);
 
     return {
-      data,
+      data: trendRows,
       insights: {
-        maxApplied: maxAppliedDay ? { day: maxAppliedDay.dayLabel, value: maxApplied, index: data.indexOf(maxAppliedDay) } : null,
-        maxRejected: maxRejectedDay ? { day: maxRejectedDay.dayLabel, value: maxRejected, index: data.indexOf(maxRejectedDay) } : null,
-        rejectionDays: rejectionDays.map((d) => ({ day: d.dayLabel, value: d.rejected, index: data.indexOf(d) })),
+        maxApplied: maxAppliedDay ? { day: maxAppliedDay.dayLabel, value: maxApplied, index: trendRows.indexOf(maxAppliedDay) } : null,
+        maxRejected: maxRejectedDay ? { day: maxRejectedDay.dayLabel, value: maxRejected, index: trendRows.indexOf(maxRejectedDay) } : null,
+        rejectionDays: rejectionDays.map((d) => ({ day: d.dayLabel, value: d.rejected, index: trendRows.indexOf(d) })),
       },
     };
   }, [trendData]);
@@ -434,7 +826,19 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
   const hasPrev = page > 1;
   const totalPages = Math.max(1, Math.ceil(totalRows / LIMIT));
 
-  const sortConfig = BASE_SORT_CONFIG;
+  const totalCardPages = Math.max(1, Math.ceil(activeCardsTotal / CARD_LIMIT));
+  const safeCardPage = Math.min(cardPage, totalCardPages);
+  const cardStartIndex = (safeCardPage - 1) * CARD_LIMIT;
+  const hasCardPrev = safeCardPage > 1;
+  const hasCardNext = safeCardPage < totalCardPages;
+  const cardPaginationItems = useMemo(
+    () => buildPaginationItems(safeCardPage, totalCardPages),
+    [safeCardPage, totalCardPages],
+  );
+
+  useEffect(() => {
+    if (cardPage !== safeCardPage) setCardPage(safeCardPage);
+  }, [cardPage, safeCardPage]);
 
   async function onDelete(job: Record<string, unknown>) {
     const id = job.id as number | string | undefined;
@@ -453,7 +857,14 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
       setError("");
       setDeletingId(id);
       await deleteJob(id);
-      await load();
+      if (editing && (editing.id as number | string | undefined) === id) {
+        setEditing(null);
+      }
+      if (statusFilter === "rejected") {
+        await load();
+      } else {
+        await Promise.all([loadActiveCards(), loadActiveInsights()]);
+      }
       trackProductEvent(ANALYTICS_EVENTS.application_deleted, {
         source: "jobs_table",
       });
@@ -466,6 +877,11 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     } finally {
       setDeletingId(null);
     }
+  }
+
+  async function onDeleteFromEditModal() {
+    if (!editing) return;
+    await onDelete(editing);
   }
 
   async function onArchive(job: Record<string, unknown>) {
@@ -485,7 +901,11 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
       setError("");
       setArchivingId(id);
       await updateJob(id, { application_status: "Rejected" });
-      await load();
+      if (statusFilter === "rejected") {
+        await load();
+      } else {
+        await Promise.all([loadActiveCards(), loadActiveInsights()]);
+      }
       trackProductEvent(ANALYTICS_EVENTS.application_updated, {
         source: "jobs_table",
         update_type: "status_change",
@@ -502,25 +922,139 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     }
   }
 
-  function getStatusMeta(raw: string) {
-    const value = String(raw || "").trim().toLowerCase();
-    if (value === "rejected") return { label: "Rejected", cls: "status-chip status-chip--rejected" };
-    if (value === "under consideration") return { label: "Under review", cls: "status-chip status-chip--review" };
-    if (value === "open") return { label: "Open", cls: "status-chip status-chip--open" };
-    return { label: raw || "Applied", cls: "status-chip status-chip--applied" };
+  function openCardLink(card: ActiveCard) {
+    const href = card.jobLink.trim();
+    if (!href) return;
+    window.open(href, "_blank", "noopener,noreferrer");
   }
 
-  function getKeywordMeta(raw: string) {
-    const value = String(raw || "Medium").trim().toLowerCase();
-    if (value === "strong") return { label: "Strong", cls: "" };
-    if (value === "weak" || value === "week") return { label: "Weak", cls: "" };
-    return { label: "Medium", cls: "" };
+  function openCardEdit(card: ActiveCard) {
+    openEdit(card.raw);
   }
 
-  function capitalizeFirst(value: string) {
-    if (!value) return value;
-    const normalized = value.toLowerCase();
-    return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+  function openAddReferralModal() {
+    setAddReferralError("");
+    setAddReferralForm({ name: "", company: "", role: "" });
+    setShowAddReferralModal(true);
+  }
+
+  function closeAddReferralModal() {
+    if (isAddingReferral) return;
+    setShowAddReferralModal(false);
+  }
+
+  async function onCreateReferralFromPanel(e: React.FormEvent) {
+    e.preventDefault();
+    const company = addReferralForm.company.trim();
+    if (!company) {
+      setAddReferralError("Company is required.");
+      return;
+    }
+
+    try {
+      setAddReferralError("");
+      setIsAddingReferral(true);
+      await createReferral({
+        company,
+        request_log: addReferralForm.role.trim() || undefined,
+        request_date: getLocalISODate(),
+        referral_received: "Requested",
+        keyword_matching: "Medium",
+        referred_by_name: addReferralForm.name.trim() || undefined,
+      });
+      setShowAddReferralModal(false);
+      await Promise.all([loadActiveReferrals(), loadActiveCards()]);
+    } catch (err) {
+      setAddReferralError((err as Error).message);
+    } finally {
+      setIsAddingReferral(false);
+    }
+  }
+
+  if (statusFilter !== "rejected") {
+    return (
+      <>
+        <ActiveJobsBoard
+          cardsError={activeCardsError}
+          confirmDialog={confirmDialog}
+          searchInputRef={searchInputRef}
+          cardSearch={cardSearch}
+          setCardSearch={setCardSearch}
+          cardTimeRange={cardTimeRange}
+          setCardTimeRange={setCardTimeRange}
+          cardReferralFilter={cardReferralFilter}
+          setCardReferralFilter={setCardReferralFilter}
+          cardOaFilter={cardOaFilter}
+          setCardOaFilter={setCardOaFilter}
+          cardStatusFilter={cardStatusFilter}
+          setCardStatusFilter={setCardStatusFilter}
+          cardStageFilter={cardStageFilter}
+          setCardStageFilter={setCardStageFilter}
+          setCardPage={setCardPage}
+          referralSearch={referralSearch}
+          setReferralSearch={setReferralSearch}
+          activeSmartView={activeSmartView}
+          setActiveSmartView={setActiveSmartView}
+          applyDefaultCardFilters={applyDefaultCardFilters}
+          applyInterviewScenario={applyInterviewScenario}
+          applyReferralScenario={applyReferralScenario}
+          clearCardFilters={clearCardFilters}
+          isLoadingCards={isLoadingActiveCards}
+          filteredReferralRows={activeReferrals}
+          isLoadingReferrals={isLoadingActiveReferrals}
+          referralError={activeReferralsError}
+          totalReferralCount={activeReferralTotal}
+          onAddReferral={openAddReferralModal}
+          filteredSampleCardsLength={activeCardsTotal}
+          pagedSampleCards={activeCards}
+          cardStartIndex={cardStartIndex}
+          hasCardPrev={hasCardPrev}
+          hasCardNext={hasCardNext}
+          cardPaginationItems={cardPaginationItems}
+          safeCardPage={safeCardPage}
+          totalCardPages={totalCardPages}
+          archivingId={archivingId}
+          openCardLink={openCardLink}
+          openCardEdit={openCardEdit}
+          onArchiveCard={(card) => onArchive(card.raw)}
+          weeklyCounts={activeInsights.weeklyCounts}
+          totalApplications={activeInsights.totalApplications}
+          averagePerWeek={activeInsights.averagePerWeek}
+          peakWeekLabel={activeInsights.peakWeekLabel}
+          isLoadingKpi={isLoadingActiveInsights}
+          kpiError={activeInsightsError}
+          currentWeekDailyCounts={activeInsights.currentWeekDailyCounts}
+          thisWeekTotal={activeInsights.thisWeekTotal}
+          previousWeekTotal={activeInsights.previousWeekTotal}
+          bestDay={activeInsights.bestDay}
+          targetCount={activeInsights.targetCount}
+          targetProgressPercent={activeInsights.targetProgressPercent}
+          isLoadingSummary={isLoadingActiveInsights}
+          summaryError={activeInsightsError}
+        />
+
+        <EditJobModal
+          editing={editing}
+          isSaving={isSaving}
+          isDeleting={deletingId != null && editing != null && deletingId === (editing.id as number | string | undefined)}
+          editForm={editForm}
+          setEditing={setEditing}
+          setEditForm={setEditForm}
+          onSaveEdit={onSaveEdit}
+          onDeleteEdit={onDeleteFromEditModal}
+        />
+
+        <AddReferralModal
+          open={showAddReferralModal}
+          isSaving={isAddingReferral}
+          error={addReferralError}
+          form={addReferralForm}
+          setForm={setAddReferralForm}
+          onClose={closeAddReferralModal}
+          onSubmit={onCreateReferralFromPanel}
+        />
+      </>
+    );
   }
 
   function openOaEdit(row: Record<string, unknown>) {
@@ -612,1007 +1146,74 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     <>
       {error ? <div className="error">{error}</div> : null}
 
-      {/* Application Momentum Chart - Single Unified View (only for active jobs) */}
-      {statusFilter !== "rejected" && (
-        <div className="card card-chart-trend trend-uniform-card" style={{ marginBottom: "24px" }}>
-          <div className="trend-uniform-head">
-            <h2>Application Momentum</h2>
-            <p>Last 30 days • Applications with rejection context</p>
-          </div>
-          <div className="trend-uniform-body">
-            {isLoadingTrend ? (
-              <div className="trend-uniform-loading">
-                <Spinner />
-              </div>
-            ) : !chartData.data || chartData.data.length === 0 ? (
-              <div className="chart-empty">No data available</div>
-            ) : (
-              <ResponsiveContainer width="100%" height={360}>
-                <ComposedChart
-                  data={chartData.data}
-                  margin={{ top: 20, right: 24, left: 8, bottom: 24 }}
-                  barCategoryGap="14%"
-                >
-                  <defs>
-                    <linearGradient id="areaGradient_applicationMomentum" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={CHART_COLORS.applied} stopOpacity={0.58} />
-                      <stop offset="55%" stopColor={CHART_COLORS.applied} stopOpacity={0.28} />
-                      <stop offset="95%" stopColor={CHART_COLORS.applied} stopOpacity={0} />
-                    </linearGradient>
-                    <filter id="lineGlow_applicationMomentum" x="-20%" y="-20%" width="140%" height="140%">
-                      <feDropShadow dx="0" dy="0" stdDeviation="2.2" floodColor={CHART_COLORS.applied} floodOpacity={0.42} />
-                    </filter>
-                  </defs>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke={CHART_COLORS.grid}
-                    horizontal={true}
-                    vertical={false}
-                  />
-                  <XAxis
-                    dataKey="dayLabel"
-                    stroke={CHART_COLORS.axis}
-                    tick={{ fill: CHART_COLORS.textSecondary, fontSize: 10, fontWeight: 400 }}
-                    axisLine={{ stroke: CHART_COLORS.axis, strokeWidth: 1 }}
-                    tickLine={false}
-                    height={32}
-                    interval="preserveStartEnd"
-                  />
-                  <YAxis
-                    stroke={CHART_COLORS.axis}
-                    tick={{ fill: CHART_COLORS.textSecondary, fontSize: 10, fontWeight: 400 }}
-                    axisLine={{ stroke: CHART_COLORS.axis, strokeWidth: 1 }}
-                    tickLine={false}
-                    allowDecimals={false}
-                    width={40}
-                    label={{ value: "Count", angle: -90, position: "insideLeft", fill: CHART_COLORS.textSecondary, fontSize: 11, style: { textAnchor: "middle" } }}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      background: CHART_COLORS.tooltipBg,
-                      border: `1px solid ${CHART_COLORS.tooltipBorder}`,
-                      borderRadius: 6,
-                      padding: "10px 14px",
-                    }}
-                    cursor={false}
-                    formatter={(value: number, name: string) => {
-                      if (name === "applied") {
-                        return [`${value}`, "Applied"];
-                      }
-                      if (name === "rejected") {
-                        return [`${value}`, "Rejected"];
-                      }
-                      return [value, name];
-                    }}
-                    labelStyle={{ color: CHART_COLORS.text, fontSize: 11, fontWeight: 500, marginBottom: 6 }}
-                    itemStyle={{ fontSize: 13, fontWeight: 600 }}
-                    labelFormatter={(label) => `Date: ${label}`}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="applied"
-                    stroke="none"
-                    fill={CHART_COLORS.applied}
-                    fillOpacity={0.12}
-                    baseValue={0}
-                    tooltipType="none"
-                    isAnimationActive={false}
-                    connectNulls={false}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="applied"
-                    stroke="none"
-                    fill="url(#areaGradient_applicationMomentum)"
-                    fillOpacity={1}
-                    baseValue={0}
-                    tooltipType="none"
-                    isAnimationActive={false}
-                    connectNulls={false}
-                  />
-                  <Bar
-                    dataKey="rejected"
-                    fill={CHART_COLORS.rejected}
-                    radius={[4, 4, 0, 0]}
-                    minPointSize={2}
-                    label={{
-                      position: "top",
-                      fill: CHART_COLORS.textSecondary,
-                      fontSize: 9,
-                      fontWeight: 400,
-                      formatter: (value: number) => (value > 0 ? String(value) : ""),
-                    }}
-                  >
-                    {chartData.data.map((entry, index) => {
-                      const hasRejection = entry.rejected > 0;
-                      return (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={CHART_COLORS.rejected}
-                          style={hasRejection ? { opacity: 1 } : { opacity: 0.3 }}
-                        />
-                      );
-                    })}
-                  </Bar>
-                  <Line
-                    type="monotone"
-                    dataKey="applied"
-                    stroke={CHART_COLORS.applied}
-                    strokeWidth={2.6}
-                    dot={{
-                      r: 3,
-                      fill: CHART_COLORS.applied,
-                      stroke: "var(--bg-card)",
-                      strokeWidth: 1.2,
-                      opacity: 1,
-                    }}
-                    activeDot={false}
-                    connectNulls={false}
-                    strokeDasharray="0"
-                    filter="url(#lineGlow_applicationMomentum)"
-                  >
-                    <LabelList
-                      dataKey="applied"
-                      position="top"
-                      offset={8}
-                      fill={CHART_COLORS.applied}
-                      fontSize={10}
-                      fontWeight={700}
-                      formatter={(value: number) => (value > 0 ? String(value) : "")}
-                    />
-                  </Line>
-                </ComposedChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-          <div className="trend-uniform-foot">
-            <span className="trend-uniform-foot-item trend-uniform-foot-item--applied">
-              {chartData.insights.maxApplied
-                ? `Peak: ${chartData.insights.maxApplied.value} applications on ${chartData.insights.maxApplied.day}`
-                : "Peak: -"}
-            </span>
-            <span className="trend-uniform-foot-item trend-uniform-foot-item--rejected">
-              • {chartData.insights.rejectionDays.length} day{chartData.insights.rejectionDays.length !== 1 ? "s" : ""} with rejection{chartData.insights.rejectionDays.length !== 1 ? "s" : ""}
-            </span>
-          </div>
-        </div>
-      )}
+      <JobsTrendCharts
+        statusFilter={statusFilter}
+        isLoadingTrend={isLoadingTrend}
+        chartData={chartData}
+      />
 
-      {/* Rejected Jobs Chart - Last 30 Days (only for archive tab) */}
-      {statusFilter === "rejected" && (
-        <div className="card card-chart-trend trend-uniform-card" style={{ marginBottom: "24px" }}>
-          <div className="trend-uniform-head">
-            <h2>Archive Trend</h2>
-            <p>Last 30 days • Daily rejected applications</p>
-          </div>
-          <div className="trend-uniform-body">
-            {isLoadingTrend ? (
-              <div className="trend-uniform-loading">
-                <Spinner />
-              </div>
-            ) : !chartData.data || chartData.data.length === 0 ? (
-              <div className="chart-empty">No data available</div>
-            ) : (
-              <ResponsiveContainer width="100%" height={360}>
-                <ComposedChart
-                  data={chartData.data}
-                  margin={{ top: 20, right: 24, left: 8, bottom: 24 }}
-                  barCategoryGap="14%"
-                >
-                  <defs>
-                    <linearGradient id="areaGradient_rejectedJobsTrend" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={CHART_COLORS.rejected} stopOpacity={0.56} />
-                      <stop offset="55%" stopColor={CHART_COLORS.rejected} stopOpacity={0.25} />
-                      <stop offset="95%" stopColor={CHART_COLORS.rejected} stopOpacity={0} />
-                    </linearGradient>
-                    <filter id="lineGlow_rejectedJobsTrend" x="-20%" y="-20%" width="140%" height="140%">
-                      <feDropShadow dx="0" dy="0" stdDeviation="2.2" floodColor={CHART_COLORS.rejected} floodOpacity={0.4} />
-                    </filter>
-                  </defs>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke={CHART_COLORS.grid}
-                    horizontal={true}
-                    vertical={false}
-                  />
-                  <XAxis
-                    dataKey="dayLabel"
-                    stroke={CHART_COLORS.axis}
-                    tick={{ fill: CHART_COLORS.textSecondary, fontSize: 10, fontWeight: 400 }}
-                    axisLine={{ stroke: CHART_COLORS.axis, strokeWidth: 1 }}
-                    tickLine={false}
-                    height={32}
-                    interval="preserveStartEnd"
-                  />
-                  <YAxis
-                    stroke={CHART_COLORS.axis}
-                    tick={{ fill: CHART_COLORS.textSecondary, fontSize: 10, fontWeight: 400 }}
-                    axisLine={{ stroke: CHART_COLORS.axis, strokeWidth: 1 }}
-                    tickLine={false}
-                    allowDecimals={false}
-                    width={40}
-                    label={{ value: "Rejected", angle: -90, position: "insideLeft", fill: CHART_COLORS.textSecondary, fontSize: 11, style: { textAnchor: "middle" } }}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      background: CHART_COLORS.tooltipBg,
-                      border: `1px solid ${CHART_COLORS.tooltipBorder}`,
-                      borderRadius: 6,
-                      padding: "10px 14px",
-                    }}
-                    cursor={false}
-                    labelStyle={{ color: CHART_COLORS.text, fontSize: 11, fontWeight: 500, marginBottom: 6 }}
-                    itemStyle={{ fontSize: 13, fontWeight: 600, color: CHART_COLORS.rejected }}
-                    labelFormatter={(label) => `Date: ${label}`}
-                    formatter={(value: number) => [`${value}`, "Rejected"]}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="rejected"
-                    stroke="none"
-                    fill={CHART_COLORS.rejected}
-                    fillOpacity={0.1}
-                    baseValue={0}
-                    tooltipType="none"
-                    isAnimationActive={false}
-                    connectNulls={false}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="rejected"
-                    stroke="none"
-                    fill="url(#areaGradient_rejectedJobsTrend)"
-                    fillOpacity={1}
-                    baseValue={0}
-                    tooltipType="none"
-                    isAnimationActive={false}
-                    connectNulls={false}
-                  />
-                  <Bar
-                    dataKey="rejected"
-                    fill={CHART_COLORS.rejected}
-                    radius={[4, 4, 0, 0]}
-                    minPointSize={2}
-                  >
-                    {chartData.data.map((entry, index) => {
-                      const hasRejection = entry.rejected > 0;
-                      return (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={CHART_COLORS.rejected}
-                          style={hasRejection ? { opacity: 1 } : { opacity: 0.3 }}
-                        />
-                      );
-                    })}
-                  </Bar>
-                  <Line
-                    type="monotone"
-                    dataKey="rejected"
-                    stroke={CHART_COLORS.rejected}
-                    strokeWidth={2.6}
-                    dot={{
-                      r: 3,
-                      fill: CHART_COLORS.rejected,
-                      stroke: "var(--bg-card)",
-                      strokeWidth: 1.2,
-                      opacity: 1,
-                    }}
-                    activeDot={false}
-                    connectNulls={false}
-                    strokeDasharray="0"
-                    filter="url(#lineGlow_rejectedJobsTrend)"
-                    tooltipType="none"
-                  >
-                    <LabelList
-                      dataKey="rejected"
-                      position="top"
-                      offset={8}
-                      fill={CHART_COLORS.rejected}
-                      fontSize={10}
-                      fontWeight={700}
-                      formatter={(value: number) => (value > 0 ? String(value) : "")}
-                    />
-                  </Line>
-                </ComposedChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-          <div className="trend-uniform-foot">
-            <span className="trend-uniform-foot-item trend-uniform-foot-item--rejected">
-              {chartData.insights.maxRejected
-                ? `Peak: ${chartData.insights.maxRejected.value} rejections on ${chartData.insights.maxRejected.day}`
-                : "Peak: -"}
-            </span>
-            <span className="trend-uniform-foot-item trend-uniform-foot-item--muted">
-              • {chartData.insights.rejectionDays.length} day{chartData.insights.rejectionDays.length !== 1 ? "s" : ""} with rejection{chartData.insights.rejectionDays.length !== 1 ? "s" : ""}
-            </span>
-          </div>
-        </div>
-      )}
+      <JobsTable
+        isLoading={isLoading}
+        data={data}
+        sortedData={sortedData}
+        page={page}
+        limit={LIMIT}
+        totalPages={totalPages}
+        totalRows={totalRows}
+        hasPrev={hasPrev}
+        hasNext={hasNext}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+        sortConfig={BASE_SORT_CONFIG}
+        searchInput={searchInput}
+        statusFilter={statusFilter}
+        archivingId={archivingId}
+        deletingId={deletingId}
+        setSearchInput={setSearchInput}
+        setPage={setPage}
+        onSearch={onSearch}
+        handleSort={handleSort}
+        openEdit={openEdit}
+        onArchive={onArchive}
+        onDelete={onDelete}
+        getStatusMeta={getStatusMeta}
+        getKeywordMeta={getKeywordMeta}
+        capitalizeFirst={capitalizeFirst}
+        normalizeReferralStatus={normalizeReferralStatus}
+        normalizeOaStatus={normalizeOaStatus}
+      />
 
-      <div className="card" style={{ padding: "24px" }}>
-        <div className="jobs-header">
-          <h2>Jobs</h2>
-          <form className="jobs-search-row" onSubmit={onSearch}>
-            <input
-              className="jobs-search-input"
-              type="search"
-              placeholder="Search by company"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              aria-label="Search by company"
-            />
-            <button type="submit" className="jobs-search-btn">Search</button>
-          </form>
-        </div>
+      <OaArchiveTable
+        statusFilter={statusFilter}
+        oaArchiveError={oaArchiveError}
+        oaArchiveLoading={oaArchiveLoading}
+        oaArchiveData={oaArchiveData}
+        oaDeletingId={oaDeletingId}
+        openOaEdit={openOaEdit}
+        onDeleteOaRecord={onDeleteOaRecord}
+        capitalizeFirst={capitalizeFirst}
+        normalizeOaStatus={normalizeOaStatus}
+      />
 
-        {isLoading ? (
-          <Spinner />
-        ) : data.length === 0 ? (
-          <div className="empty-state">
-            No jobs found. Add one from the Dashboard.
-          </div>
-        ) : (
-          <>
-            <div className="table-wrap">
-              <table className="jobs-table">
-                <thead>
-                  <tr>
-                    <th>No.</th>
-                    <th>
-                      <button
-                        type="button"
-                        className="th-sort"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleSort("applied_at");
-                        }}
-                        title={sortBy === "applied_at" ? `${sortOrder === "asc" ? "A→Z" : "Z→A"} (click to reverse)` : "Sort by Applied At"}
-                      >
-                        {sortConfig.find((c) => c.key === "applied_at")?.label ?? "Applied At"}
-                        {sortBy === "applied_at" ? (
-                          <span className="th-sort-icon" aria-hidden>{sortOrder === "asc" ? " ↑" : " ↓"}</span>
-                        ) : null}
-                      </button>
-                    </th>
-                    <th>
-                      <button
-                        type="button"
-                        className="th-sort"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleSort("company");
-                        }}
-                        title="Sort by Company / Position"
-                      >
-                        Company / Position
-                        {sortBy === "company" ? (
-                          <span className="th-sort-icon" aria-hidden>{sortOrder === "asc" ? " ↑" : " ↓"}</span>
-                        ) : null}
-                      </button>
-                    </th>
-                    <th>
-                      <button
-                        type="button"
-                        className="th-sort"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleSort("referral_status");
-                        }}
-                        title="Sort by Referral"
-                      >
-                        Referral
-                        {sortBy === "referral_status" ? (
-                          <span className="th-sort-icon" aria-hidden>{sortOrder === "asc" ? " ↑" : " ↓"}</span>
-                        ) : null}
-                      </button>
-                    </th>
-                    <th>Referral Name</th>
-                    <th>Keyword Match</th>
-                    <th>OA</th>
-                    <th>OA Deadline</th>
-                    <th>Job/App ID</th>
-                    <th>
-                      <button
-                        type="button"
-                        className="th-sort"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleSort("job_link");
-                        }}
-                        title="Sort by Link"
-                      >
-                        Link
-                        {sortBy === "job_link" ? (
-                          <span className="th-sort-icon" aria-hidden>{sortOrder === "asc" ? " ↑" : " ↓"}</span>
-                        ) : null}
-                      </button>
-                    </th>
-                    <th>Application Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedData.map((j, idx) => (
-                    <tr
-                      key={String(j.id)}
-                      className={`tr-hover ${normalizeReferralStatus(j.referral_status) === "Yes" ? "data-referral" : ""} ${
-                        String(j.application_status ?? "") === "Rejected" ? "data-rejected" : ""
-                      } ${normalizeReferralStatus(j.referral_status) === "No" ? "data-no" : ""
-                      }`}
-                    >
-                      <td className="jobs-col-no">{(page - 1) * LIMIT + idx + 1}</td>
-                      <td>
-                        {formatTableDateTime(
-                          (j as any).applied_at
-                            ? (j as any).applied_at
-                            : (statusFilter === "rejected" ? ((j as any).archive_date ?? j.date_saved) : j.date_saved),
-                        )}
-                      </td>
-                      <td>
-                        <div className="job-main">
-                        <div className="job-company">{capitalizeFirst(String(j.company ?? "-"))}</div>
-                          <div className="job-role" title={String(j.role ?? "-")}>
-                            {String(j.role ?? "-")}
-                          </div>
-                        </div>
-                      </td>
-                      <td>{normalizeReferralStatus(j.referral_status) || "-"}</td>
-                      <td>{String((j as any).referred_by_name ?? "-") || "-"}</td>
-                      <td>
-                        <span className={getKeywordMeta(String((j as any).keyword_matching ?? "Medium")).cls}>
-                          {getKeywordMeta(String((j as any).keyword_matching ?? "Medium")).label}
-                        </span>
-                      </td>
-                      <td>{normalizeOaStatus((j as any).oa_status)}</td>
-                      <td>{String((j as any).oa_deadline_date ?? "-") || "-"}</td>
-                      <td>{String((j as any).job_application_id ?? "-")}</td>
-                      <td>
-                        {j.job_link ? (
-                          <a
-                            href={String(j.job_link)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="table-link"
-                          >
-                            Open
-                          </a>
-                        ) : (
-                          "-"
-                        )}
-                      </td>
-                      <td>
-                        <span className={getStatusMeta(String(j.application_status ?? "Applied")).cls}>
-                          {getStatusMeta(String(j.application_status ?? "Applied")).label}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="row-actions">
-                          <button type="button" className="action-btn" onClick={() => openEdit(j)}>
-                            Edit
-                          </button>
-                          {statusFilter !== "rejected" ? (
-                            <button
-                              type="button"
-                              className="action-btn"
-                              onClick={() => onArchive(j)}
-                              disabled={archivingId === j.id}
-                              title="Archive application"
-                              aria-label="Archive application"
-                            >
-                              {archivingId === j.id ? "…" : "Archive"}
-                            </button>
-                          ) : null}
-                          <button
-                            type="button"
-                            className="action-btn"
-                            onClick={() => onDelete(j)}
-                            disabled={deletingId === j.id}
-                            aria-label="Delete job"
-                          >
-                            {deletingId === j.id ? "…" : "🗑️"}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="pagination">
-              <button type="button" disabled={!hasPrev} onClick={() => setPage((p) => p - 1)}>
-                Prev
-              </button>
-              <span>Page {page} of {totalPages} • {totalRows} total</span>
-              <button type="button" disabled={!hasNext} onClick={() => setPage((p) => p + 1)}>
-                Next
-              </button>
-            </div>
-          </>
-        )}
-      </div>
+      <EditJobModal
+        editing={editing}
+        isSaving={isSaving}
+        isDeleting={deletingId != null && editing != null && deletingId === (editing.id as number | string | undefined)}
+        editForm={editForm}
+        setEditing={setEditing}
+        setEditForm={setEditForm}
+        onSaveEdit={onSaveEdit}
+        onDeleteEdit={onDeleteFromEditModal}
+      />
 
-      {statusFilter === "rejected" ? (
-        <div className="card" style={{ padding: "24px", marginTop: "20px" }}>
-          <div className="jobs-header">
-            <h2>Online Assessment Records</h2>
-            <p className="chart-subtitle">Completed and missed OA archive</p>
-          </div>
-          {oaArchiveError ? <div className="error">{oaArchiveError}</div> : null}
-          {oaArchiveLoading ? (
-            <Spinner />
-          ) : oaArchiveData.length === 0 ? (
-            <div className="empty-state">No OA records yet. Mark "OA Done" from Dashboard to add records.</div>
-          ) : (
-            <div className="table-wrap">
-              <table className="jobs-table">
-                <thead>
-                  <tr>
-                    <th>No.</th>
-                    <th>Record Date</th>
-                    <th>Status</th>
-                    <th>Company / Position</th>
-                    <th>OA Deadline</th>
-                    <th>Job/App ID</th>
-                    <th>OA</th>
-                    <th>Link</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {oaArchiveData.map((row, idx) => (
-                    <tr key={`oa-archive-${String(row.id)}`} className="tr-hover">
-                      <td className="jobs-col-no">{idx + 1}</td>
-                      <td>{formatTableDateTime((row as any).oa_result_date ?? row.oa_completed_date)}</td>
-                      <td>{getOaResultLabel(row)}</td>
-                      <td>
-                        <div className="job-main">
-                          <div className="job-company">{capitalizeFirst(String(row.company ?? "-"))}</div>
-                          <div className="job-role" title={String(row.role ?? "-")}>
-                            {String(row.role ?? "-")}
-                          </div>
-                        </div>
-                      </td>
-                      <td>{String(row.oa_deadline_date ?? "-") || "-"}</td>
-                      <td>{String(row.job_application_id ?? "-") || "-"}</td>
-                      <td>{normalizeOaStatus(row.oa_status)}</td>
-                      <td>
-                        {row.job_link ? (
-                          <a
-                            href={String(row.job_link)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="table-link"
-                          >
-                            Open
-                          </a>
-                        ) : (
-                          "-"
-                        )}
-                      </td>
-                      <td>
-                        <div className="row-actions">
-                          <button type="button" className="action-btn" onClick={() => openOaEdit(row)}>
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            className="action-btn"
-                            onClick={() => onDeleteOaRecord(row)}
-                            disabled={oaDeletingId === row.id}
-                          >
-                            {oaDeletingId === row.id ? "…" : "🗑️"}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      ) : null}
-
-      {editing && (
-        <div className="modal-overlay modal-overlay--quickadd" onClick={() => !isSaving && setEditing(null)}>
-          <div className="modal modal--quickadd" onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              className="modal-close-x"
-              aria-label="Close"
-              onClick={() => !isSaving && setEditing(null)}
-              disabled={isSaving}
-            >
-              ×
-            </button>
-            <form className="new-app-form" onSubmit={onSaveEdit}>
-              <header className="new-app-header">
-                <h3>Edit Application</h3>
-                <p>Update this application using the same structure as Add Application.</p>
-              </header>
-
-              <section className="new-app-section">
-                <div className="new-app-section-header">
-                  <span className="new-app-section-icon">⌁</span>
-                  <h4>CORE DETAILS</h4>
-                </div>
-                <div className="new-app-grid-2">
-                  <label className="new-app-field">
-                    <span className="new-app-label">Company</span>
-                    <input
-                      className="new-app-input"
-                      placeholder="e.g. Stripe"
-                      value={editForm.company}
-                      onChange={(e) => setEditForm((p) => ({ ...p, company: e.target.value }))}
-                      autoFocus
-                    />
-                  </label>
-                  <label className="new-app-field">
-                    <span className="new-app-label">Position</span>
-                    <input
-                      className="new-app-input"
-                      placeholder="e.g. Software Engineer"
-                      value={editForm.role}
-                      onChange={(e) => setEditForm((p) => ({ ...p, role: e.target.value }))}
-                    />
-                  </label>
-                  <label className="new-app-field">
-                    <span className="new-app-label">Application Link</span>
-                    <input
-                      className="new-app-input"
-                      type="url"
-                      placeholder="https://..."
-                      value={editForm.job_link}
-                      onChange={(e) => setEditForm((p) => ({ ...p, job_link: e.target.value }))}
-                    />
-                  </label>
-                  <label className="new-app-field">
-                    <span className="new-app-label">Application ID</span>
-                    <input
-                      className="new-app-input"
-                      placeholder="Optional"
-                      value={editForm.job_application_id}
-                      onChange={(e) => setEditForm((p) => ({ ...p, job_application_id: e.target.value }))}
-                    />
-                  </label>
-                </div>
-              </section>
-
-              <section className="new-app-section">
-                <div className="new-app-section-header">
-                  <span className="new-app-section-icon">⌁</span>
-                  <h4>REFERRAL & OA</h4>
-                </div>
-                <div className="new-app-grid-2 new-app-grid-referral">
-                  <label className="new-app-field">
-                    <span className="new-app-label">Referral</span>
-                    <select
-                      className="new-app-input new-app-select"
-                      value={editForm.referral_status}
-                      onChange={(e) => setEditForm((p) => ({ ...p, referral_status: e.target.value }))}
-                    >
-                      {REFERRAL_OPTIONS.map((opt) => (
-                        <option key={opt || "empty"} value={opt}>
-                          {opt || "—"}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="new-app-field">
-                    <span className="new-app-label">Referral Name</span>
-                    <input
-                      className="new-app-input"
-                      placeholder="Optional"
-                      value={editForm.referred_by_name}
-                      onChange={(e) => setEditForm((p) => ({ ...p, referred_by_name: e.target.value }))}
-                    />
-                  </label>
-                  <label className="new-app-field">
-                    <span className="new-app-label">Online Assessment</span>
-                    <select
-                      className="new-app-input new-app-select"
-                      value={editForm.oa_status}
-                      onChange={(e) => setEditForm((p) => ({ ...p, oa_status: e.target.value }))}
-                    >
-                      <option value="Yes">Yes</option>
-                      <option value="No">No</option>
-                    </select>
-                  </label>
-                  <label className="new-app-field">
-                    <span className="new-app-label">OA Deadline</span>
-                    <input
-                      className="new-app-input"
-                      type="date"
-                      value={editForm.oa_deadline_date}
-                      onChange={(e) => setEditForm((p) => ({ ...p, oa_deadline_date: e.target.value }))}
-                    />
-                  </label>
-                </div>
-                <label className="new-app-field new-app-keyword-field">
-                  <span className="new-app-label">Keyword Matching</span>
-                  <div className="new-app-keyword-toggle">
-                    {(["Strong", "Medium", "Weak"] as const).map((level) => (
-                      <button
-                        key={level}
-                        type="button"
-                        className={editForm.keyword_matching === level ? "is-active" : ""}
-                        onClick={() => setEditForm((p) => ({ ...p, keyword_matching: level }))}
-                      >
-                        {level}
-                      </button>
-                    ))}
-                  </div>
-                </label>
-                {editForm.referral_status === "Requested" && (
-                  <p className="new-app-alert">
-                    Track requested referrals on the <Link to="/referrals" className="table-link">Referrals</Link> page.
-                  </p>
-                )}
-                {editForm.referral_status === "Yes" && (
-                  <p className="new-app-alert">
-                    Ensure this company has an entry on the <Link to="/referrals" className="table-link">Referrals</Link> page.
-                  </p>
-                )}
-              </section>
-
-              <section className="new-app-section">
-                <details className="new-app-details">
-                  <summary className="new-app-details-summary">
-                    <span className="new-app-details-title">Additional Information</span>
-                    <span className="new-app-details-toggle" aria-hidden="true">
-                      <span className="new-app-details-icon">▾</span>
-                    </span>
-                  </summary>
-                  <div className="new-app-details-body">
-                    <div className="new-app-grid-2">
-                      <label className="new-app-field">
-                        <span className="new-app-label">Date Applied</span>
-                        <input
-                          className="new-app-input"
-                          type="date"
-                          value={editForm.date_saved}
-                          onChange={(e) => setEditForm((p) => ({ ...p, date_saved: e.target.value }))}
-                        />
-                      </label>
-                      <label className="new-app-field">
-                        <span className="new-app-label">Country / Location</span>
-                        <input
-                          className="new-app-input"
-                          placeholder="e.g. United States"
-                          value={editForm.location_raw}
-                          onChange={(e) => setEditForm((p) => ({ ...p, location_raw: e.target.value }))}
-                        />
-                      </label>
-                      <label className="new-app-field">
-                        <span className="new-app-label">Application Status</span>
-                        <select
-                          className="new-app-input new-app-select"
-                          value={editForm.application_status}
-                          onChange={(e) => setEditForm((p) => ({ ...p, application_status: e.target.value }))}
-                        >
-                          <option value="Applied">Applied</option>
-                          <option value="Under consideration">Under consideration</option>
-                          <option value="Rejected">Rejected</option>
-                        </select>
-                      </label>
-                      <label className="new-app-field">
-                        <span className="new-app-label">Response Status</span>
-                        <input
-                          className="new-app-input"
-                          placeholder="e.g. Interview"
-                          value={editForm.response_status}
-                          onChange={(e) => setEditForm((p) => ({ ...p, response_status: e.target.value }))}
-                        />
-                      </label>
-                    </div>
-                    <label className="new-app-field">
-                      <span className="new-app-label">Notes</span>
-                      <textarea
-                        className="new-app-input new-app-textarea"
-                        rows={3}
-                        placeholder="Any additional notes..."
-                        value={editForm.notes}
-                        onChange={(e) => setEditForm((p) => ({ ...p, notes: e.target.value }))}
-                      />
-                    </label>
-                  </div>
-                </details>
-              </section>
-
-              <div className="new-app-actions">
-                <button type="button" className="new-app-btn new-app-btn--secondary" onClick={() => setEditing(null)} disabled={isSaving}>
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="new-app-btn new-app-btn--primary"
-                  disabled={isSaving || !editForm.role.trim() || !editForm.company.trim()}
-                >
-                  {isSaving ? "Saving..." : "Save"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {oaEditing && (
-        <div className="modal-overlay" onClick={() => !isOaSaving && setOaEditing(null)}>
-          <div className="modal modal--quickadd" onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              className="modal-close-x"
-              aria-label="Close"
-              onClick={() => !isOaSaving && setOaEditing(null)}
-              disabled={isOaSaving}
-            >
-              ×
-            </button>
-            <h3>Edit OA Record</h3>
-            <form className="form form--quickadd" onSubmit={onSaveOaEdit}>
-              <div className="qa-left">
-                <input
-                  placeholder="Position"
-                  value={oaEditForm.role}
-                  onChange={(e) => setOaEditForm((p) => ({ ...p, role: e.target.value }))}
-                  autoFocus
-                />
-                <div className="form-row">
-                  <label className="form-label">Date Saved</label>
-                  <input
-                    type="date"
-                    value={oaEditForm.date_saved}
-                    onChange={(e) => setOaEditForm((p) => ({ ...p, date_saved: e.target.value }))}
-                  />
-                </div>
-                <input
-                  placeholder="Location"
-                  value={oaEditForm.location_raw}
-                  onChange={(e) => setOaEditForm((p) => ({ ...p, location_raw: e.target.value }))}
-                />
-                <div className="form-row">
-                  <label className="form-label">Referral</label>
-                  <select
-                    value={oaEditForm.referral_status}
-                    onChange={(e) => setOaEditForm((p) => ({ ...p, referral_status: e.target.value }))}
-                    className="form-select"
-                  >
-                    {REFERRAL_OPTIONS.map((opt) => (
-                      <option key={`oa-ref-${opt || "empty"}`} value={opt}>{opt || "—"}</option>
-                    ))}
-                  </select>
-                </div>
-                {oaEditForm.referral_status === "Yes" && (
-                  <p className="referral-hint">
-                    Ensure this company has an entry on the <Link to="/referrals" className="table-link">Referrals</Link> page.
-                  </p>
-                )}
-                <div className="form-row">
-                  <label className="form-label">Application Status</label>
-                  <select
-                    value={oaEditForm.application_status}
-                    onChange={(e) => setOaEditForm((p) => ({ ...p, application_status: e.target.value }))}
-                    className="form-select"
-                  >
-                    <option value="Applied">Applied</option>
-                    <option value="Under consideration">Under consideration</option>
-                    <option value="Rejected">Rejected</option>
-                  </select>
-                </div>
-                <input
-                  placeholder="Response status"
-                  value={oaEditForm.response_status}
-                  onChange={(e) => setOaEditForm((p) => ({ ...p, response_status: e.target.value }))}
-                />
-                <textarea
-                  placeholder="Notes"
-                  rows={3}
-                  value={oaEditForm.notes}
-                  onChange={(e) => setOaEditForm((p) => ({ ...p, notes: e.target.value }))}
-                />
-              </div>
-              <div className="qa-right">
-                <input
-                  placeholder="Company"
-                  value={oaEditForm.company}
-                  onChange={(e) => setOaEditForm((p) => ({ ...p, company: e.target.value }))}
-                />
-                <input
-                  placeholder="Job link (URL)"
-                  type="url"
-                  value={oaEditForm.job_link}
-                  onChange={(e) => setOaEditForm((p) => ({ ...p, job_link: e.target.value }))}
-                />
-                <input
-                  placeholder="Job/Application ID"
-                  value={oaEditForm.job_application_id}
-                  onChange={(e) => setOaEditForm((p) => ({ ...p, job_application_id: e.target.value }))}
-                />
-                <div className="form-row">
-                  <label className="form-label">OA Deadline</label>
-                  <input
-                    type="date"
-                    value={oaEditForm.oa_deadline_date}
-                    onChange={(e) => setOaEditForm((p) => ({ ...p, oa_deadline_date: e.target.value }))}
-                  />
-                </div>
-                <div className="form-row">
-                  <label className="form-label">Online Assessment (OA)</label>
-                  <select
-                    value={oaEditForm.oa_status}
-                    onChange={(e) => setOaEditForm((p) => ({ ...p, oa_status: e.target.value }))}
-                    className="form-select"
-                  >
-                    <option value="Yes">Yes</option>
-                    <option value="No">No</option>
-                  </select>
-                </div>
-                <div className="form-row">
-                  <label className="form-label">Keyword Matching</label>
-                  <select
-                    value={oaEditForm.keyword_matching}
-                    onChange={(e) => setOaEditForm((p) => ({ ...p, keyword_matching: e.target.value }))}
-                    className="form-select"
-                  >
-                    <option value="Strong">Strong</option>
-                    <option value="Medium">Medium</option>
-                    <option value="Weak">Weak</option>
-                  </select>
-                </div>
-                <details className="form-accordion">
-                  <summary>
-                    <span>OA Result Details</span>
-                    <span className="form-accordion-summary-meta">Status: {oaEditForm.oa_result || "—"}</span>
-                  </summary>
-                  <div className="form-accordion-grid">
-                    <div className="form-row">
-                      <label className="form-label">Record Date</label>
-                      <input
-                        type="date"
-                        value={oaEditForm.oa_result_date}
-                        onChange={(e) => setOaEditForm((p) => ({ ...p, oa_result_date: e.target.value }))}
-                      />
-                    </div>
-                    <div className="form-row">
-                      <label className="form-label">Result Status</label>
-                      <select
-                        value={oaEditForm.oa_result}
-                        onChange={(e) => setOaEditForm((p) => ({ ...p, oa_result: e.target.value }))}
-                        className="form-select"
-                      >
-                        <option value="Pending">Pending</option>
-                        <option value="Completed">Completed</option>
-                        <option value="Missed">Missed</option>
-                      </select>
-                    </div>
-                    <div className="form-row">
-                      <label className="form-label">OA Completed Date (legacy)</label>
-                      <input
-                        type="date"
-                        value={oaEditForm.oa_completed_date}
-                        onChange={(e) => setOaEditForm((p) => ({ ...p, oa_completed_date: e.target.value }))}
-                      />
-                    </div>
-                  </div>
-                </details>
-              </div>
-              <div className="modal-actions">
-                <button type="button" className="action-btn" onClick={() => setOaEditing(null)} disabled={isOaSaving}>
-                  Cancel
-                </button>
-                <button type="submit" disabled={isOaSaving}>
-                  {isOaSaving ? "Saving..." : "Save"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <EditOaModal
+        oaEditing={oaEditing}
+        isOaSaving={isOaSaving}
+        oaEditForm={oaEditForm}
+        setOaEditing={setOaEditing}
+        setOaEditForm={setOaEditForm}
+        onSaveOaEdit={onSaveOaEdit}
+      />
       {confirmDialog}
     </>
   );

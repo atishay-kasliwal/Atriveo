@@ -1,0 +1,230 @@
+
+.new-app-field {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.new-app-label {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: color-mix(in srgb, var(--text-secondary) 92%, transparent);
+}
+
+.new-app-label-icon {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.new-app-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 84%, transparent);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--bg-card-elevated) 84%, var(--bg-card));
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.95rem;
+  line-height: 1.35;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+}
+
+.new-app-input::placeholder {
+  color: color-mix(in srgb, var(--text-muted) 84%, transparent);
+}
+
+.new-app-input:hover {
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--bg-card-border));
+}
+
+.new-app-input:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px color-mix(in srgb, #6366f1 24%, transparent);
+  background: var(--bg-card);
+}
+
+.new-app-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, color-mix(in srgb, var(--text-muted) 82%, transparent) 50%),
+    linear-gradient(135deg, color-mix(in srgb, var(--text-muted) 82%, transparent) 50%, transparent 50%);
+  background-position:
+    calc(100% - 16px) calc(50% - 2px),
+    calc(100% - 11px) calc(50% - 2px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 34px;
+}
+
+.new-app-toggle-field {
+  align-content: start;
+}
+
+.new-app-toggle {
+  box-sizing: border-box;
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  width: 100%;
+  max-width: 100%;
+  min-height: 44px;
+  padding: 4px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 84%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg-card-elevated) 72%, var(--bg-card));
+}
+
+.new-app-toggle button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: color-mix(in srgb, var(--text-muted) 88%, transparent);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 0 12px;
+  cursor: pointer;
+}
+
+.new-app-toggle button:hover {
+  color: var(--text-secondary);
+}
+
+.new-app-toggle button.is-active {
+  background: color-mix(in srgb, var(--bg-card) 86%, transparent);
+  color: var(--text-primary);
+  border-color: color-mix(in srgb, var(--accent) 62%, var(--bg-card-border));
+}
+
+.new-app-keyword-field {
+  align-content: start;
+}
+
+.new-app-keyword-toggle {
+  box-sizing: border-box;
+  display: inline-grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  width: 100%;
+  min-height: 44px;
+  padding: 4px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 84%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg-card-elevated) 72%, var(--bg-card));
+}
+
+.new-app-keyword-toggle button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: color-mix(in srgb, var(--text-muted) 88%, transparent);
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 0 8px;
+  cursor: pointer;
+}
+
+.new-app-keyword-toggle button:hover {
+  color: var(--text-secondary);
+}
+
+.new-app-keyword-toggle button.is-active {
+  background: color-mix(in srgb, var(--bg-card) 86%, transparent);
+  color: var(--text-primary);
+  border-color: color-mix(in srgb, var(--accent) 62%, var(--bg-card-border));
+}
+
+.new-app-textarea {
+  min-height: 72px;
+  resize: vertical;
+}
+.new-app-alert {
+  border-radius: 10px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, #fb923c 42%, transparent);
+  background: color-mix(in srgb, #fdba74 15%, transparent);
+  color: color-mix(in srgb, #ea580c 72%, #f59e0b);
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.new-app-details {
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 82%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg-card-elevated) 74%, transparent);
+  padding: 0 12px 12px;
+}
+
+.new-app-details-summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.new-app-details-summary::-webkit-details-marker {
+  display: none;
+}
+
+.new-app-details-title {
+  min-width: 0;
+}
+
+.new-app-details-toggle {
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 84%, transparent);
+  background: color-mix(in srgb, var(--bg-card) 90%, transparent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.new-app-details-icon {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  transition: transform 0.18s ease;
+}
+
+.new-app-details[open] .new-app-details-icon {
+  transform: rotate(180deg);
+}
+
+.new-app-details-body {
+  display: grid;
+  gap: 14px;
+}
+
+.new-app-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}

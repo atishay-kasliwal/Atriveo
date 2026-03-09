@@ -1,0 +1,234 @@
+/* Portfolio-style theme aligned with atishaykasliwal.com */
+:root {
+  font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-header: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: #f8fafc;
+  background: #0b1220;
+  --bg-base: #0b1220;
+  --bg-card: #0f172a;
+  --bg-card-elevated: #111b30;
+  --bg-card-border: #1f2937;
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --accent: #2563eb;
+  --accent-soft: #60a5fa;
+  --accent-dim: #1d4ed8;
+  --primary-color: #2563eb;
+  --dashboard-bg-art: radial-gradient(circle at 22% -8%, rgba(59, 130, 246, 0.12), transparent 42%), #0b1220;
+  --surface-hover: #131d33;
+  --card-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 10px 30px rgba(0, 0, 0, 0.4);
+  --card-shadow-strong:
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 12px 34px rgba(0, 0, 0, 0.45);
+  --nav-shadow: 0 8px 20px rgba(2, 6, 23, 0.3);
+  --chart-grid: rgba(148, 163, 184, 0.2);
+  --chart-tooltip-bg: #0f172a;
+  --chart-tooltip-border: rgba(148, 163, 184, 0.34);
+  --chart-axis: #94a3b8;
+  --chart-text: #f8fafc;
+  --chart-text-secondary: #cbd5e1;
+  --network-chart-grid: rgba(148, 163, 184, 0.18);
+  --heatmap-empty-bg: #0d1117;
+  --heatmap-empty-border: #30363d;
+  --heatmap-future-border: #30363d;
+  --heatmap-day-text: #8b949e;
+  --heatmap-level-0: #161b22;
+  --heatmap-level-1: #0e4429;
+  --heatmap-level-2: #006d32;
+  --heatmap-level-3: #26a641;
+  --heatmap-level-4: #39d353;
+  --heatmap-active-text-low: #e6edf3;
+  --heatmap-active-text-high: #f0f6fc;
+  --heatmap-today-border: #3fb950;
+  --error-bg: rgba(185, 28, 28, 0.2);
+  --error-border: rgba(248, 113, 113, 0.3);
+  --error-text: #fca5a5;
+  --success-bg: linear-gradient(90deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.1));
+  --success-border: rgba(110, 231, 183, 0.36);
+  --success-text: #dcfce7;
+  --success-close-bg: rgba(2, 6, 23, 0.42);
+  --success-close-border: rgba(167, 243, 208, 0.45);
+  --success-close-text: #ecfdf5;
+  --success-close-bg-hover: rgba(2, 6, 23, 0.62);
+  --brand-primary: #2563eb;
+  --brand-primary-dark: #1d4ed8;
+  --brand-primary-light: #60a5fa;
+  --brand-champion: #F59E0B;
+  --brand-black: #000000;
+  --brand-white: #ffffff;
+  --brand-gray: #94a3b8;
+  --toggle-border: rgba(51, 133, 255, 0.55);
+  --toggle-track-bg: rgba(5, 11, 23, 0.94);
+  --toggle-track-inner-border: rgba(51, 133, 255, 0.26);
+  --toggle-shadow:
+    inset 0 0 0 1px rgba(51, 133, 255, 0.2),
+    0 4px 10px rgba(0, 0, 0, 0.25);
+  --toggle-shadow-hover:
+    inset 0 0 0 1px rgba(51, 133, 255, 0.26),
+    0 6px 12px rgba(0, 0, 0, 0.3);
+  --toggle-glyph-bright: #a9bcff;
+  --toggle-glyph-dim: #ffffff;
+  --toggle-thumb-border: rgba(255, 255, 255, 0.28);
+  --toggle-thumb-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.14),
+    0 2px 8px rgba(0, 82, 204, 0.35);
+}
+
+:root[data-theme="light"] {
+  color: #0F172A;
+  background: #F1F5F9;
+  --bg-base: #F1F5F9;
+  --bg-card: #FFFFFF;
+  --bg-card-elevated: #F8FAFC;
+  --bg-card-border: #E2E8F0;
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #94A3B8;
+  --accent: #2563EB;
+  --accent-soft: #60A5FA;
+  --accent-dim: #1D4ED8;
+  --primary-color: #2563EB;
+  --dashboard-bg-art: #F1F5F9;
+  --surface-hover: #F8FAFC;
+  --card-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 4px 12px rgba(0, 0, 0, 0.04);
+  --card-shadow-strong:
+    0 1px 3px rgba(0, 0, 0, 0.06),
+    0 8px 18px rgba(0, 0, 0, 0.06);
+  --nav-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+  --chart-grid: rgba(226, 232, 240, 0.35); /* #E2E8F0 */
+  --chart-tooltip-bg: #ffffff;
+  --chart-tooltip-border: #e2e8f0;
+  --chart-tooltip-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+  --chart-axis: #94A3B8;
+  --chart-text: #0F172A;
+  --chart-text-secondary: #64748B;
+  --network-chart-grid: rgba(226, 232, 240, 0.35);
+  --heatmap-empty-bg: #f6f8fa;
+  --heatmap-empty-border: #d0d7de;
+  --heatmap-future-border: #d0d7de;
+  --heatmap-day-text: #57606a;
+  --heatmap-level-0: #ebedf0;
+  --heatmap-level-1: #9be9a8;
+  --heatmap-level-2: #40c463;
+  --heatmap-level-3: #30a14e;
+  --heatmap-level-4: #216e39;
+  --heatmap-active-text-low: #1f2328;
+  --heatmap-active-text-high: #ffffff;
+  --heatmap-today-border: #1f883d;
+  --success-bg: linear-gradient(90deg, rgba(16, 185, 129, 0.14), rgba(16, 185, 129, 0.08));
+  --success-border: rgba(5, 150, 105, 0.38);
+  --success-text: #065f46;
+  --success-close-bg: rgba(6, 95, 70, 0.1);
+  --success-close-border: rgba(6, 95, 70, 0.28);
+  --success-close-text: #065f46;
+  --success-close-bg-hover: rgba(6, 95, 70, 0.16);
+  --brand-primary: #2563EB;
+  --brand-primary-dark: #1d4ed8;
+  --brand-primary-light: #60a5fa;
+  --brand-gray: #64748b;
+  --table-head-bg: #f8fafc;
+  --table-body-bg: #ffffff;
+  --table-head-text: #475569;
+  --table-head-divider: rgba(148, 163, 184, 0.3);
+  --table-row-divider: rgba(148, 163, 184, 0.2);
+  --table-row-hover: transparent;
+  --marketing-bg: #f8fafc;
+  --marketing-surface: #ffffff;
+  --marketing-soft: #e6f4f7;
+  --marketing-border: #dbe4f0;
+  --marketing-text: #111827;
+  --marketing-muted: #4b5563;
+  --marketing-kicker: #475569;
+  --marketing-link: #2563eb;
+  --marketing-shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
+  --toggle-border: rgba(37, 99, 235, 0.42);
+  --toggle-track-bg: rgba(255, 255, 255, 0.96);
+  --toggle-track-inner-border: rgba(37, 99, 235, 0.28);
+  --toggle-shadow:
+    inset 0 0 0 1px rgba(37, 99, 235, 0.15),
+    0 4px 10px rgba(15, 23, 42, 0.12);
+  --toggle-shadow-hover:
+    inset 0 0 0 1px rgba(37, 99, 235, 0.2),
+    0 6px 12px rgba(15, 23, 42, 0.16);
+  --toggle-glyph-bright: #2563eb;
+  --toggle-glyph-dim: #94a3b8;
+  --toggle-thumb-border: rgba(37, 99, 235, 0.35);
+  --toggle-thumb-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.22),
+    0 2px 8px rgba(37, 99, 235, 0.28);
+}
+
+:root[data-theme="dark"] {
+  color: #f8fafc;
+  background: #0b1220;
+  --bg-base: #0b1220;
+  --bg-card: #0f172a;
+  --bg-card-elevated: #111b30;
+  --bg-card-border: #1f2937;
+  --text-primary: #f8fafc;
+  --text-secondary: #c3cedd;
+  --text-muted: #91a0b7;
+  --accent: #3b82f6;
+  --accent-soft: #74a8f8;
+  --accent-dim: #2563eb;
+  --primary-color: #3b82f6;
+  --dashboard-bg-art: #0b1220;
+  --surface-hover: #131d33;
+  --card-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.2),
+    0 4px 12px rgba(0, 0, 0, 0.3);
+  --card-shadow-strong:
+    0 2px 4px rgba(0, 0, 0, 0.3),
+    0 8px 18px rgba(0, 0, 0, 0.4);
+  --nav-shadow: 0 8px 20px rgba(2, 6, 23, 0.3);
+  --chart-grid: rgba(51, 65, 85, 0.35); /* #334155 */
+  --chart-tooltip-bg: #0f172a;
+  --chart-tooltip-border: rgba(148, 163, 184, 0.34);
+  --chart-tooltip-shadow: 0 14px 28px rgba(2, 6, 23, 0.5);
+  --chart-axis: #64748b;
+  --chart-text: #f8fafc;
+  --chart-text-secondary: #94a3b8;
+  --network-chart-grid: rgba(51, 65, 85, 0.35);
+  --heatmap-empty-bg: #0d1117;
+  --heatmap-empty-border: #30363d;
+  --heatmap-future-border: #30363d;
+  --heatmap-day-text: #8b949e;
+  --heatmap-level-0: #161b22;
+  --heatmap-level-1: #0e4429;
+  --heatmap-level-2: #006d32;
+  --heatmap-level-3: #26a641;
+  --heatmap-level-4: #39d353;
+  --heatmap-active-text-low: #e6edf3;
+  --heatmap-active-text-high: #f0f6fc;
+  --heatmap-today-border: #3fb950;
+  --brand-primary: #3b82f6;
+  --marketing-surface: #0f1622;
+  --marketing-soft: #111c2c;
+  --marketing-border: #263247;
+  --marketing-text: #f8fafc;
+  --marketing-muted: #b7c2d6;
+  --marketing-kicker: #95a3bd;
+  --marketing-link: #3385ff;
+  --marketing-shadow: 0 16px 32px rgba(0, 0, 0, 0.35);
+  --toggle-border: rgba(51, 133, 255, 0.55);
+  --toggle-track-bg: rgba(5, 11, 23, 0.94);
+  --toggle-track-inner-border: rgba(51, 133, 255, 0.26);
+  --toggle-shadow:
+    inset 0 0 0 1px rgba(51, 133, 255, 0.2),
+    0 4px 10px rgba(0, 0, 0, 0.25);
+  --toggle-shadow-hover:
+    inset 0 0 0 1px rgba(51, 133, 255, 0.26),
+    0 6px 12px rgba(0, 0, 0, 0.3);
+  --toggle-glyph-bright: #a9bcff;
+  --toggle-glyph-dim: #ffffff;
+  --toggle-thumb-border: rgba(255, 255, 255, 0.28);
+  --toggle-thumb-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.14),
+    0 2px 8px rgba(0, 82, 204, 0.35);
+}

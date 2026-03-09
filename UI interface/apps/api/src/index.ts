@@ -52,6 +52,42 @@ const GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo";
 const MAX_FRIENDS = 10;
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const NETWORK_REQUIRED_VISIBILITY_FIELDS = ["share_company", "share_role", "share_applied_at", "share_job_application_id"] as const;
+const MEDIA_MAX_BYTES = 8 * 1024 * 1024; // 8 MB
+const MEDIA_SIGNED_URL_DEFAULT_TTL_SECONDS = 15 * 60; // 15 minutes
+const MEDIA_SIGNED_URL_MAX_TTL_SECONDS = 24 * 60 * 60; // 24 hours
+const MEDIA_ALLOWED_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "image/avif",
+  "image/svg+xml",
+]);
+const MEDIA_MIME_EXTENSION_MAP: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/gif": "gif",
+  "image/avif": "avif",
+  "image/svg+xml": "svg",
+};
+const MEDIA_SELECT_COLUMNS = `
+  id,
+  user_id,
+  object_key,
+  bucket_name,
+  original_filename,
+  mime_type,
+  byte_size,
+  sha256_hex,
+  source_url,
+  kind,
+  related_job_id,
+  related_note_id,
+  created_at::text AS created_at,
+  updated_at::text AS updated_at,
+  deleted_at::text AS deleted_at
+`;
 
 function parseAnchorDay(rawAnchor: string | undefined): string | null {
   return rawAnchor && ISO_DATE_REGEX.test(rawAnchor) ? rawAnchor : null;
@@ -130,6 +166,295 @@ const friendRequestInput = z.object({
   receiver_id: z.coerce.number().int().positive().optional(),
   email: z.string().email().optional(),
 });
+
+const mediaKindSchema = z.enum(["general", "profile", "job", "note", "network", "other"]);
+
+const mediaUploadInput = z.object({
+  file_name: z.string().trim().max(255).optional(),
+  mime_type: z.string().trim().min(1).max(120),
+  data_base64: z.string().trim().min(8),
+  kind: mediaKindSchema.optional(),
+  source_url: z.string().url().max(2048).optional(),
+  related_job_id: z.number().int().positive().nullable().optional(),
+  related_note_id: z.number().int().positive().nullable().optional(),
+});
+
+const mediaIngestInput = z.object({
+  source_url: z.string().url().max(2048),
+  file_name: z.string().trim().max(255).optional(),
+  mime_type: z.string().trim().min(1).max(120).optional(),
+  kind: mediaKindSchema.optional(),
+  related_job_id: z.number().int().positive().nullable().optional(),
+  related_note_id: z.number().int().positive().nullable().optional(),
+});
+
+type MediaAssetRow = {
+  id: number;
+  user_id: number;
+  object_key: string;
+  bucket_name: string;
+  original_filename: string | null;
+  mime_type: string;
+  byte_size: number;
+  sha256_hex: string;
+  source_url: string | null;
+  kind: string;
+  related_job_id: number | null;
+  related_note_id: number | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+};
+
+function bytesToHex(bytes: Uint8Array): string {
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+}
+
+async function sha256HexBytes(bytes: Uint8Array): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", toArrayBuffer(bytes));
+  return bytesToHex(new Uint8Array(digest));
+}
+
+function normalizeMimeType(raw: string): string {
+  const first = String(raw ?? "").split(";")[0] || "";
+  return first.trim().toLowerCase();
+}
+
+function sanitizeFileName(rawName: string | undefined): string | null {
+  const cleaned = String(rawName ?? "")
+    .trim()
+    .replace(/[^\w.\-() ]+/g, "_")
+    .replace(/\s+/g, " ")
+    .slice(0, 255);
+  return cleaned || null;
+}
+
+function getBase64Payload(raw: string): string {
+  const trimmed = String(raw ?? "").trim();
+  const dataUrlMatch = /^data:[^;]+;base64,(.+)$/i.exec(trimmed);
+  return (dataUrlMatch ? dataUrlMatch[1] : trimmed).replace(/\s+/g, "");
+}
+
+function decodeBase64ToBytes(rawBase64: string): Uint8Array {
+  const payload = getBase64Payload(rawBase64);
+  if (!payload) return new Uint8Array();
+  const bin = atob(payload);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i += 1) {
+    bytes[i] = bin.charCodeAt(i);
+  }
+  return bytes;
+}
+
+function extensionFromMimeType(mimeType: string, fileName?: string): string {
+  const fromMime = MEDIA_MIME_EXTENSION_MAP[mimeType];
+  if (fromMime) return fromMime;
+  const cleanedFileName = sanitizeFileName(fileName);
+  const fromName = cleanedFileName?.split(".").pop()?.toLowerCase();
+  return fromName && /^[a-z0-9]{1,8}$/.test(fromName) ? fromName : "bin";
+}
+
+function buildObjectKey(userId: number, mimeType: string, fileName?: string): string {
+  const now = new Date();
+  const yyyy = now.getUTCFullYear();
+  const mm = String(now.getUTCMonth() + 1).padStart(2, "0");
+  const ext = extensionFromMimeType(mimeType, fileName);
+  const uuid = crypto.randomUUID().replace(/-/g, "");
+  return `u${userId}/${yyyy}/${mm}/${uuid}.${ext}`;
+}
+
+function normalizeSignedTtlSeconds(raw: string | undefined): number {
+  const ttl = Number(raw ?? MEDIA_SIGNED_URL_DEFAULT_TTL_SECONDS);
+  if (!Number.isFinite(ttl) || ttl <= 0) return MEDIA_SIGNED_URL_DEFAULT_TTL_SECONDS;
+  return Math.min(Math.floor(ttl), MEDIA_SIGNED_URL_MAX_TTL_SECONDS);
+}
+
+function getMediaBucket(env: Bindings): R2Bucket | null {
+  return env.MEDIA_BUCKET ?? null;
+}
+
+function getMediaSigningSecret(env: Bindings): string {
+  return String(env.MEDIA_URL_SIGNING_SECRET ?? env.API_SHARED_TOKEN ?? "").trim();
+}
+
+function timingSafeEqualHex(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let mismatch = 0;
+  for (let i = 0; i < a.length; i += 1) {
+    mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return mismatch === 0;
+}
+
+async function signMediaPayload(secret: string, payload: string): Promise<string> {
+  const secretBytes = new TextEncoder().encode(secret);
+  const payloadBytes = new TextEncoder().encode(payload);
+  const key = await crypto.subtle.importKey(
+    "raw",
+    toArrayBuffer(secretBytes),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signature = await crypto.subtle.sign("HMAC", key, toArrayBuffer(payloadBytes));
+  return bytesToHex(new Uint8Array(signature));
+}
+
+function getMediaPublicUrl(env: Bindings, objectKey: string): string | null {
+  const base = String(env.MEDIA_PUBLIC_BASE_URL ?? "").trim();
+  if (!base) return null;
+  try {
+    const url = new URL(base.endsWith("/") ? base : `${base}/`);
+    const prefix = url.pathname.replace(/\/+$/, "");
+    const encodedPath = objectKey
+      .split("/")
+      .map((segment) => encodeURIComponent(segment))
+      .join("/");
+    url.pathname = `${prefix}/${encodedPath}`.replace(/\/{2,}/g, "/");
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+async function buildSignedMediaUrl(
+  c: { env: Bindings; req: { url: string } },
+  row: Pick<MediaAssetRow, "id" | "object_key">,
+  ttlSeconds = MEDIA_SIGNED_URL_DEFAULT_TTL_SECONDS,
+): Promise<string | null> {
+  const secret = getMediaSigningSecret(c.env);
+  if (!secret) return null;
+  const expires = Math.floor(Date.now() / 1000) + normalizeSignedTtlSeconds(String(ttlSeconds));
+  const payload = `${row.id}:${row.object_key}:${expires}`;
+  const sig = await signMediaPayload(secret, payload);
+  const origin = new URL(c.req.url).origin;
+  return `${origin}/api/media/file/${row.id}?expires=${expires}&sig=${sig}`;
+}
+
+async function toMediaAssetResponse(
+  c: { env: Bindings; req: { url: string } },
+  row: MediaAssetRow,
+  ttlSeconds = MEDIA_SIGNED_URL_DEFAULT_TTL_SECONDS,
+) {
+  return {
+    id: Number(row.id),
+    object_key: String(row.object_key),
+    bucket_name: String(row.bucket_name),
+    file_name: row.original_filename ?? null,
+    mime_type: String(row.mime_type),
+    byte_size: Number(row.byte_size ?? 0),
+    sha256_hex: String(row.sha256_hex),
+    source_url: row.source_url ?? null,
+    kind: String(row.kind || "general"),
+    related_job_id: row.related_job_id ?? null,
+    related_note_id: row.related_note_id ?? null,
+    created_at: String(row.created_at),
+    updated_at: String(row.updated_at),
+    deleted_at: row.deleted_at ?? null,
+    public_url: getMediaPublicUrl(c.env, String(row.object_key)),
+    signed_url: await buildSignedMediaUrl(c, row, ttlSeconds),
+  };
+}
+
+type PersistMediaAssetInput = {
+  bytes: Uint8Array;
+  mimeType: string;
+  fileName?: string;
+  sourceUrl?: string;
+  kind?: z.infer<typeof mediaKindSchema>;
+  relatedJobId?: number | null;
+  relatedNoteId?: number | null;
+};
+
+async function persistMediaAsset(
+  env: Bindings,
+  userId: number,
+  payload: PersistMediaAssetInput,
+): Promise<{ row: MediaAssetRow; deduplicated: boolean }> {
+  const bucket = getMediaBucket(env);
+  if (!bucket) throw new Error("MEDIA_BUCKET binding is not configured.");
+
+  const sha256Hex = await sha256HexBytes(payload.bytes);
+  const [existing] = await query<MediaAssetRow>(
+    env,
+    `
+    SELECT ${MEDIA_SELECT_COLUMNS}
+    FROM media_assets
+    WHERE user_id = $1
+      AND sha256_hex = $2
+      AND deleted_at IS NULL
+    LIMIT 1
+    `,
+    [userId, sha256Hex],
+  );
+
+  if (existing) {
+    const existingObject = await bucket.head(existing.object_key);
+    if (!existingObject) {
+      await bucket.put(existing.object_key, payload.bytes, {
+        httpMetadata: { contentType: payload.mimeType },
+        customMetadata: {
+          user_id: String(userId),
+          kind: payload.kind ?? existing.kind ?? "general",
+          sha256_hex: sha256Hex,
+        },
+      });
+    }
+    return { row: existing, deduplicated: true };
+  }
+
+  const objectKey = buildObjectKey(userId, payload.mimeType, payload.fileName);
+  await bucket.put(objectKey, payload.bytes, {
+    httpMetadata: { contentType: payload.mimeType },
+    customMetadata: {
+      user_id: String(userId),
+      kind: payload.kind ?? "general",
+      sha256_hex: sha256Hex,
+    },
+  });
+
+  const [inserted] = await query<MediaAssetRow>(
+    env,
+    `
+    INSERT INTO media_assets (
+      user_id,
+      object_key,
+      bucket_name,
+      original_filename,
+      mime_type,
+      byte_size,
+      sha256_hex,
+      source_url,
+      kind,
+      related_job_id,
+      related_note_id
+    )
+    VALUES ($1, $2, 'MEDIA_BUCKET', $3, $4, $5, $6, $7, $8, $9, $10)
+    RETURNING ${MEDIA_SELECT_COLUMNS}
+    `,
+    [
+      userId,
+      objectKey,
+      sanitizeFileName(payload.fileName),
+      payload.mimeType,
+      payload.bytes.byteLength,
+      sha256Hex,
+      payload.sourceUrl ?? null,
+      payload.kind ?? "general",
+      payload.relatedJobId ?? null,
+      payload.relatedNoteId ?? null,
+    ],
+  );
+
+  if (!inserted) throw new Error("Unable to store media metadata.");
+  return { row: inserted, deduplicated: false };
+}
 
 function areSignupsEnabled(env: Bindings): boolean {
   const raw = env.SIGNUPS_ENABLED ?? env.ALLOW_SIGNUPS;
@@ -407,6 +732,67 @@ app.post("/auth/google", async (c) => {
   );
 });
 
+// Public route intended for short-lived signed URLs generated by /api/media/:id/signed-url.
+app.get("/api/media/file/:id", async (c) => {
+  const mediaId = Number(c.req.param("id"));
+  const expiresRaw = c.req.query("expires");
+  const sig = String(c.req.query("sig") ?? "").trim().toLowerCase();
+  const expires = Number(expiresRaw ?? 0);
+
+  if (!Number.isFinite(mediaId) || mediaId <= 0) {
+    return c.json({ error: "Invalid media id." }, 400);
+  }
+  if (!Number.isFinite(expires) || expires <= 0 || !sig) {
+    return c.json({ error: "Missing or invalid signature query parameters." }, 401);
+  }
+  if (Math.floor(Date.now() / 1000) > Math.floor(expires)) {
+    return c.json({ error: "Signed URL has expired." }, 401);
+  }
+
+  const bucket = getMediaBucket(c.env);
+  if (!bucket) return c.json({ error: "MEDIA_BUCKET binding is not configured." }, 503);
+
+  const [row] = await query<MediaAssetRow>(
+    c.env,
+    `
+    SELECT ${MEDIA_SELECT_COLUMNS}
+    FROM media_assets
+    WHERE id = $1
+      AND deleted_at IS NULL
+    LIMIT 1
+    `,
+    [mediaId],
+  );
+  if (!row) return c.json({ error: "Media asset not found." }, 404);
+
+  const secret = getMediaSigningSecret(c.env);
+  if (!secret) return c.json({ error: "Media signing secret is not configured." }, 503);
+  const expectedSig = await signMediaPayload(secret, `${row.id}:${row.object_key}:${Math.floor(expires)}`);
+  if (!timingSafeEqualHex(expectedSig, sig)) {
+    return c.json({ error: "Invalid media signature." }, 401);
+  }
+
+  const object = await bucket.get(row.object_key);
+  if (!object) return c.json({ error: "Media object not found in storage." }, 404);
+
+  const headers = new Headers();
+  object.writeHttpMetadata(headers);
+  headers.set("Content-Type", headers.get("Content-Type") || row.mime_type || "application/octet-stream");
+  if (object.size != null) headers.set("Content-Length", String(object.size));
+  if (object.httpEtag) headers.set("ETag", object.httpEtag);
+  headers.set("Cache-Control", "private, max-age=300");
+
+  if (c.req.query("download") === "1") {
+    const safeFileName = sanitizeFileName(row.original_filename ?? undefined) ?? `media-${row.id}`;
+    headers.set("Content-Disposition", `attachment; filename="${safeFileName.replace(/"/g, "")}"`);
+  } else if (row.original_filename) {
+    const safeFileName = sanitizeFileName(row.original_filename) ?? `media-${row.id}`;
+    headers.set("Content-Disposition", `inline; filename="${safeFileName.replace(/"/g, "")}"`);
+  }
+
+  return new Response(object.body, { status: 200, headers });
+});
+
 app.use("/api/*", authMiddleware);
 
 app.get("/api/auth/me", (c) => {
@@ -420,6 +806,217 @@ app.post("/api/auth/logout", async (c) => {
     await revokeSession(c.env, bearer);
   }
   return c.json({ ok: true });
+});
+
+app.post("/api/media/upload", async (c) => {
+  const userId = c.get("authUser").id;
+  const parsed = mediaUploadInput.safeParse(await c.req.json());
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
+
+  const payload = parsed.data;
+  const mimeType = normalizeMimeType(payload.mime_type);
+  if (!MEDIA_ALLOWED_MIME_TYPES.has(mimeType)) {
+    return c.json({ error: "Unsupported media type. Only common image formats are allowed." }, 415);
+  }
+
+  let bytes: Uint8Array;
+  try {
+    bytes = decodeBase64ToBytes(payload.data_base64);
+  } catch {
+    return c.json({ error: "Invalid base64 payload." }, 400);
+  }
+
+  if (!bytes.byteLength) {
+    return c.json({ error: "File payload is empty." }, 400);
+  }
+  if (bytes.byteLength > MEDIA_MAX_BYTES) {
+    return c.json({ error: `File too large. Max ${Math.floor(MEDIA_MAX_BYTES / (1024 * 1024))} MB.` }, 413);
+  }
+
+  const { row, deduplicated } = await persistMediaAsset(c.env, userId, {
+    bytes,
+    mimeType,
+    fileName: payload.file_name,
+    sourceUrl: payload.source_url,
+    kind: payload.kind,
+    relatedJobId: payload.related_job_id,
+    relatedNoteId: payload.related_note_id,
+  });
+
+  const data = await toMediaAssetResponse(c, row);
+  return c.json({ data, deduplicated }, deduplicated ? 200 : 201);
+});
+
+app.post("/api/media/ingest", async (c) => {
+  const userId = c.get("authUser").id;
+  const parsed = mediaIngestInput.safeParse(await c.req.json());
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
+  const payload = parsed.data;
+
+  let remote: Response;
+  try {
+    remote = await fetch(payload.source_url, { method: "GET", redirect: "follow" });
+  } catch {
+    return c.json({ error: "Unable to reach source URL for ingestion." }, 502);
+  }
+  if (!remote.ok) {
+    return c.json({ error: `Source URL returned ${remote.status}.` }, 502);
+  }
+
+  const mimeType = normalizeMimeType(payload.mime_type || remote.headers.get("content-type") || "");
+  if (!MEDIA_ALLOWED_MIME_TYPES.has(mimeType)) {
+    return c.json({ error: "Source URL is not a supported image format." }, 415);
+  }
+
+  const bytes = new Uint8Array(await remote.arrayBuffer());
+  if (!bytes.byteLength) return c.json({ error: "Fetched source file is empty." }, 400);
+  if (bytes.byteLength > MEDIA_MAX_BYTES) {
+    return c.json({ error: `Source file too large. Max ${Math.floor(MEDIA_MAX_BYTES / (1024 * 1024))} MB.` }, 413);
+  }
+
+  let inferredFileName = payload.file_name;
+  if (!inferredFileName) {
+    try {
+      const sourceUrl = new URL(payload.source_url);
+      const tail = sourceUrl.pathname.split("/").filter(Boolean).pop();
+      inferredFileName = tail ? decodeURIComponent(tail) : undefined;
+    } catch {
+      inferredFileName = undefined;
+    }
+  }
+
+  const { row, deduplicated } = await persistMediaAsset(c.env, userId, {
+    bytes,
+    mimeType,
+    fileName: inferredFileName,
+    sourceUrl: payload.source_url,
+    kind: payload.kind,
+    relatedJobId: payload.related_job_id,
+    relatedNoteId: payload.related_note_id,
+  });
+
+  const data = await toMediaAssetResponse(c, row);
+  return c.json({ data, deduplicated }, deduplicated ? 200 : 201);
+});
+
+app.get("/api/media", async (c) => {
+  const userId = c.get("authUser").id;
+  const page = Math.max(1, Number(c.req.query("page") ?? 1) || 1);
+  const limit = Math.min(Math.max(Number(c.req.query("limit") ?? 25) || 25, 1), 100);
+  const ttl = normalizeSignedTtlSeconds(c.req.query("ttl"));
+  const kindRaw = c.req.query("kind");
+  const offset = (page - 1) * limit;
+
+  let kind: z.infer<typeof mediaKindSchema> | null = null;
+  if (kindRaw) {
+    const parsedKind = mediaKindSchema.safeParse(kindRaw);
+    if (!parsedKind.success) return c.json({ error: "Invalid kind filter." }, 400);
+    kind = parsedKind.data;
+  }
+
+  const whereParts: string[] = ["user_id = $1", "deleted_at IS NULL"];
+  const params: unknown[] = [userId];
+  let paramIndex = 2;
+  if (kind) {
+    whereParts.push(`kind = $${paramIndex}`);
+    params.push(kind);
+    paramIndex += 1;
+  }
+  const whereClause = `WHERE ${whereParts.join(" AND ")}`;
+
+  const [countRow] = await query<{ total: number }>(
+    c.env,
+    `SELECT COUNT(*)::int AS total FROM media_assets ${whereClause}`,
+    params,
+  );
+
+  const rows = await query<MediaAssetRow>(
+    c.env,
+    `
+    SELECT ${MEDIA_SELECT_COLUMNS}
+    FROM media_assets
+    ${whereClause}
+    ORDER BY created_at DESC, id DESC
+    LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    `,
+    [...params, limit, offset],
+  );
+
+  const data = await Promise.all(rows.map((row) => toMediaAssetResponse(c, row, ttl)));
+  return c.json({
+    page,
+    limit,
+    total: Number(countRow?.total ?? 0),
+    data,
+  });
+});
+
+app.get("/api/media/:id/signed-url", async (c) => {
+  const userId = c.get("authUser").id;
+  const mediaId = Number(c.req.param("id"));
+  if (!Number.isFinite(mediaId) || mediaId <= 0) return c.json({ error: "Invalid media id." }, 400);
+
+  const [row] = await query<MediaAssetRow>(
+    c.env,
+    `
+    SELECT ${MEDIA_SELECT_COLUMNS}
+    FROM media_assets
+    WHERE id = $1
+      AND user_id = $2
+      AND deleted_at IS NULL
+    LIMIT 1
+    `,
+    [mediaId, userId],
+  );
+  if (!row) return c.json({ error: "Media asset not found." }, 404);
+
+  const ttl = normalizeSignedTtlSeconds(c.req.query("ttl"));
+  const signedUrl = await buildSignedMediaUrl(c, row, ttl);
+  if (!signedUrl) return c.json({ error: "Media signing secret is not configured." }, 503);
+
+  return c.json({
+    id: Number(row.id),
+    ttl_seconds: ttl,
+    signed_url: signedUrl,
+    public_url: getMediaPublicUrl(c.env, row.object_key),
+  });
+});
+
+app.delete("/api/media/:id", async (c) => {
+  const userId = c.get("authUser").id;
+  const mediaId = Number(c.req.param("id"));
+  if (!Number.isFinite(mediaId) || mediaId <= 0) return c.json({ error: "Invalid media id." }, 400);
+
+  const [row] = await query<MediaAssetRow>(
+    c.env,
+    `
+    SELECT ${MEDIA_SELECT_COLUMNS}
+    FROM media_assets
+    WHERE id = $1
+      AND user_id = $2
+      AND deleted_at IS NULL
+    LIMIT 1
+    `,
+    [mediaId, userId],
+  );
+  if (!row) return c.json({ error: "Media asset not found." }, 404);
+
+  const bucket = getMediaBucket(c.env);
+  if (!bucket) return c.json({ error: "MEDIA_BUCKET binding is not configured." }, 503);
+  await bucket.delete(row.object_key);
+
+  await query(
+    c.env,
+    `
+    UPDATE media_assets
+    SET deleted_at = NOW(), updated_at = NOW()
+    WHERE id = $1
+      AND user_id = $2
+    `,
+    [mediaId, userId],
+  );
+
+  return c.json({ ok: true, id: mediaId });
 });
 
 app.get("/api/targets", async (c) => {
@@ -2287,9 +2884,30 @@ function syncReferralsFromImportRowsBatchStatement(userId: number, rows: CsvImpo
 app.get("/api/jobs", async (c) => {
   const userId = c.get("authUser").id;
   const page = Math.max(1, Number(c.req.query("page") ?? 1) || 1);
-  const limit = Math.min(Number(c.req.query("limit") ?? 25), 100);
-  const company = c.req.query("company");
-  const statusFilter = String(c.req.query("status") ?? ""); // expected: "active" | "rejected" | "all"(empty means active)
+  const limit = Math.min(Math.max(Number(c.req.query("limit") ?? 25) || 25, 1), 100);
+  const searchQuery = String(c.req.query("search") ?? c.req.query("company") ?? "").trim();
+  const statusFilterRaw = String(c.req.query("status") ?? "").trim().toLowerCase(); // expected: "active" | "rejected" | "archive" | "all" (empty means active)
+  const statusFilter = statusFilterRaw;
+  const stageFilterRaw = String(c.req.query("stage") ?? "").trim();
+  const stageFilter =
+    stageFilterRaw === "Applied" ||
+    stageFilterRaw === "OA" ||
+    stageFilterRaw === "Interview" ||
+    stageFilterRaw === "Offer" ||
+    stageFilterRaw === "Archive"
+      ? stageFilterRaw
+      : "";
+  const applicationStatusRaw = String(c.req.query("applicationStatus") ?? "").trim().toLowerCase();
+  const applicationStatusFilter =
+    applicationStatusRaw === "applied" ||
+    applicationStatusRaw === "under consideration" ||
+    applicationStatusRaw === "rejected"
+      ? applicationStatusRaw
+      : "";
+  const timeRangeRaw = String(c.req.query("timeRange") ?? "").trim().toLowerCase();
+  const referralFilterRaw = String(c.req.query("referral") ?? "").trim().toLowerCase();
+  const oaFilterRaw = String(c.req.query("oa") ?? "").trim().toLowerCase();
+  const anchorDay = parseAnchorDay(c.req.query("anchorDay"));
   const sortRaw = c.req.query("sort") ?? "applied_at";
   const orderRaw = String(c.req.query("order") ?? "desc").toLowerCase();
   const sort = isJobsSortColumn(sortRaw) ? sortRaw : "applied_at";
@@ -2297,57 +2915,122 @@ app.get("/api/jobs", async (c) => {
   const offset = (page - 1) * limit;
 
   const orderBy = `j.${sort} ${order} NULLS LAST, COALESCE(j.applied_at, j.date_saved, j.created_at) DESC NULLS LAST, j.created_at DESC NULLS LAST, j.id DESC`;
-  const baseSql = `
-    SELECT
-      j.*,
-      CASE
-        WHEN LOWER(TRIM(COALESCE(j.referral_status, ''))) IN ('requested', 'yes') THEN
-          COALESCE(
-            (
-              SELECT r.referred_by_name
-              FROM referrals r
-              WHERE r.user_id = j.user_id
-                AND TRIM(COALESCE(r.referred_by_name, '')) <> ''
-                AND TRIM(COALESCE(r.request_link, '')) = TRIM(COALESCE(j.job_link, ''))
-              ORDER BY COALESCE(r.updated_date, r.request_date) DESC NULLS LAST, r.id DESC
-              LIMIT 1
-            ),
-            (
-              SELECT r.referred_by_name
-              FROM referrals r
-              WHERE r.user_id = j.user_id
-                AND TRIM(COALESCE(r.referred_by_name, '')) <> ''
-                AND LOWER(TRIM(COALESCE(r.company, ''))) = LOWER(TRIM(COALESCE(j.company, '')))
-                AND LOWER(TRIM(COALESCE(r.request_log, ''))) = LOWER(TRIM(COALESCE(j.role, '')))
-              ORDER BY COALESCE(r.updated_date, r.request_date) DESC NULLS LAST, r.id DESC
-              LIMIT 1
-            )
-          )
-        ELSE NULL
-      END AS referred_by_name
+  const stageSql = `
+    CASE
+      -- Canonical pipeline values stored in application_status
+      WHEN LOWER(TRIM(COALESCE(j.application_status, ''))) IN ('applied', '') THEN 'Applied'
+      WHEN LOWER(TRIM(COALESCE(j.application_status, ''))) = 'oa' THEN 'OA'
+      WHEN LOWER(TRIM(COALESCE(j.application_status, ''))) = 'interview' THEN 'Interview'
+      WHEN LOWER(TRIM(COALESCE(j.application_status, ''))) = 'offer' THEN 'Offer'
+      WHEN LOWER(TRIM(COALESCE(j.application_status, ''))) IN ('archive', 'archived', 'rejected') THEN 'Archive'
+      -- Backward-compat: map legacy values into the closest stage
+      WHEN LOWER(TRIM(COALESCE(j.application_status, ''))) = 'under consideration' THEN 'Applied'
+      ELSE 'Applied'
+    END
+  `;
+  const fromSql = `
     FROM jobs j
+    LEFT JOIN LATERAL (
+      SELECT r.referred_by_name
+      FROM referrals r
+      WHERE r.user_id = j.user_id
+        AND TRIM(COALESCE(r.referred_by_name, '')) <> ''
+        AND (
+          TRIM(COALESCE(r.request_link, '')) = TRIM(COALESCE(j.job_link, ''))
+          OR (
+            LOWER(TRIM(COALESCE(r.company, ''))) = LOWER(TRIM(COALESCE(j.company, '')))
+            AND LOWER(TRIM(COALESCE(r.request_log, ''))) = LOWER(TRIM(COALESCE(j.role, '')))
+          )
+        )
+      ORDER BY COALESCE(r.updated_date, r.request_date) DESC NULLS LAST, r.id DESC
+      LIMIT 1
+    ) ref ON TRUE
   `;
 
-  // Build where clause dynamically to handle company and status filters
+  // Build where clause dynamically to handle broad search and status filters.
   const whereParts: string[] = ["j.user_id = $1"];
   const params: unknown[] = [userId];
   let paramIdx = 2;
-  if (company) {
-    whereParts.push(`j.company ILIKE $${paramIdx}`);
-    params.push(`%${company}%`);
+  if (searchQuery) {
+    whereParts.push(`(
+      j.company ILIKE $${paramIdx}
+      OR COALESCE(j.role, '') ILIKE $${paramIdx}
+      OR COALESCE(j.location_raw, '') ILIKE $${paramIdx}
+      OR COALESCE(j.job_link, '') ILIKE $${paramIdx}
+      OR COALESCE(j.job_application_id, '') ILIKE $${paramIdx}
+      OR COALESCE(j.keyword_matching, '') ILIKE $${paramIdx}
+      OR COALESCE(j.oa_status, '') ILIKE $${paramIdx}
+      OR COALESCE(j.oa_deadline_date::text, '') ILIKE $${paramIdx}
+      OR COALESCE(j.referral_status, '') ILIKE $${paramIdx}
+      OR COALESCE(ref.referred_by_name, '') ILIKE $${paramIdx}
+      OR COALESCE(j.response_status, '') ILIKE $${paramIdx}
+      OR COALESCE(j.application_status, '') ILIKE $${paramIdx}
+      OR COALESCE(j.notes, '') ILIKE $${paramIdx}
+      OR COALESCE(j.date_saved::text, '') ILIKE $${paramIdx}
+      OR COALESCE(j.applied_at::text, '') ILIKE $${paramIdx}
+    )`);
+    params.push(`%${searchQuery}%`);
     paramIdx += 1;
   }
-  // statusFilter semantics: 'rejected' => only Rejected, 'active' or empty => exclude Rejected, 'all' => no filter
+  // statusFilter semantics:
+  // - '' or 'active'  => exclude archived/rejected
+  // - 'archive'       => only archived/rejected
+  // - 'rejected'      => only explicit "rejected" status (backward compat)
+  // - 'all'           => no filter
+  const applicationStatusExpr = "LOWER(TRIM(COALESCE(j.application_status, 'Applied')))";
   if (!statusFilter || statusFilter === "active") {
-    whereParts.push(`LOWER(TRIM(COALESCE(j.application_status, 'Applied'))) != 'rejected'`);
+    whereParts.push(`${applicationStatusExpr} NOT IN ('rejected', 'archive', 'archived')`);
+  } else if (statusFilter === "archive") {
+    whereParts.push(`${applicationStatusExpr} IN ('rejected', 'archive', 'archived')`);
   } else if (statusFilter === "rejected") {
-    whereParts.push(`LOWER(TRIM(COALESCE(j.application_status, ''))) = 'rejected'`);
+    whereParts.push(`${applicationStatusExpr} = 'rejected'`);
+  }
+  if (stageFilter) {
+    whereParts.push(`(${stageSql}) = $${paramIdx}`);
+    params.push(stageFilter);
+    paramIdx += 1;
+  }
+
+  if (applicationStatusFilter) {
+    whereParts.push(`LOWER(TRIM(COALESCE(j.application_status, 'Applied'))) = $${paramIdx}`);
+    params.push(applicationStatusFilter);
+    paramIdx += 1;
+  }
+
+  if (timeRangeRaw && timeRangeRaw !== "all") {
+    const timeRange = Number(timeRangeRaw);
+    if (Number.isFinite(timeRange) && timeRange >= 0 && timeRange <= 3650) {
+      const anchorParam = paramIdx;
+      params.push(anchorDay);
+      paramIdx += 1;
+      const anchorExpr = `COALESCE($${anchorParam}::date, CURRENT_DATE)`;
+      const dayExpr = `COALESCE(j.applied_at::date, j.date_saved::date, j.created_at::date)`;
+      if (timeRange === 0) {
+        whereParts.push(`${dayExpr} = ${anchorExpr}`);
+      } else {
+        whereParts.push(
+          `${dayExpr} >= (${anchorExpr} - INTERVAL '${Math.max(0, Math.floor(timeRange) - 1)} days')::date AND ${dayExpr} <= ${anchorExpr}`,
+        );
+      }
+    }
+  }
+
+  if (referralFilterRaw === "yes") {
+    whereParts.push(`LOWER(TRIM(COALESCE(j.referral_status, ''))) IN ('yes', 'requested')`);
+  } else if (referralFilterRaw === "no") {
+    whereParts.push(`LOWER(TRIM(COALESCE(j.referral_status, ''))) NOT IN ('yes', 'requested')`);
+  }
+
+  if (oaFilterRaw === "yes") {
+    whereParts.push(`LOWER(TRIM(COALESCE(j.oa_status, ''))) = 'yes'`);
+  } else if (oaFilterRaw === "no") {
+    whereParts.push(`LOWER(TRIM(COALESCE(j.oa_status, ''))) <> 'yes'`);
   }
 
   const whereClause = ` WHERE ${whereParts.join(" AND ")}`;
   const [countRow] = await query<{ total: number }>(
     c.env,
-    `SELECT COUNT(*)::int AS total FROM jobs j${whereClause}`,
+    `SELECT COUNT(*)::int AS total ${fromSql}${whereClause}`,
     params as unknown[],
   );
   const total = Number(countRow?.total ?? 0);
@@ -2355,7 +3038,19 @@ app.get("/api/jobs", async (c) => {
   params.push(limit, offset);
   const orderLimitOffset = ` ORDER BY ${orderBy} LIMIT $${params.length - 1} OFFSET $${params.length}`;
 
-  const rows = await query(c.env, `${baseSql}${whereClause}${orderLimitOffset}`, params as unknown[]);
+  const rows = await query(
+    c.env,
+    `
+    SELECT
+      j.*,
+      ref.referred_by_name,
+      (${stageSql}) AS dashboard_stage
+    ${fromSql}
+    ${whereClause}
+    ${orderLimitOffset}
+    `,
+    params as unknown[],
+  );
   return c.json({ page, limit, total, data: rows });
 });
 
@@ -3510,17 +4205,48 @@ const referralInput = z.object({
 
 app.get("/api/referrals", async (c) => {
   const userId = c.get("authUser").id;
-  const page = Number(c.req.query("page") ?? 1);
-  const limit = Math.min(Number(c.req.query("limit") ?? 25), 100);
+  const page = Math.max(1, Number(c.req.query("page") ?? 1) || 1);
+  const limit = Math.min(Math.max(Number(c.req.query("limit") ?? 25) || 25, 1), 100);
   const offset = (page - 1) * limit;
-  const filter = c.req.query("filter");
-  const sql = filter === "open"
-    ? "SELECT * FROM referrals WHERE user_id = $1 AND COALESCE(TRIM(referral_received), '') = 'Requested' ORDER BY request_date DESC NULLS LAST, id DESC LIMIT $2 OFFSET $3"
-    : filter === "applied"
-      ? "SELECT * FROM referrals WHERE user_id = $1 AND COALESCE(TRIM(referral_received), '') = 'Yes' ORDER BY COALESCE(updated_date, request_date) DESC NULLS LAST, id DESC LIMIT $2 OFFSET $3"
-      : "SELECT * FROM referrals WHERE user_id = $1 ORDER BY request_date DESC NULLS LAST, id DESC LIMIT $2 OFFSET $3";
-  const rows = await query(c.env, sql, [userId, limit, offset]);
-  return c.json({ page, limit, data: rows });
+  const filter = String(c.req.query("filter") ?? "").trim().toLowerCase();
+  const searchQuery = String(c.req.query("search") ?? "").trim();
+
+  const whereParts: string[] = ["user_id = $1"];
+  const params: unknown[] = [userId];
+  let paramIdx = 2;
+  if (filter === "open") {
+    whereParts.push(`COALESCE(TRIM(referral_received), '') = 'Requested'`);
+  } else if (filter === "applied") {
+    whereParts.push(`COALESCE(TRIM(referral_received), '') = 'Yes'`);
+  }
+  if (searchQuery) {
+    whereParts.push(`(
+      COALESCE(company, '') ILIKE $${paramIdx}
+      OR COALESCE(request_log, '') ILIKE $${paramIdx}
+      OR COALESCE(referred_by_name, '') ILIKE $${paramIdx}
+    )`);
+    params.push(`%${searchQuery}%`);
+    paramIdx += 1;
+  }
+
+  const whereClause = ` WHERE ${whereParts.join(" AND ")}`;
+  const [countRow] = await query<{ total: number }>(
+    c.env,
+    `SELECT COUNT(*)::int AS total FROM referrals${whereClause}`,
+    params as unknown[],
+  );
+  const total = Number(countRow?.total ?? 0);
+
+  const orderBy = filter === "applied"
+    ? "ORDER BY COALESCE(updated_date, request_date) DESC NULLS LAST, id DESC"
+    : "ORDER BY request_date DESC NULLS LAST, id DESC";
+  params.push(limit, offset);
+  const rows = await query(
+    c.env,
+    `SELECT * FROM referrals${whereClause} ${orderBy} LIMIT $${params.length - 1} OFFSET $${params.length}`,
+    params as unknown[],
+  );
+  return c.json({ page, limit, total, data: rows });
 });
 
 app.post("/api/referrals", async (c) => {

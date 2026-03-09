@@ -1,0 +1,227 @@
+
+.active-jobs-referral-search {
+  min-height: 36px;
+  border: 1px solid #d5dfef;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 0 12px;
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+.active-jobs-referral-search:focus-within {
+  border-color: #60a5fa;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.02), 0 0 0 4px rgba(37, 99, 235, 0.14);
+}
+
+.active-jobs-referral-search-icon {
+  width: 15px;
+  height: 15px;
+  color: #8fa3c7;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.active-jobs-referral-search-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.active-jobs-referral-search input {
+  border: 0;
+  outline: 0;
+  background: transparent;
+  min-height: 32px;
+  min-width: 0;
+  color: #0f172a;
+  font-size: 12px;
+  font-family: var(--font-body), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.active-jobs-referral-search input::placeholder {
+  color: #94a3b8;
+}
+
+.active-jobs-side-search-shell {
+  min-height: 40px;
+  padding: 0 12px;
+}
+
+.active-jobs-side-caption {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #64748b;
+}
+
+.active-jobs-kpi-panel {
+  display: grid;
+  gap: 8px;
+}
+
+.active-jobs-kpi-premium-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.active-jobs-kpi-premium-card {
+  border: 1px solid #dbe4f1;
+  border-radius: 14px;
+  padding: 12px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+  display: grid;
+  gap: 4px;
+  aspect-ratio: 1 / 1;
+  align-content: space-between;
+  min-width: 0;
+}
+
+.active-jobs-kpi-premium-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.active-jobs-kpi-premium-head p {
+  margin: 0;
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.active-jobs-kpi-pill {
+  border-radius: 999px;
+  padding: 3px 8px;
+  background: #dcfce7;
+  color: #166534;
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 700;
+}
+
+.active-jobs-kpi-premium-value {
+  margin: 0;
+  font-size: 32px;
+  line-height: 1;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.active-jobs-kpi-premium-status {
+  margin: 0;
+  font-size: 12px;
+  color: #475569;
+  font-weight: 500;
+}
+
+.active-jobs-kpi-sparkline {
+  width: 100%;
+  height: 64px;
+  margin-top: 4px;
+}
+
+.active-jobs-kpi-sparkline path {
+  fill: none;
+  stroke: #3b82f6;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.active-jobs-kpi-bars {
+  margin-top: 4px;
+  height: 72px;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  align-items: end;
+  gap: 4px;
+}
+
+.active-jobs-kpi-bars span {
+  border-radius: 999px;
+  background: linear-gradient(180deg, #6366f1 0%, #4338ca 100%);
+  min-height: 12px;
+  width: 6px;
+  justify-self: center;
+}
+.active-jobs-referral-table-wrap {
+  overflow-x: hidden;
+  overflow-y: auto;
+  border-radius: 14px;
+  border: 1px solid #dbe5f4;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+  height: 304px;
+}
+
+.active-jobs-referral-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.active-jobs-referral-table th,
+.active-jobs-referral-table td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid #edf2fb;
+}
+
+.active-jobs-referral-table th {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #475569;
+  background: linear-gradient(180deg, #f8fbff 0%, #f1f6ff 100%);
+  font-weight: 700;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.active-jobs-referral-table td {
+  font-size: 12px;
+  color: #334155;
+  vertical-align: middle;
+}
+
+.active-jobs-referral-table tbody tr:hover td {
+  background: #f8fbff;
+}
+
+.active-jobs-referral-count {
+  width: 54px;
+  color: #475569 !important;
+  font-weight: 700;
+}
+
+.active-jobs-referral-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.active-jobs-referral-empty {
+  text-align: center !important;
+  color: #64748b !important;
+  font-size: 12px !important;
+  padding: 14px 10px !important;
+  height: 240px;
+  vertical-align: middle !important;
+}
+
+.active-jobs-referral-person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
