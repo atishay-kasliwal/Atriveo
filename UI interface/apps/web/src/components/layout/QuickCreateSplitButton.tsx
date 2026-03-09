@@ -8,8 +8,10 @@ type QuickCreateSplitButtonProps = {
   className?: string;
 };
 
+type SplitActionId = "application" | "task" | "note";
+
 type SplitAction = {
-  id: "task" | "note";
+  id: SplitActionId;
   label: string;
   run: () => void;
 };
@@ -22,10 +24,11 @@ export default function QuickCreateSplitButton({
 }: QuickCreateSplitButtonProps) {
   const actions = useMemo<SplitAction[]>(
     () => [
+      { id: "application", label: "New Application", run: onNewApplication },
       { id: "task", label: "Create Task", run: onCreateTask },
       { id: "note", label: "Log Note", run: onLogNote },
     ],
-    [onCreateTask, onLogNote],
+    [onNewApplication, onCreateTask, onLogNote],
   );
 
   return (
