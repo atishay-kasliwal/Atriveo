@@ -78,9 +78,28 @@ export const TRUST_LOGOS = [
 ];
 
 export const TESTIMONIALS = [
-  { name: "Emma Carter", role: "CS Student", quote: "Atriveo turned my search from random tabs into one clear weekly system.", initials: "EC" },
-  { name: "Olivia Reed", role: "New Grad Applicant", quote: "I finally stopped missing follow-ups. The timeline and reminders keep me consistent.", initials: "OR" },
-  { name: "Ethan Brooks", role: "Software Intern Candidate", quote: "My referrals, deadlines, and interviews are in one place, so I can focus on quality.", initials: "EB" },
+  { name: "Emma Carter", role: "CS Student at MIT", quote: "Atriveo turned my search from random tabs into one clear weekly system. I landed 3 interviews in 2 weeks.", initials: "EC", metric: "3 interviews" },
+  { name: "Olivia Reed", role: "New Grad Applicant", quote: "I finally stopped missing follow-ups. The timeline and reminders keep me consistent, and I got an offer in 6 weeks.", initials: "OR", metric: "6 weeks to offer" },
+  { name: "Ethan Brooks", role: "Software Intern Candidate", quote: "My referrals, deadlines, and interviews are in one place. This helped me track 40+ applications without stress.", initials: "EB", metric: "40+ applications tracked" },
+  { name: "Sophie Chen", role: "Recent Graduate", quote: "The referral tracking feature helped me stay top-of-mind. Got my current role through a warm intro I tracked on Atriveo.", initials: "SC", metric: "Got job via referral" },
+];
+
+export const FREE_TIER_FEATURES = [
+  "✓ Track unlimited job applications",
+  "✓ Monitor referral requests and outcomes",
+  "✓ Set daily/weekly/monthly targets",
+  "✓ Track OA deadlines & interview dates",
+  "✓ Build follow-up reminders",
+  "✓ Chrome extension (25+ ATS platforms)",
+  "✓ CSV import/export for data portability",
+  "✓ Mobile-responsive dashboard",
+];
+
+export const TRUST_SIGNALS = [
+  { icon: "🔒", label: "Your data is private", detail: "End-to-end encryption. We never sell data." },
+  { icon: "⚡", label: "100% free forever", detail: "All core features are free. No credit card required." },
+  { icon: "📱", label: "Works everywhere", detail: "Browser, mobile, Chrome extension. Pick your tool." },
+  { icon: "🤝", label: "Join 1000+ users", detail: "Trusted by students and professionals." },
 ];
 
 export const EXTENSION_INSTALL_PATH = "/extension-install";

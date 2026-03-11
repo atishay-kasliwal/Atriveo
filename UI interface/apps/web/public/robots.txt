@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /.env
+Disallow: /api
+Disallow: /dashboard/settings
+
+Sitemap: https://www.atriveo.com/sitemap.xml

@@ -10,6 +10,7 @@ import {
   COMPETE_KPIS,
   EXTENSION_INSTALL_PATH,
   FEATURES,
+  FREE_TIER_FEATURES,
   FUNNEL_STAGES,
   LEADERBOARD,
   PARTICLES,
@@ -18,6 +19,7 @@ import {
   STEP_ITEMS,
   TESTIMONIALS,
   TRUST_LOGOS,
+  TRUST_SIGNALS,
   VELOCITY_LABELS,
   VELOCITY_SERIES,
 } from "./landing/constants";
@@ -209,13 +211,14 @@ export default function LandingPage({
             <h1>
               Your job search, organized.
               <br />
-              <span>From first application to final offer.</span>
+              <span>From first application to final offer. Free.</span>
             </h1>
             <p>
-              Track applications, manage referrals, and never miss a follow-up. Atriveo gives you one clean operating system for recruiting.
+              Track applications, manage referrals, and stay accountable with your friends. Atriveo is your operating system for recruiting — completely free, no credit card needed.
             </p>
             <div className="lv-hero-actions">
               <button type="button" className="lv-btn lv-btn-primary" onClick={() => openAuth("signup")}>Get Started Free</button>
+              <p className="lv-hero-proof">✓ No credit card · ✓ 100% free · ✓ Join 1000+ users</p>
             </div>
           </div>
         </section>
@@ -333,7 +336,42 @@ export default function LandingPage({
           </div>
         </section>
 
-        <section className="lv-extension-showcase" aria-label="Atriveo Chrome extension">
+        <section className="lv-trust-signals">
+          <div className="lv-wrap">
+            <h2>Why 1000+ job seekers trust Atriveo</h2>
+            <div className="lv-trust-grid">
+              {TRUST_SIGNALS.map((signal) => (
+                <article key={signal.label} className="lv-trust-card">
+                  <span className="lv-trust-icon">{signal.icon}</span>
+                  <h3>{signal.label}</h3>
+                  <p>{signal.detail}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="lv-free-features">
+          <div className="lv-wrap">
+            <h2>Everything included. No limits. No surprises.</h2>
+            <p className="lv-free-subtitle">100% of Atriveo's core features are free forever.</p>
+            <div className="lv-free-list">
+              {FREE_TIER_FEATURES.map((feature, index) => (
+                <div key={index} className="lv-free-item">
+                  <span className="lv-free-check">✓</span>
+                  <span>{feature}</span>
+                </div>
+              ))}
+            </div>
+            <div className="lv-free-cta">
+              <button type="button" className="lv-btn lv-btn-primary" onClick={() => openAuth("signup")}>
+                Start Your Job Search for Free
+              </button>
+            </div>
+          </div>
+        </section>
+
+        
           <div className="lv-wrap lv-extension-grid">
             <div className="lv-extension-preview" aria-hidden="true">
               <div className="lv-extension-pill-row">
@@ -629,8 +667,9 @@ export default function LandingPage({
               <article className="lv-testimonial-feature">
                 <span className="lv-testimonial-quote lv-testimonial-quote--left" aria-hidden="true">“</span>
                 <span className="lv-testimonial-quote lv-testimonial-quote--right" aria-hidden="true">”</span>
-                <p className="lv-testimonial-feature-copy">{featuredTestimonial.quote}</p>
-                <div className="lv-testimonial-person">
+                <p className="lv-testimonial-feature-copy">{featuredTestimonial.quote}</p>                {featuredTestimonial.metric && (
+                  <p className="lv-testimonial-metric">📊 {featuredTestimonial.metric}</p>
+                )}                <div className="lv-testimonial-person">
                   <div className="lv-testimonial-avatar lv-testimonial-avatar--1" aria-hidden="true">
                     {featuredTestimonial.initials}
                   </div>
@@ -652,8 +691,7 @@ export default function LandingPage({
                       <strong>{item.name}</strong>
                       <small>{item.role}</small>
                     </div>
-                    <p>{item.quote}</p>
-                  </article>
+                    <p>{item.quote}</p>                    {item.metric && <p className="lv-testimonial-mini-metric">✓ {item.metric}</p>}                  </article>
                 ))}
               </div>
             </div>
