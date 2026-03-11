@@ -254,8 +254,20 @@
 }
 
 .lv-trust-icon {
-  font-size: 2.4rem;
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 82%, transparent);
+  background: color-mix(in srgb, var(--bg-card) 70%, transparent);
+  font-family: var(--font-header);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
   margin-bottom: 12px;
 }
 
@@ -275,47 +287,117 @@
 
 /* Free Features Section */
 .lv-free-features {
-  padding: 60px 0;
+  padding: 84px 0 88px;
 }
 
 .lv-free-features h2 {
   text-align: center;
   font-family: var(--font-header);
-  font-size: clamp(1.8rem, 3.2vw, 2.4rem);
-  margin: 0 0 12px;
+  font-size: clamp(1.8rem, 3vw, 2.55rem);
+  letter-spacing: -0.03em;
+  line-height: 1.06;
+  max-width: none;
+  white-space: nowrap;
+  margin: 0 auto 14px;
   color: var(--text-primary);
+}
+
+@media (max-width: 1140px) {
+  .lv-free-features h2 {
+    white-space: normal;
+  }
 }
 
 .lv-free-subtitle {
   text-align: center;
   color: var(--text-secondary);
-  font-size: 1rem;
-  margin: 0 0 40px;
-}
-
-.lv-free-list {
-  max-width: 500px;
+  font-size: 1.02rem;
+  line-height: 1.65;
+  max-width: 700px;
   margin: 0 auto 40px;
-  display: grid;
-  gap: 12px;
 }
 
-.lv-free-item {
-  display: flex;
+.lv-free-primary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin: 0 0 28px;
+}
+
+.lv-free-primary-card {
+  padding: 24px 24px 22px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--bg-card) 90%, transparent);
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 74%, transparent);
+  box-shadow: 0 18px 42px rgba(2, 6, 23, 0.18);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.lv-free-primary-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 24px 52px rgba(2, 6, 23, 0.24);
+  border-color: color-mix(in srgb, var(--accent) 34%, var(--bg-card-border));
+}
+
+.lv-free-primary-icon {
+  display: inline-flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--accent) 8%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent) 16%, transparent);
-  font-size: 0.95rem;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 14px;
+  margin-bottom: 18px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent-soft);
+  font-family: var(--font-header);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.lv-free-primary-card h3 {
+  margin: 0 0 10px;
+  font-family: var(--font-header);
+  font-size: 1.1rem;
+  line-height: 1.35;
   color: var(--text-primary);
 }
 
-.lv-free-check {
-  font-size: 1.2rem;
-  font-weight: bold;
-  color: var(--accent);
+.lv-free-primary-card p {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.lv-free-secondary-wrap {
+  margin: 0 auto 34px;
+  max-width: 1120px;
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in srgb, var(--bg-card-border) 58%, transparent);
+}
+
+.lv-free-secondary-list {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px 18px;
+  padding-top: 22px;
+}
+
+.lv-free-secondary-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 32px;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.lv-free-secondary-icon {
+  color: var(--accent-soft);
+  font-size: 1.05rem;
+  font-weight: 700;
   flex-shrink: 0;
 }
 
@@ -324,9 +406,15 @@
 }
 
 .lv-free-cta .lv-btn {
-  padding: 12px 32px;
-  min-height: 44px;
+  padding: 13px 32px;
+  min-height: 46px;
   border-radius: 999px;
+}
+
+.lv-free-cta-note {
+  margin: 12px 0 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
 }
 
 /* Hero proof text */

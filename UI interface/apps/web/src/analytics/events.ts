@@ -18,6 +18,7 @@ export const ANALYTICS_EVENTS = {
   share_data_disabled: "share_data_disabled",
   privacy_settings_opened: "privacy_settings_opened",
   chrome_extension_install_clicked: "chrome_extension_install_clicked",
+  chrome_extension_store_clicked: "chrome_extension_store_clicked",
   feedback_submitted: "feedback_submitted",
   filter_used: "filter_used",
   search_used: "search_used",
@@ -39,6 +40,7 @@ export const CONVERSION_EVENTS = [
   ANALYTICS_EVENTS.signup_completed,
   ANALYTICS_EVENTS.application_created,
   ANALYTICS_EVENTS.chrome_extension_install_clicked,
+  ANALYTICS_EVENTS.chrome_extension_store_clicked,
 ] as const;
 
 export type ProductEventName =
@@ -54,6 +56,7 @@ export type ProductEventName =
   | typeof ANALYTICS_EVENTS.share_data_disabled
   | typeof ANALYTICS_EVENTS.privacy_settings_opened
   | typeof ANALYTICS_EVENTS.chrome_extension_install_clicked
+  | typeof ANALYTICS_EVENTS.chrome_extension_store_clicked
   | typeof ANALYTICS_EVENTS.feedback_submitted;
 
 export type FeatureEventName =

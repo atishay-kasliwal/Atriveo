@@ -84,22 +84,37 @@ export const TESTIMONIALS = [
   { name: "Sophie Chen", role: "Recent Graduate", quote: "The referral tracking feature helped me stay top-of-mind. Got my current role through a warm intro I tracked on Atriveo.", initials: "SC", metric: "Got job via referral" },
 ];
 
-export const FREE_TIER_FEATURES = [
-  "✓ Track unlimited job applications",
-  "✓ Monitor referral requests and outcomes",
-  "✓ Set daily/weekly/monthly targets",
-  "✓ Track OA deadlines & interview dates",
-  "✓ Build follow-up reminders",
-  "✓ Chrome extension (25+ ATS platforms)",
-  "✓ CSV import/export for data portability",
-  "✓ Mobile-responsive dashboard",
+export const PRIMARY_FREE_TIER_FEATURES = [
+  {
+    icon: "TRACK",
+    title: "Track unlimited job applications",
+    description: "Keep every application, company, stage, and note organized in one place.",
+  },
+  {
+    icon: "EXTENSION",
+    title: "Chrome extension for 25+ ATS platforms",
+    description: "Capture roles directly from supported job boards and applicant systems in seconds.",
+  },
+  {
+    icon: "DEADLINES",
+    title: "Track OA deadlines and interview dates",
+    description: "Stay ahead of the next action with clear visibility into time-sensitive steps.",
+  },
+];
+
+export const SECONDARY_FREE_TIER_FEATURES = [
+  { icon: "→", label: "Monitor referral requests" },
+  { icon: "→", label: "Set daily / weekly / monthly targets" },
+  { icon: "→", label: "Follow-up reminders" },
+  { icon: "→", label: "CSV import / export" },
+  { icon: "→", label: "Mobile responsive dashboard" },
 ];
 
 export const TRUST_SIGNALS = [
-  { icon: "🔒", label: "Your data is private", detail: "End-to-end encryption. We never sell data." },
-  { icon: "⚡", label: "100% free forever", detail: "All core features are free. No credit card required." },
-  { icon: "📱", label: "Works everywhere", detail: "Browser, mobile, Chrome extension. Pick your tool." },
-  { icon: "🤝", label: "Join 1000+ users", detail: "Trusted by students and professionals." },
+  { icon: "PRIVATE", label: "Your data is private", detail: "End-to-end encryption. We never sell data." },
+  { icon: "FREE", label: "100% free forever", detail: "All core features are free. No credit card required." },
+  { icon: "ACCESS", label: "Works everywhere", detail: "Browser, mobile, Chrome extension. Pick your tool." },
+  { icon: "TRUSTED", label: "Join 1000+ users", detail: "Trusted by students and professionals." },
 ];
 
 export const EXTENSION_INSTALL_PATH = "/extension-install";

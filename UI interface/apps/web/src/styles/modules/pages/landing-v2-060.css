@@ -23,6 +23,7 @@
   position: relative;
   z-index: 1;
   text-align: center;
+  padding-top: clamp(14px, 2vw, 24px);
 }
 
 .lv-hero h1 {
@@ -60,6 +61,15 @@
 .lv-hero-actions .lv-btn-primary {
   border-radius: 999px;
 }
+
+.lv-hero-proof {
+  margin: 16px auto 0;
+  max-width: 690px;
+  font-size: 0.96rem;
+  line-height: 1.5;
+  color: color-mix(in srgb, #dbeafe 84%, transparent);
+}
+
 .lv-hero-footnote {
   margin-top: 14px;
   font-size: 0.86rem;

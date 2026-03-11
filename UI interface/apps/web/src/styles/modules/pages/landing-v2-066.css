@@ -1,18 +1,15 @@
 
 .lv-testimonial-feature-copy {
-  position: relative;
-  z-index: 1;
-  margin: 26px 0 24px;
+  margin: 0 0 18px;
   font-family: var(--font-header);
-  font-size: clamp(1.6rem, 2.35vw, 2.05rem);
-  line-height: 1.18;
+  font-size: clamp(1.25rem, 2vw, 1.65rem);
+  line-height: 1.55;
   letter-spacing: -0.02em;
   color: var(--text-primary);
+  max-width: 760px;
 }
 
 .lv-testimonial-person {
-  position: relative;
-  z-index: 1;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -63,20 +60,19 @@
 
 .lv-testimonial-mini-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
 }
 .lv-testimonial-mini {
-  position: relative;
   border-radius: 14px;
-  border: 1px solid color-mix(in srgb, var(--bg-card-border) 74%, transparent);
-  background: color-mix(in srgb, var(--bg-card) 94%, #ffffff 6%);
-  box-shadow: 0 12px 24px color-mix(in srgb, #020617 12%, transparent);
-  padding: 14px 16px 16px;
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 52%, transparent);
+  background: color-mix(in srgb, var(--bg-card) 90%, transparent);
+  box-shadow: 0 7px 18px rgba(2, 6, 23, 0.1);
+  padding: 16px 16px 17px;
   display: grid;
   grid-template-columns: 44px minmax(0, 1fr);
   column-gap: 10px;
-  row-gap: 8px;
+  row-gap: 10px;
 }
 
 .lv-testimonial-mini .lv-testimonial-avatar {
@@ -98,18 +94,8 @@
   grid-column: 1 / -1;
   margin: 0;
   color: var(--text-secondary);
-  font-size: 0.95rem;
-  line-height: 1.46;
-}
-
-.lv-testimonial-mini-quote {
-  position: absolute;
-  top: 10px;
-  right: 12px;
-  color: color-mix(in srgb, var(--accent) 65%, #98b8ff);
-  font-size: 1.5rem;
-  line-height: 1;
-  font-family: Georgia, "Times New Roman", serif;
+  font-size: 0.93rem;
+  line-height: 1.58;
 }
 
 .lv-footer-mini {

@@ -9,20 +9,21 @@ import {
   COMPANY_SIGNALS,
   COMPETE_KPIS,
   EXTENSION_INSTALL_PATH,
-  FEATURES,
-  FREE_TIER_FEATURES,
   FUNNEL_STAGES,
   LEADERBOARD,
   PARTICLES,
+  PRIMARY_FREE_TIER_FEATURES,
   PREVIEW_ROWS,
   REFERRAL_IMPACT,
+  SECONDARY_FREE_TIER_FEATURES,
   STEP_ITEMS,
-  TESTIMONIALS,
   TRUST_LOGOS,
   TRUST_SIGNALS,
   VELOCITY_LABELS,
   VELOCITY_SERIES,
 } from "./landing/constants";
+
+const CHROME_WEB_STORE_URL = "https://chromewebstore.google.com/detail/atriveo-job-assistant/ocbmncmmepfjgpnakenoibaambecidcf";
 
 type LandingPageProps = {
   isAuthenticated: boolean;
@@ -47,8 +48,38 @@ export default function LandingPage({
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState("");
   const [scrolled, setScrolled] = useState(false);
-  const featuredTestimonial = TESTIMONIALS[0];
-  const secondaryTestimonials = TESTIMONIALS.slice(1);
+
+  const proofQuotes = [
+    {
+      quote: "Atriveo turned my random tabs into a real job search system.",
+      author: "Emma Carter",
+      initials: "EC",
+    },
+    {
+      quote: "I finally stopped missing follow-ups and started getting interviews.",
+      author: "Olivia Reed",
+      initials: "OR",
+    },
+  ];
+
+  const proofStats = [
+    {
+      value: "40+ Applications Tracked",
+      detail: "Students stay organized without spreadsheets.",
+    },
+    {
+      value: "3 Interviews in 2 Weeks",
+      detail: "Candidates report faster interview cycles.",
+    },
+    {
+      value: "Referrals Tracked in One Place",
+      detail: "Never lose track of warm introductions.",
+    },
+    {
+      value: "Deadlines Never Missed",
+      detail: "Reminders keep applications moving forward.",
+    },
+  ];
 
   function openAuth(mode: "login" | "signup", source = "landing") {
     setAuthMode(mode);
@@ -121,6 +152,13 @@ export default function LandingPage({
       });
     }
     navigate(withDashboardBase(""), { replace: true });
+  }
+
+  function handleExtensionStoreClick(source: "navbar" | "extension_section") {
+    trackProductEvent(ANALYTICS_EVENTS.chrome_extension_store_clicked, {
+      source,
+      destination: "chrome_web_store",
+    });
   }
 
   async function onSubmitAuth(event: FormEvent<HTMLFormElement>) {
@@ -214,12 +252,12 @@ export default function LandingPage({
               <span>From first application to final offer. Free.</span>
             </h1>
             <p>
-              Track applications, manage referrals, and stay accountable with your friends. Atriveo is your operating system for recruiting — completely free, no credit card needed.
+              Track every application, manage referrals, and stay accountable with friends. Atriveo gives you one place to run your job search from first application to final offer, free.
             </p>
             <div className="lv-hero-actions">
               <button type="button" className="lv-btn lv-btn-primary" onClick={() => openAuth("signup")}>Get Started Free</button>
-              <p className="lv-hero-proof">✓ No credit card · ✓ 100% free · ✓ Join 1000+ users</p>
             </div>
+            <p className="lv-hero-proof">✓ No credit card required · ✓ Free to use · ✓ Trusted by 1,000+ users</p>
           </div>
         </section>
 
@@ -351,26 +389,6 @@ export default function LandingPage({
           </div>
         </section>
 
-        <section className="lv-free-features">
-          <div className="lv-wrap">
-            <h2>Everything included. No limits. No surprises.</h2>
-            <p className="lv-free-subtitle">100% of Atriveo's core features are free forever.</p>
-            <div className="lv-free-list">
-              {FREE_TIER_FEATURES.map((feature, index) => (
-                <div key={index} className="lv-free-item">
-                  <span className="lv-free-check">✓</span>
-                  <span>{feature}</span>
-                </div>
-              ))}
-            </div>
-            <div className="lv-free-cta">
-              <button type="button" className="lv-btn lv-btn-primary" onClick={() => openAuth("signup")}>
-                Start Your Job Search for Free
-              </button>
-            </div>
-          </div>
-        </section>
-
         <section className="lv-extension-showcase" aria-label="Atriveo Chrome extension">
           <div className="lv-wrap lv-extension-grid">
             <div className="lv-extension-preview" aria-hidden="true">
@@ -469,12 +487,18 @@ export default function LandingPage({
                 The Atriveo Job Assistant captures important job details and helps you autofill repetitive fields so you can apply faster and stay organized.
               </p>
               <div className="lv-extension-actions">
-                <Link className="lv-btn lv-btn-primary lv-extension-cta-primary" to={EXTENSION_INSTALL_PATH}>
+                <a
+                  className="lv-btn lv-btn-primary lv-extension-cta-primary"
+                  href={CHROME_WEB_STORE_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={() => handleExtensionStoreClick("extension_section")}
+                >
                   Add Extension
-                </Link>
-                <a className="lv-btn lv-btn-outline lv-extension-cta-secondary" href="#lv-how">
-                  Learn More
                 </a>
+                <Link className="lv-btn lv-btn-outline lv-extension-cta-secondary" to={EXTENSION_INSTALL_PATH}>
+                  Learn More
+                </Link>
               </div>
               <p className="lv-extension-proof" aria-label="social proof">
                 <span>★★★★★</span> 200,000+ applications submitted
@@ -483,17 +507,34 @@ export default function LandingPage({
           </div>
         </section>
 
-        <section id="lv-features" className="lv-features">
+        <section id="lv-features" className="lv-free-features">
           <div className="lv-wrap">
-            <h2>Everything you need to manage your job search.</h2>
-            <div className="lv-feature-grid">
-              {FEATURES.map((feature) => (
-                <article key={feature.title} className="lv-feature-card">
-                  <span className="lv-feature-icon" aria-hidden="true">{feature.icon}</span>
+            <h2>Everything You Need to Manage Your Job Search</h2>
+            <p className="lv-free-subtitle">A cleaner system for applications, deadlines, and follow-through so you can stay organized and move with confidence.</p>
+            <div className="lv-free-primary-grid">
+              {PRIMARY_FREE_TIER_FEATURES.map((feature) => (
+                <article key={feature.title} className="lv-free-primary-card">
+                  <span className="lv-free-primary-icon">{feature.icon}</span>
                   <h3>{feature.title}</h3>
                   <p>{feature.description}</p>
                 </article>
               ))}
+            </div>
+            <div className="lv-free-secondary-wrap">
+              <div className="lv-free-secondary-list" role="list" aria-label="Additional Atriveo features">
+                {SECONDARY_FREE_TIER_FEATURES.map((feature) => (
+                  <div key={feature.label} className="lv-free-secondary-item" role="listitem">
+                    <span className="lv-free-secondary-icon" aria-hidden="true">{feature.icon}</span>
+                    <span>{feature.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="lv-free-cta">
+              <button type="button" className="lv-btn lv-btn-primary" onClick={() => openAuth("signup")}>
+                Start Tracking Jobs for Free
+              </button>
+              <p className="lv-free-cta-note">No credit card required</p>
             </div>
           </div>
         </section>
@@ -655,45 +696,31 @@ export default function LandingPage({
           </div>
         </section>
         <section className="lv-testimonials">
-          <div className="lv-wrap lv-testimonials-grid">
-            <div className="lv-testimonials-copy">
-              <h2>What Students Say</h2>
-              <p>
-                Real feedback from candidates using Atriveo to keep recruiting organized,
-                consistent, and less chaotic.
-              </p>
-            </div>
-            <div className="lv-testimonial-rail">
-              <article className="lv-testimonial-feature">
-                <span className="lv-testimonial-quote lv-testimonial-quote--left" aria-hidden="true">“</span>
-                <span className="lv-testimonial-quote lv-testimonial-quote--right" aria-hidden="true">”</span>
-                <p className="lv-testimonial-feature-copy">{featuredTestimonial.quote}</p>                {featuredTestimonial.metric && (
-                  <p className="lv-testimonial-metric">📊 {featuredTestimonial.metric}</p>
-                )}                <div className="lv-testimonial-person">
-                  <div className="lv-testimonial-avatar lv-testimonial-avatar--1" aria-hidden="true">
-                    {featuredTestimonial.initials}
-                  </div>
-                  <div className="lv-testimonial-person-meta">
-                    <strong>{featuredTestimonial.name}</strong>
-                    <small>{featuredTestimonial.role}</small>
-                  </div>
-                </div>
-              </article>
+          <div className="lv-wrap">
+            <header className="lv-testimonials-head">
+              <h2>Students Are Landing Interviews With Atriveo</h2>
+              <p>Real outcomes from candidates who use Atriveo to stay consistent, organized, and interview-ready.</p>
+            </header>
 
-              <div className="lv-testimonial-mini-grid">
-                {secondaryTestimonials.map((item, index) => (
-                  <article key={item.name} className="lv-testimonial-mini">
-                    <span className="lv-testimonial-mini-quote" aria-hidden="true">”</span>
-                    <div className={`lv-testimonial-avatar lv-testimonial-avatar--${index + 2}`} aria-hidden="true">
-                      {item.initials}
-                    </div>
-                    <div className="lv-testimonial-person-meta">
-                      <strong>{item.name}</strong>
-                      <small>{item.role}</small>
-                    </div>
-                    <p>{item.quote}</p>                    {item.metric && <p className="lv-testimonial-mini-metric">✓ {item.metric}</p>}                  </article>
-                ))}
-              </div>
+            <div className="lv-proof-quotes" role="list" aria-label="Student testimonials">
+              {proofQuotes.map((item) => (
+                <article key={item.author} className="lv-proof-quote" role="listitem">
+                  <p>"{item.quote}"</p>
+                  <div className="lv-proof-quote-person">
+                    <span className="lv-proof-avatar" aria-hidden="true">{item.initials}</span>
+                    <small>{item.author}</small>
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            <div className="lv-proof-metrics" role="list" aria-label="Student outcomes">
+              {proofStats.map((item) => (
+                <article key={item.value} className="lv-proof-metric" role="listitem">
+                  <h3>{item.value}</h3>
+                  <p>{item.detail}</p>
+                </article>
+              ))}
             </div>
           </div>
         </section>

@@ -50,20 +50,20 @@
     font-size: 40px;
   }
 
-  .lv-testimonials-copy h2 {
+  .lv-testimonials-head h2 {
     font-size: 40px;
   }
 
-  .lv-testimonials-grid {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 24px;
+  .lv-testimonials-head {
+    margin-bottom: 28px;
   }
 
-  .lv-testimonial-rail {
-    max-width: none;
+  .lv-proof-quotes,
+  .lv-proof-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .lv-testimonial-feature-copy {
-    font-size: clamp(1.6rem, 4.8vw, 2.25rem);
+  .lv-proof-metric {
+    min-height: 118px;
   }
 }

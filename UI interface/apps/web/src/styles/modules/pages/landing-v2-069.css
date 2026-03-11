@@ -89,16 +89,26 @@
     margin-bottom: 48px;
   }
 
-  .lv-testimonials-copy h2 {
+  .lv-testimonials-head h2 {
     font-size: 34px;
   }
 
-  .lv-testimonial-mini-grid {
-    grid-template-columns: minmax(0, 1fr);
+  .lv-testimonials-head p {
+    max-width: none;
   }
 
-  .lv-testimonials-copy p {
-    max-width: none;
+  .lv-proof-quotes,
+  .lv-proof-metrics {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .lv-proof-metrics {
+    margin-top: 24px;
+  }
+
+  .lv-proof-metric {
+    min-height: 0;
   }
 
   .lv-compete-kpi-row {
@@ -136,6 +146,42 @@
   .lv-preview {
     margin-top: -66px;
     padding-bottom: 56px;
+  }
+
+  .lv-free-features {
+    padding: 72px 0;
+  }
+
+  .lv-free-features h2 {
+    font-size: 2rem;
+  }
+
+  .lv-free-subtitle {
+    margin-bottom: 30px;
+    font-size: 0.96rem;
+  }
+
+  .lv-free-primary-grid,
+  .lv-free-secondary-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .lv-free-primary-card {
+    padding: 20px 18px;
+  }
+
+  .lv-free-secondary-wrap {
+    margin-bottom: 28px;
+  }
+
+  .lv-free-secondary-list {
+    gap: 12px;
+    padding-top: 18px;
+  }
+
+  .lv-free-cta .lv-btn {
+    width: 100%;
+    max-width: 340px;
   }
 
   .lv-dashboard-table-head,
