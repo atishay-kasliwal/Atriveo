@@ -36,6 +36,8 @@
     ]);
     const location = utils.cleanLocation(locationRaw);
 
+    const categoryText = utils.getTextBySelectors([".posting-categories"]);
+
     const department = utils.firstNonEmpty([
       utils.getTextBySelectors([
         ".posting-categories .sort-by-team",
@@ -55,7 +57,6 @@
       utils.getMetaContent("description")
     ]);
 
-    const categoryText = utils.getTextBySelectors([".posting-categories"]);
     const employmentType = utils.firstNonEmpty([
       utils.getTextBySelectors([
         ".posting-categories .sort-by-commitment",

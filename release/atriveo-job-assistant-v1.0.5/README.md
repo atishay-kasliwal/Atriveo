@@ -123,13 +123,6 @@ Referral behavior:
   - validation errors
   - submit success
 
-## Technical Documentation
-
-Detailed architecture, end-to-end flows, sequence diagrams, and API/message catalogs are available in:
-
-- `../docs/extension-end-to-end-documentation.md`
-- `../docs/extension-api-calls-catalog.md`
-
 ## Auth + Button Behavior
 
 - Left button is always **Rescan Page**.
