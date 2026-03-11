@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Atriveo Job Assistant</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="popup">
+      <header class="popup-header">
+        <h1>Atriveo Job Assistant</h1>
+      </header>
+
+      <p id="scanMessage" class="visually-hidden" aria-hidden="true"></p>
+
+      <div class="popup-form" aria-live="polite">
+        <div class="field">
+          <label class="field-label" for="jobTitle">Job Title</label>
+          <div
+            id="jobTitle"
+            class="field-input"
+            contenteditable="true"
+            role="textbox"
+            spellcheck="false"
+            data-placeholder="e.g. Cyber Security Analyst"
+          ></div>
+        </div>
+
+        <div class="row two-col">
+          <div class="field">
+            <label class="field-label" for="jobCompany">Company</label>
+            <div
+              id="jobCompany"
+              class="field-input"
+              contenteditable="true"
+              role="textbox"
+              spellcheck="false"
+              data-placeholder="e.g. Pimco"
+            ></div>
+          </div>
+
+          <div class="field">
+            <label class="field-label" for="jobApplicationId">Job / Application ID</label>
+            <div
+              id="jobApplicationId"
+              class="field-input"
+              contenteditable="true"
+              role="textbox"
+              spellcheck="false"
+              data-placeholder="Optional"
+            ></div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="jobLink">Job Link</label>
+          <a
+            id="jobLink"
+            class="field-input field-link"
+            href="#"
+            target="_blank"
+            rel="noopener noreferrer"
+            contenteditable="true"
+            spellcheck="false"
+            data-placeholder="https://..."
+          ></a>
+        </div>
+
+        <div class="row two-col">
+          <div class="field">
+            <label class="field-label" for="keywordMatch">Keyword Match</label>
+            <select id="keywordMatch" class="field-control">
+              <option value="Strong">Strong</option>
+              <option value="Medium" selected>Medium</option>
+              <option value="Weak">Weak</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label class="field-label" for="referralName">Referral Name</label>
+            <input id="referralName" class="field-control" type="text" placeholder="Optional" />
+          </div>
+        </div>
+
+        <details class="additional-info">
+          <summary>Additional Information</summary>
+          <div class="additional-content">
+            <div
+              id="jobNotes"
+              class="field-input field-notes"
+              contenteditable="true"
+              role="textbox"
+              spellcheck="false"
+              data-placeholder="Location, salary, ATS platform and other autofilled values appear here."
+            ></div>
+          </div>
+        </details>
+      </div>
+
+      <p id="actionStatus" class="action-status"></p>
+
+      <div class="actions">
+        <button id="refreshBtn" type="button" class="btn btn-secondary">Rescan Page</button>
+        <button id="actionBtn" type="button" class="btn btn-primary">Add Application</button>
+      </div>
+    </main>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
