@@ -371,7 +371,7 @@ export default function LandingPage({
           </div>
         </section>
 
-        
+        <section className="lv-extension-showcase" aria-label="Atriveo Chrome extension">
           <div className="lv-wrap lv-extension-grid">
             <div className="lv-extension-preview" aria-hidden="true">
               <div className="lv-extension-pill-row">
