@@ -2599,6 +2599,19 @@ async function syncReferralFromJob(
   const referralStatus = normalizeReferralStatus(job.referral_status);
   if (!company || !requestLog || !referralStatus) return;
 
+  const [sameCompanyRoleCountRow] = await query<{ total: number }>(
+    env,
+    `
+    SELECT COUNT(*)::int AS total
+    FROM jobs
+    WHERE user_id = $1
+      AND LOWER(TRIM(COALESCE(company, ''))) = LOWER(TRIM($2))
+      AND LOWER(TRIM(COALESCE(role, ''))) = LOWER(TRIM($3))
+    `,
+    [userId, company, requestLog],
+  );
+  const isCompanyRoleUniqueJob = Number(sameCompanyRoleCountRow?.total ?? 0) <= 1;
+
   const requestLink = asTrimmedString((job as any).job_link);
   const requestDate = toIsoDate((job as any).date_saved) ?? toIsoDate((job as any).applied_at);
   const keywordMatching = normalizeKeywordMatching((job as any).keyword_matching) ?? "Medium";
@@ -2623,7 +2636,7 @@ async function syncReferralFromJob(
     existingId = byLink?.id ?? null;
   }
 
-  if (!existingId) {
+  if (!existingId && isCompanyRoleUniqueJob) {
     const [byCompanyRole] = await query<{ id: number }>(
       env,
       `
@@ -2936,10 +2949,21 @@ app.get("/api/jobs", async (c) => {
       WHERE r.user_id = j.user_id
         AND TRIM(COALESCE(r.referred_by_name, '')) <> ''
         AND (
-          TRIM(COALESCE(r.request_link, '')) = TRIM(COALESCE(j.job_link, ''))
+          (
+            NULLIF(TRIM(COALESCE(r.request_link, '')), '') IS NOT NULL
+            AND NULLIF(TRIM(COALESCE(j.job_link, '')), '') IS NOT NULL
+            AND TRIM(COALESCE(r.request_link, '')) = TRIM(COALESCE(j.job_link, ''))
+          )
           OR (
             LOWER(TRIM(COALESCE(r.company, ''))) = LOWER(TRIM(COALESCE(j.company, '')))
             AND LOWER(TRIM(COALESCE(r.request_log, ''))) = LOWER(TRIM(COALESCE(j.role, '')))
+            AND (
+              SELECT COUNT(*)
+              FROM jobs j2
+              WHERE j2.user_id = j.user_id
+                AND LOWER(TRIM(COALESCE(j2.company, ''))) = LOWER(TRIM(COALESCE(j.company, '')))
+                AND LOWER(TRIM(COALESCE(j2.role, ''))) = LOWER(TRIM(COALESCE(j.role, '')))
+            ) = 1
           )
         )
       ORDER BY COALESCE(r.updated_date, r.request_date) DESC NULLS LAST, r.id DESC
