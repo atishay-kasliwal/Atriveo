@@ -268,6 +268,7 @@ export default function Layout({
   const [noteForm, setNoteForm] = useState(emptyNoteForm);
   const { confirm, confirmDialog } = useConfirmDialog();
   const avatarInitials = computeUserInitials(userFirstName, userLastName, userEmail);
+  const AUTO_REFRESH_INTERVAL_MS = 5000;
 
   useEffect(() => {
     if (!showQuickAdd && !showPendingTask && !showNoteModal) setModalError("");
@@ -285,6 +286,47 @@ export default function Layout({
     } catch (_) { /* BroadcastChannel not supported */ }
     return () => { bc?.close(); };
   }, []);
+
+  useEffect(() => {
+    let intervalId: number | null = null;
+    const emitRefresh = () => {
+      window.dispatchEvent(new CustomEvent("dashboard-refresh"));
+    };
+    const clearTimer = () => {
+      if (intervalId !== null) {
+        window.clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
+    const startTimerIfVisible = () => {
+      if (document.visibilityState !== "visible" || intervalId !== null) return;
+      intervalId = window.setInterval(() => {
+        emitRefresh();
+      }, AUTO_REFRESH_INTERVAL_MS);
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        emitRefresh();
+        startTimerIfVisible();
+        return;
+      }
+      clearTimer();
+    };
+    const onFocus = () => {
+      emitRefresh();
+      startTimerIfVisible();
+    };
+
+    startTimerIfVisible();
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("focus", onFocus);
+
+    return () => {
+      clearTimer();
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [AUTO_REFRESH_INTERVAL_MS]);
 
   useEffect(() => {
     function onOpenFriendManager() {
