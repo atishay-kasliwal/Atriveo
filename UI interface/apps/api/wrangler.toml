@@ -37,3 +37,6 @@ name = "job-tracker-api"
 [env.production.vars]
 APP_ENV = "production"
 SIGNUPS_ENABLED = "true"
+
+[env.production.triggers]
+crons = ["30 2 * * *", "0 0 * * *"]

@@ -1,0 +1,49 @@
+ATRIVEO DAILY NETWORK STATS - {{date}}
+============================================
+
+Hi {{firstName}}, here is what your network achieved today.
+
+--------------------------------------------
+🎯 YOUR PROGRESS TODAY
+--------------------------------------------
+
+Applications Today: {{appsToday}}
+Target Companies:   {{targetCompanyCount}}
+Friends Total Apps: {{friendsTotalApps}}
+
+Daily Target: {{dailyTarget}} applications
+Progress:     {{progressPercent}}%
+
+{{statusMessage}}
+
+--------------------------------------------
+FRIENDS ACTIVITY (Top 5)
+--------------------------------------------
+
+{{#hasFriends}}
+{{#friends}}
+{{medal}} {{friendName}} - {{friendApps}} application{{friendAppsPlural}} today{{#friendTargets}} ({{friendTargets}} target{{friendTargetsPlural}}){{/friendTargets}}
+{{/friends}}
+{{/hasFriends}}
+{{#noFriends}}
+No friend activity has been recorded yet today.
+{{/noFriends}}
+
+--------------------------------------------
+NETWORK TOTALS
+--------------------------------------------
+
+Total Applications: {{totalApps}}
+In Target List:     {{totalTargetApps}}
+
+--------------------------------------------
+
+Open Dashboard: https://www.atriveo.com/dashboard
+
+--------------------------------------------
+
+You are receiving this because daily network stats are enabled for your account.
+Manage Preferences: {{managePreferencesUrl}}
+Unsubscribe: {{unsubscribeUrl}}
+
+© 2026 Atriveo. All rights reserved.

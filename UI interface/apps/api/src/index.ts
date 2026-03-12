@@ -11,6 +11,8 @@ import {
   sha256Hex,
   verifyPassword,
 } from "./auth";
+import { renderDailyDigestEmail } from "./dailyDigestEmail";
+import { sendDailyDigestForUser } from "./dailyDigestService";
 import { query, transaction, type SqlStatement } from "./db";
 import type { AuthUser, Bindings } from "./types";
 
@@ -58,10 +60,43 @@ const resetPasswordInput = z.object({
   password: z.string().min(8).max(128),
 });
 
+const dailyDigestPreviewInput = z.object({
+  date: z.string().trim().min(4).max(80).optional(),
+  firstName: z.string().trim().max(80).optional(),
+  appsToday: z.number().int().min(0).optional(),
+  targetCompanyCount: z.number().int().min(0).optional(),
+  totalApps: z.number().int().min(0).optional(),
+  totalTargetApps: z.number().int().min(0).optional(),
+  dailyTarget: z.number().int().min(0).optional(),
+  managePreferencesUrl: z.string().url().max(2048).optional(),
+  unsubscribeUrl: z.string().url().max(2048).optional(),
+  friends: z
+    .array(
+      z.object({
+        friendName: z.string().trim().max(120).optional(),
+        friendApps: z.number().int().min(0).optional(),
+        friendTargets: z.number().int().min(0).optional(),
+      }),
+    )
+    .max(20)
+    .optional(),
+});
+
+const dailyDigestSendTestInput = z.object({
+  digestDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  digestType: z.string().trim().min(3).max(80).optional(),
+  overrides: dailyDigestPreviewInput.partial().optional(),
+});
+
 const GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo";
 
 const MAX_FRIENDS = 10;
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+const DIGEST_SCHEDULE_TIME_ZONE = "America/New_York";
+const DIGEST_ONE_TIME_CRON_UTC = "30 2 * * *";
+const DIGEST_DAILY_CRON_UTC = "0 0 * * *";
+const DIGEST_ONE_TIME_ET_DATE = "2026-03-11";
+const DIGEST_DAILY_START_ET_DATE = "2026-03-12";
 const NETWORK_REQUIRED_VISIBILITY_FIELDS = ["share_company", "share_role", "share_applied_at", "share_job_application_id"] as const;
 const MEDIA_MAX_BYTES = 8 * 1024 * 1024; // 8 MB
 const MEDIA_SIGNED_URL_DEFAULT_TTL_SECONDS = 15 * 60; // 15 minutes
@@ -102,6 +137,74 @@ const MEDIA_SELECT_COLUMNS = `
 
 function parseAnchorDay(rawAnchor: string | undefined): string | null {
   return rawAnchor && ISO_DATE_REGEX.test(rawAnchor) ? rawAnchor : null;
+}
+
+function toEasternIsoDate(input = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: DIGEST_SCHEDULE_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(input);
+}
+
+async function sendDailyDigestForAllUsers(env: Bindings, digestType: string): Promise<void> {
+  const users = await query<{ id: number }>(
+    env,
+    `
+    SELECT id
+    FROM dashboard_users
+    WHERE email IS NOT NULL
+      AND TRIM(email) <> ''
+    ORDER BY id ASC
+    `,
+  );
+
+  let sent = 0;
+  let skipped = 0;
+  let failed = 0;
+
+  for (const user of users) {
+    try {
+      const result = await sendDailyDigestForUser(env, {
+        userId: Number(user.id),
+        digestType,
+      });
+      if (!result.ok) {
+        failed += 1;
+      } else if (result.skipped) {
+        skipped += 1;
+      } else {
+        sent += 1;
+      }
+    } catch (error) {
+      failed += 1;
+      console.error("[digest-scheduler] user send failed", { userId: user.id, error: error instanceof Error ? error.message : String(error) });
+    }
+  }
+
+  console.log("[digest-scheduler] completed", {
+    digestType,
+    totalUsers: users.length,
+    sent,
+    skipped,
+    failed,
+  });
+}
+
+async function runScheduledDigests(controller: ScheduledController, env: Bindings): Promise<void> {
+  const etDate = toEasternIsoDate(new Date());
+
+  if (controller.cron === DIGEST_ONE_TIME_CRON_UTC) {
+    if (etDate !== DIGEST_ONE_TIME_ET_DATE) return;
+    await sendDailyDigestForAllUsers(env, "daily_network_digest_auto_1030pm_et_once");
+    return;
+  }
+
+  if (controller.cron === DIGEST_DAILY_CRON_UTC) {
+    if (etDate < DIGEST_DAILY_START_ET_DATE) return;
+    await sendDailyDigestForAllUsers(env, "daily_network_digest_auto_8pm_et");
+  }
 }
 
 type UserFieldVisibility = {
@@ -1026,6 +1129,67 @@ app.use("/api/*", authMiddleware);
 
 app.get("/api/auth/me", (c) => {
   return c.json({ user: c.get("authUser") });
+});
+
+app.post("/api/email/daily-digest/preview", async (c) => {
+  const parsed = dailyDigestPreviewInput.safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
+
+  const user = c.get("authUser");
+  let resolvedDailyTarget = parsed.data.dailyTarget;
+  if (resolvedDailyTarget === undefined) {
+    const [targetRow] = await query<{ daily_target: number | null }>(
+      c.env,
+      `
+      SELECT daily_target
+      FROM user_targets
+      WHERE user_id = $1
+      LIMIT 1
+      `,
+      [user.id],
+    );
+    resolvedDailyTarget = targetRow?.daily_target ?? 0;
+  }
+
+  const rendered = renderDailyDigestEmail({
+    firstName: parsed.data.firstName ?? user.first_name ?? "Friend",
+    date: parsed.data.date,
+    appsToday: parsed.data.appsToday,
+    targetCompanyCount: parsed.data.targetCompanyCount,
+    totalApps: parsed.data.totalApps,
+    totalTargetApps: parsed.data.totalTargetApps,
+    dailyTarget: resolvedDailyTarget,
+    managePreferencesUrl: parsed.data.managePreferencesUrl,
+    unsubscribeUrl: parsed.data.unsubscribeUrl,
+    friends: parsed.data.friends,
+  });
+
+  return c.json({
+    ok: true,
+    subject: rendered.subject,
+    model: rendered.model,
+    html: rendered.html,
+    text: rendered.text,
+  });
+});
+
+app.post("/api/email/daily-digest/send-test", async (c) => {
+  const parsed = dailyDigestSendTestInput.safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
+
+  const user = c.get("authUser");
+  const result = await sendDailyDigestForUser(c.env, {
+    userId: user.id,
+    digestDate: parsed.data.digestDate,
+    digestType: parsed.data.digestType ?? "daily_network_digest_test",
+    overrides: parsed.data.overrides,
+  });
+
+  if (!result.ok) {
+    return c.json({ ok: false, error: result.reason ?? "send_failed", result }, 500);
+  }
+
+  return c.json({ ok: true, result });
 });
 
 app.post("/api/auth/logout", async (c) => {
@@ -4878,4 +5042,11 @@ app.onError((err, c) => {
   return c.json({ error: message }, 500);
 });
 
-export default app;
+export default {
+  fetch(request: Request, env: Bindings, ctx: ExecutionContext) {
+    return app.fetch(request, env, ctx);
+  },
+  scheduled(controller: ScheduledController, env: Bindings, ctx: ExecutionContext) {
+    ctx.waitUntil(runScheduledDigests(controller, env));
+  },
+};
