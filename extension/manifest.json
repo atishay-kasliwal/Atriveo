@@ -209,6 +209,17 @@
         "content-scripts/floating-widget.css"
       ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.atriveo.com/*",
+        "https://atriveo.com/*",
+        "https://*.atriveo.com/*"
+      ],
+      "js": [
+        "content-scripts/dashboard-sync.js"
+      ],
+      "run_at": "document_idle"
     }
   ],
   "icons": {
