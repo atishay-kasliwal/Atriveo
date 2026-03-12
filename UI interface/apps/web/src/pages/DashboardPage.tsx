@@ -573,7 +573,7 @@ export default function DashboardPage() {
     const lastWeekTotal = weekly.length >= 2 ? weekly[weekly.length - 2].total ?? 0 : 0;
     const thisWeekTotal = weekly.length >= 1 ? weekly[weekly.length - 1].total ?? 0 : 0;
     const diff = thisWeekTotal - lastWeekTotal;
-    const status = diff > 0 ? "ahead" : diff < 0 ? "behind" : "equal";
+    const status: "ahead" | "behind" | "equal" = diff > 0 ? "ahead" : diff < 0 ? "behind" : "equal";
 
     // Peak across available daily range (not just last 7 days)
     const peak = daily.reduce(

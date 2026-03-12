@@ -14,6 +14,9 @@ export type Bindings = {
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_IDS?: string;
   RESEND_API_KEY?: string;
+  BREVO_API_KEY?: string;
+  BREVO_SENDER_EMAIL?: string;
+  BREVO_SENDER_NAME?: string;
   EMAIL_FROM?: string;
   RESET_PASSWORD_URL_BASE?: string;
   PASSWORD_RESET_TOKEN_TTL_MINUTES?: string;

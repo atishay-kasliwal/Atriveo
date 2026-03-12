@@ -92,6 +92,8 @@ const GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo";
 
 const MAX_FRIENDS = 10;
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+const ATRIVEO_APP_URL = "https://www.atriveo.com";
+const ATRIVEO_NETWORK_URL = `${ATRIVEO_APP_URL}/dashboard/network`;
 const DIGEST_SCHEDULE_TIME_ZONE = "America/New_York";
 const DIGEST_ONE_TIME_CRON_UTC = "30 2 * * *";
 const DIGEST_DAILY_CRON_UTC = "0 0 * * *";
@@ -675,6 +677,218 @@ function formatResetTtlLabel(ttlMinutes: number): string {
   return `${minutes} minute${minutes === 1 ? "" : "s"}`;
 }
 
+function escapeHtml(raw: string): string {
+  return String(raw)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function formatPersonName(
+  person: { first_name?: string | null; last_name?: string | null; email?: string | null },
+  fallback = "there",
+): string {
+  const name = [person.first_name, person.last_name]
+    .map((value) => String(value ?? "").trim())
+    .filter(Boolean)
+    .join(" ");
+  return name || String(person.email ?? "").trim() || fallback;
+}
+
+function buildAtriveoEmailHtml(args: {
+  eyebrow: string;
+  greeting: string;
+  title: string;
+  bodyHtml: string[];
+  ctaLabel?: string;
+  ctaUrl?: string;
+  closingHtml?: string[];
+}): string {
+  const ctaBlock = args.ctaLabel && args.ctaUrl
+    ? `<p style="margin:0 0 20px;"><a href="${escapeHtml(args.ctaUrl)}" style="display:inline-block;background:#0f172a;color:#ffffff;text-decoration:none;font-weight:700;padding:12px 18px;border-radius:10px;">${escapeHtml(args.ctaLabel)}</a></p>`
+    : "";
+  const closing = (args.closingHtml ?? []).join("");
+  return [
+    '<div style="font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;background:#f8fafc;padding:24px;color:#0f172a;">',
+    '<div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;">',
+    '<div style="padding:18px 24px;background:linear-gradient(135deg,#0f172a 0%,#1d4ed8 100%);color:#ffffff;">',
+    `<p style="margin:0;font-size:12px;letter-spacing:0.14em;text-transform:uppercase;font-weight:700;opacity:0.9;">${escapeHtml(args.eyebrow)}</p>`,
+    '</div>',
+    '<div style="padding:24px;">',
+    `<p style="margin:0 0 14px;font-size:16px;line-height:1.5;">${escapeHtml(args.greeting)}</p>`,
+    `<h2 style="margin:0 0 12px;font-size:24px;line-height:1.3;color:#0f172a;">${escapeHtml(args.title)}</h2>`,
+    ...args.bodyHtml,
+    ctaBlock,
+    closing,
+    '<p style="margin:0;font-size:14px;line-height:1.6;color:#475569;">With care,<br/>The Atriveo Team</p>',
+    '</div>',
+    '</div>',
+    '</div>',
+  ].join("");
+}
+
+async function sendResendEmail(
+  env: Bindings,
+  args: {
+    toEmail: string;
+    subject: string;
+    html: string;
+    text: string;
+    logContext: string;
+  },
+): Promise<void> {
+  const resendApiKey = String(env.RESEND_API_KEY ?? "").trim();
+  const configuredFrom = String(env.EMAIL_FROM ?? "noreply@atriveo.com").trim() || "noreply@atriveo.com";
+  const sender = configuredFrom.includes("<") ? configuredFrom : `Atriveo <${configuredFrom}>`;
+
+  if (!resendApiKey) {
+    console.warn(`[email] RESEND_API_KEY is not set. ${args.logContext} email not sent to ${args.toEmail}`);
+    return;
+  }
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${resendApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: sender,
+      to: [args.toEmail],
+      subject: args.subject,
+      html: args.html,
+      text: args.text,
+    }),
+  });
+
+  if (!response.ok) {
+    const details = await response.text();
+    throw new Error(`Resend email failed (${response.status}): ${details}`);
+  }
+}
+
+async function sendBrevoEmail(
+  env: Bindings,
+  args: {
+    toEmail: string;
+    subject: string;
+    html: string;
+    text: string;
+    logContext: string;
+  },
+): Promise<void> {
+  const brevoApiKey = String(env.BREVO_API_KEY ?? "").trim();
+  const senderEmail = String(env.BREVO_SENDER_EMAIL ?? env.EMAIL_FROM ?? "noreply@atriveo.com").trim() || "noreply@atriveo.com";
+  const senderName = String(env.BREVO_SENDER_NAME ?? "Atriveo").trim() || "Atriveo";
+
+  if (!brevoApiKey) {
+    console.warn(`[email] BREVO_API_KEY is not set. ${args.logContext} email not sent to ${args.toEmail}`);
+    return;
+  }
+
+  const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      "api-key": brevoApiKey,
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      sender: {
+        name: senderName,
+        email: senderEmail,
+      },
+      to: [{ email: args.toEmail }],
+      subject: args.subject,
+      htmlContent: args.html,
+      textContent: args.text,
+    }),
+  });
+
+  if (!response.ok) {
+    const details = await response.text();
+    throw new Error(`Brevo email failed (${response.status}): ${details}`);
+  }
+}
+
+async function sendFriendRequestNotificationEmail(
+  env: Bindings,
+  args: {
+    toEmail: string;
+    receiverFirstName?: string | null;
+    requesterName: string;
+    requesterEmail: string;
+  },
+): Promise<void> {
+  const greetingName = String(args.receiverFirstName ?? "").trim();
+  const greeting = greetingName ? `Hi ${greetingName},` : "Hi there,";
+  const requesterName = args.requesterName.trim() || args.requesterEmail.trim();
+  const subject = `${requesterName} sent you a friend request on Atriveo`;
+  const html = buildAtriveoEmailHtml({
+    eyebrow: "Atriveo Network",
+    greeting,
+    title: "You have a new friend request",
+    bodyHtml: [
+      `<p style="margin:0 0 14px;font-size:15px;line-height:1.65;color:#334155;">${escapeHtml(requesterName)} wants to connect with you on Atriveo and keep each other accountable during the job search.</p>`,
+      `<p style="margin:0 0 18px;font-size:14px;line-height:1.6;color:#475569;">Request sent from <strong>${escapeHtml(args.requesterEmail)}</strong>.</p>`,
+    ],
+    ctaLabel: "Review request",
+    ctaUrl: ATRIVEO_NETWORK_URL,
+  });
+  const text = [
+    greeting,
+    "",
+    `${requesterName} sent you a friend request on Atriveo.`,
+    `Request sent from: ${args.requesterEmail}`,
+    "",
+    `Review request: ${ATRIVEO_NETWORK_URL}`,
+    "",
+    "With care,",
+    "The Atriveo Team",
+  ].join("\n");
+  await sendBrevoEmail(env, { toEmail: args.toEmail, subject, html, text, logContext: "friend-request" });
+}
+
+async function sendFriendAcceptedNotificationEmail(
+  env: Bindings,
+  args: {
+    toEmail: string;
+    requesterFirstName?: string | null;
+    accepterName: string;
+    accepterEmail: string;
+  },
+): Promise<void> {
+  const greetingName = String(args.requesterFirstName ?? "").trim();
+  const greeting = greetingName ? `Hi ${greetingName},` : "Hi there,";
+  const accepterName = args.accepterName.trim() || args.accepterEmail.trim();
+  const subject = `${accepterName} accepted your Atriveo friend request`;
+  const html = buildAtriveoEmailHtml({
+    eyebrow: "Atriveo Network",
+    greeting,
+    title: "Your friend request was accepted",
+    bodyHtml: [
+      `<p style="margin:0 0 14px;font-size:15px;line-height:1.65;color:#334155;">${escapeHtml(accepterName)} accepted your friend request. You can now track momentum together inside Atriveo.</p>`,
+      `<p style="margin:0 0 18px;font-size:14px;line-height:1.6;color:#475569;">Accepted by <strong>${escapeHtml(args.accepterEmail)}</strong>.</p>`,
+    ],
+    ctaLabel: "Open your network",
+    ctaUrl: ATRIVEO_NETWORK_URL,
+  });
+  const text = [
+    greeting,
+    "",
+    `${accepterName} accepted your Atriveo friend request.`,
+    `Accepted by: ${args.accepterEmail}`,
+    "",
+    `Open your network: ${ATRIVEO_NETWORK_URL}`,
+    "",
+    "With care,",
+    "The Atriveo Team",
+  ].join("\n");
+  await sendBrevoEmail(env, { toEmail: args.toEmail, subject, html, text, logContext: "friend-accept" });
+}
+
 async function sendPasswordResetEmail(
   env: Bindings,
   args: {
@@ -684,17 +898,10 @@ async function sendPasswordResetEmail(
     ttlMinutes: number;
   },
 ): Promise<void> {
-  const resendApiKey = String(env.RESEND_API_KEY ?? "").trim();
-  const sender = String(env.EMAIL_FROM ?? "noreply@atriveo.com").trim() || "noreply@atriveo.com";
   const { toEmail, firstName, resetUrl, ttlMinutes } = args;
   const ttlLabel = formatResetTtlLabel(ttlMinutes);
   const greetingName = String(firstName ?? "").trim();
   const greeting = greetingName ? `Hi ${greetingName},` : "Hi there,";
-
-  if (!resendApiKey) {
-    console.warn(`[auth] RESEND_API_KEY is not set. Password reset link for ${toEmail}: ${resetUrl}`);
-    return;
-  }
 
   const subject = `Reset your Atriveo password (${ttlLabel} link)`;
   const html = [
@@ -725,25 +932,7 @@ async function sendPasswordResetEmail(
     "The Atriveo Team",
   ].join("\n");
 
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${resendApiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: sender,
-      to: [toEmail],
-      subject,
-      html,
-      text,
-    }),
-  });
-
-  if (!response.ok) {
-    const details = await response.text();
-    throw new Error(`Resend email failed (${response.status}): ${details}`);
-  }
+  await sendResendEmail(env, { toEmail, subject, html, text, logContext: "password-reset" });
 }
 
 type GoogleTokenInfoResponse = {
@@ -1726,7 +1915,8 @@ app.get("/api/friends/requests", async (c) => {
 });
 
 app.post("/api/friends/request", async (c) => {
-  const userId = c.get("authUser").id;
+  const authUser = c.get("authUser");
+  const userId = authUser.id;
   const parsed = friendRequestInput.safeParse(await c.req.json());
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
   const payload = parsed.data;
@@ -1735,23 +1925,26 @@ app.post("/api/friends/request", async (c) => {
   }
 
   let receiverId: number | null = null;
+  let receiverRecord: { id: number; email: string; first_name: string | null; last_name: string | null } | null = null;
   if (payload.receiver_id) {
-    const [receiver] = await query<{ id: number; email: string }>(
+    const [receiver] = await query<{ id: number; email: string; first_name: string | null; last_name: string | null }>(
       c.env,
-      "SELECT id, email FROM dashboard_users WHERE id = $1 LIMIT 1",
+      "SELECT id, email, first_name, last_name FROM dashboard_users WHERE id = $1 LIMIT 1",
       [payload.receiver_id],
     );
     if (!receiver) return c.json({ error: "User not found." }, 404);
     receiverId = Number(receiver.id);
+    receiverRecord = receiver;
   } else {
     const normalizedEmail = normalizeEmail(String(payload.email ?? ""));
-    const [receiver] = await query<{ id: number; email: string }>(
+    const [receiver] = await query<{ id: number; email: string; first_name: string | null; last_name: string | null }>(
       c.env,
-      "SELECT id, email FROM dashboard_users WHERE LOWER(email) = $1 LIMIT 1",
+      "SELECT id, email, first_name, last_name FROM dashboard_users WHERE LOWER(email) = $1 LIMIT 1",
       [normalizedEmail],
     );
     if (!receiver) return c.json({ error: "User not found." }, 404);
     receiverId = Number(receiver.id);
+    receiverRecord = receiver;
   }
 
   if (!receiverId) return c.json({ error: "User not found." }, 404);
@@ -1784,6 +1977,22 @@ app.post("/api/friends/request", async (c) => {
       `,
       [userId, receiverId],
     );
+    if (receiverRecord?.email) {
+      try {
+        await sendFriendRequestNotificationEmail(c.env, {
+          toEmail: receiverRecord.email,
+          receiverFirstName: receiverRecord.first_name,
+          requesterName: formatPersonName(authUser, authUser.email),
+          requesterEmail: authUser.email,
+        });
+      } catch (error) {
+        console.error("[friends] request notification failed", {
+          requesterId: userId,
+          receiverId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
     return c.json({ ok: true, friendship: created }, 201);
   }
 
@@ -1817,6 +2026,22 @@ app.post("/api/friends/request", async (c) => {
     `,
     [userId, receiverId, existing.id],
   );
+  if (receiverRecord?.email) {
+    try {
+      await sendFriendRequestNotificationEmail(c.env, {
+        toEmail: receiverRecord.email,
+        receiverFirstName: receiverRecord.first_name,
+        requesterName: formatPersonName(authUser, authUser.email),
+        requesterEmail: authUser.email,
+      });
+    } catch (error) {
+      console.error("[friends] request notification failed", {
+        requesterId: userId,
+        receiverId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
   return c.json({ ok: true, friendship: reopened }, 201);
 });
 
@@ -1832,13 +2057,31 @@ app.post("/api/friends/:id/accept", async (c) => {
     requester_id: number;
     receiver_id: number;
     status: "pending" | "accepted" | "rejected" | "blocked";
+    requester_email: string;
+    requester_first_name: string | null;
+    requester_last_name: string | null;
+    receiver_email: string;
+    receiver_first_name: string | null;
+    receiver_last_name: string | null;
   }>(
     c.env,
     `
-    SELECT id, requester_id, receiver_id, status
-    FROM friendships
-    WHERE id = $1
-      AND receiver_id = $2
+    SELECT
+      f.id,
+      f.requester_id,
+      f.receiver_id,
+      f.status,
+      requester.email AS requester_email,
+      requester.first_name AS requester_first_name,
+      requester.last_name AS requester_last_name,
+      receiver.email AS receiver_email,
+      receiver.first_name AS receiver_first_name,
+      receiver.last_name AS receiver_last_name
+    FROM friendships f
+    JOIN dashboard_users requester ON requester.id = f.requester_id
+    JOIN dashboard_users receiver ON receiver.id = f.receiver_id
+    WHERE f.id = $1
+      AND f.receiver_id = $2
     LIMIT 1
     `,
     [friendshipId, userId],
@@ -1907,6 +2150,29 @@ app.post("/api/friends/:id/accept", async (c) => {
     return c.json({ error: "Friend limit reached (max 10) for one of the users." }, 409);
   }
 
+  try {
+    await sendFriendAcceptedNotificationEmail(c.env, {
+      toEmail: target.requester_email,
+      requesterFirstName: target.requester_first_name,
+      accepterName: formatPersonName(
+        {
+          first_name: target.receiver_first_name,
+          last_name: target.receiver_last_name,
+          email: target.receiver_email,
+        },
+        target.receiver_email,
+      ),
+      accepterEmail: target.receiver_email,
+    });
+  } catch (error) {
+    console.error("[friends] acceptance notification failed", {
+      friendshipId,
+      requesterId: target.requester_id,
+      receiverId: target.receiver_id,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
   return c.json({ ok: true, friendship: updated, maxFriends: MAX_FRIENDS });
 });
 
@@ -1960,6 +2226,93 @@ app.post("/api/friends/:id/block", async (c) => {
     [friendshipId, userId],
   );
   if (!row) return c.json({ error: "Friendship not found." }, 404);
+  return c.json({ ok: true, friendship: row });
+});
+
+app.post("/api/friends/unblock", async (c) => {
+  const userId = c.get("authUser").id;
+  const parsed = friendRequestInput.safeParse(await c.req.json());
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
+  const payload = parsed.data;
+  if (!payload.receiver_id && !payload.email) {
+    return c.json({ error: "receiver_id or email is required." }, 400);
+  }
+
+  let otherUserId: number | null = null;
+  if (payload.receiver_id) {
+    const [receiver] = await query<{ id: number }>(
+      c.env,
+      "SELECT id FROM dashboard_users WHERE id = $1 LIMIT 1",
+      [payload.receiver_id],
+    );
+    if (!receiver) return c.json({ error: "User not found." }, 404);
+    otherUserId = Number(receiver.id);
+  } else {
+    const normalizedEmail = normalizeEmail(String(payload.email ?? ""));
+    const [receiver] = await query<{ id: number }>(
+      c.env,
+      "SELECT id FROM dashboard_users WHERE LOWER(email) = $1 LIMIT 1",
+      [normalizedEmail],
+    );
+    if (!receiver) return c.json({ error: "User not found." }, 404);
+    otherUserId = Number(receiver.id);
+  }
+
+  if (!otherUserId || otherUserId === userId) {
+    return c.json({ error: "Invalid target user." }, 400);
+  }
+
+  const [row] = await query<{ id: number; status: string; updated_at: string }>(
+    c.env,
+    `
+    UPDATE friendships
+    SET status = 'rejected',
+        blocked_at = NULL,
+        accepted_at = NULL,
+        rejected_at = NOW(),
+        updated_at = NOW()
+    WHERE LEAST(requester_id, receiver_id) = LEAST($1::bigint, $2::bigint)
+      AND GREATEST(requester_id, receiver_id) = GREATEST($1::bigint, $2::bigint)
+      AND status = 'blocked'
+      AND (requester_id = $1 OR receiver_id = $1)
+    RETURNING id, status, updated_at::text AS updated_at
+    `,
+    [userId, otherUserId],
+  );
+
+  if (!row) {
+    return c.json({ error: "Blocked friendship not found." }, 404);
+  }
+  return c.json({ ok: true, friendship: row });
+});
+
+app.post("/api/friends/:id/unblock", async (c) => {
+  const userId = c.get("authUser").id;
+  const friendshipId = Number(c.req.param("id"));
+  if (!Number.isFinite(friendshipId) || friendshipId <= 0) {
+    return c.json({ error: "Invalid friendship id." }, 400);
+  }
+
+  const [row] = await query<{ id: number; status: string; updated_at: string }>(
+    c.env,
+    `
+    UPDATE friendships
+    SET status = 'rejected',
+        blocked_at = NULL,
+        accepted_at = NULL,
+        rejected_at = NOW(),
+        updated_at = NOW()
+    WHERE id = $1
+      AND status = 'blocked'
+      AND (requester_id = $2 OR receiver_id = $2)
+    RETURNING id, status, updated_at::text AS updated_at
+    `,
+    [friendshipId, userId],
+  );
+
+  if (!row) {
+    return c.json({ error: "Blocked friendship not found." }, 404);
+  }
   return c.json({ ok: true, friendship: row });
 });
 

@@ -34,6 +34,10 @@ type Props = {
 };
 
 export default function JobsTrendCharts({ statusFilter, isLoadingTrend, chartData }: Props) {
+  const peakAppliedLabel = chartData.insights.maxApplied
+    ? `Peak: ${chartData.insights.maxApplied.value} applications on ${chartData.insights.maxApplied.day}`
+    : "Peak: -";
+
   return (
     <>
       {/* Application Momentum Chart - temporarily disabled */}
@@ -153,9 +157,7 @@ export default function JobsTrendCharts({ statusFilter, isLoadingTrend, chartDat
           </div>
           <div className="trend-uniform-foot">
             <span className="trend-uniform-foot-item trend-uniform-foot-item--applied">
-              {chartData.insights.maxApplied
-                ? `Peak: ${chartData.insights.maxApplied.value} applications on ${chartData.insights.maxApplied.day}`
-                : "Peak: -"}
+              {peakAppliedLabel}
             </span>
             <span className="trend-uniform-foot-item trend-uniform-foot-item--rejected">
               • {chartData.insights.rejectionDays.length} day{chartData.insights.rejectionDays.length !== 1 ? "s" : ""} with rejection{chartData.insights.rejectionDays.length !== 1 ? "s" : ""}
