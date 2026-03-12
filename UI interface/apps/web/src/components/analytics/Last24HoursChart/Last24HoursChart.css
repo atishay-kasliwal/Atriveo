@@ -98,12 +98,12 @@
 }
 
 .last24-tooltip {
-  background: color-mix(in srgb, var(--bg-card) 92%, transparent);
-  border: 1px solid color-mix(in srgb, var(--bg-card-border) 70%, transparent);
-  border-radius: 8px;
-  padding: 6px 8px;
+  background: color-mix(in srgb, var(--bg-card) 97%, transparent);
+  border: 1px solid color-mix(in srgb, #3B82F6 22%, var(--bg-card-border));
+  border-radius: 10px;
+  padding: 9px 13px;
   color: var(--text-primary);
-  box-shadow: 0 6px 14px rgba(2, 6, 23, 0.12);
+  box-shadow: 0 8px 28px rgba(2, 6, 23, 0.18), 0 1px 4px rgba(37, 99, 235, 0.1);
 }
 
 .last24-tooltip-flag {

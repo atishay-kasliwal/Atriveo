@@ -1,11 +1,12 @@
-import { memo, useCallback, useId, useMemo, useState, type CSSProperties } from "react";
-import { Area, AreaChart, CartesianGrid, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { memo, useCallback, useMemo, type CSSProperties } from "react";
+import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { Last24HoursChartProps, TimeSeriesPoint } from "./types";
 import "./Last24HoursChart.css";
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+const HALF_HOUR_MS = 30 * 60 * 1000;
 
-type ChartPoint = TimeSeriesPoint & { timeValue: number; isPadding?: boolean };
+type ChartPoint = TimeSeriesPoint & { timeValue: number; bucketIndex: number };
 
 type ChartState = {
   points: ChartPoint[];
@@ -17,16 +18,16 @@ type ChartState = {
   nowX: number | null;
 };
 
-function parsePoint(point: TimeSeriesPoint): ChartPoint | null {
+function parsePoint(point: TimeSeriesPoint): Omit<ChartPoint, "bucketIndex"> | null {
   const timeValue = new Date(point.time).getTime();
   if (!Number.isFinite(timeValue) || !Number.isFinite(point.value)) return null;
   return { ...point, timeValue };
 }
 
-function buildHourlyTicks(startMs: number, stepHours = 1): number[] {
+function buildHourlyTicks(startMs: number, stepHours = 2): number[] {
   if (!Number.isFinite(startMs)) return [];
   const ticks: number[] = [];
-  for (let hour = 1; hour <= 24; hour += stepHours) {
+  for (let hour = 0; hour <= 24; hour += stepHours) {
     ticks.push(startMs + hour * 60 * 60 * 1000);
   }
   return ticks;
@@ -38,48 +39,40 @@ const Last24HoursChart = memo(function Last24HoursChart({
   changePercent,
   data,
 }: Last24HoursChartProps) {
-  const gradientId = useId().replace(/:/g, "");
-  const [activeIndex, setActiveIndex] = useState<number | null>(null);
-
   const { points, chartPoints, domainStart, domainEnd, hourTicks, yMax, nowX }: ChartState = useMemo(() => {
     const parsed = data
       .map(parsePoint)
-      .filter((point): point is ChartPoint => point !== null)
+      .filter((point): point is Omit<ChartPoint, "bucketIndex"> => point !== null)
       .sort((a, b) => a.timeValue - b.timeValue);
 
     const referenceDate = parsed.length ? new Date(parsed[parsed.length - 1].timeValue) : new Date();
     const domainStart = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate()).getTime();
     const domainEnd = domainStart + ONE_DAY_MS;
-    const points = parsed.filter((point) => point.timeValue >= domainStart && point.timeValue <= domainEnd);
-    const chartPoints = points.length ? [...points] : [];
 
-    if (chartPoints.length) {
-      const first = chartPoints[0];
-      const last = chartPoints[chartPoints.length - 1];
-      if (first.timeValue > domainStart) {
-        chartPoints.unshift({
-          time: new Date(domainStart).toISOString(),
-          value: 0,
-          timeValue: domainStart,
-          isPadding: true,
-        });
-      }
-      if (last.timeValue < domainEnd) {
-        chartPoints.push({
-          time: new Date(domainEnd).toISOString(),
-          value: 0,
-          timeValue: domainEnd,
-          isPadding: true,
-        });
-      }
-    }
+    const bucketMap = new Map<number, number>();
+    parsed.forEach((point) => {
+      if (point.timeValue < domainStart || point.timeValue > domainEnd) return;
+      const bucketIndex = Math.min(47, Math.max(0, Math.floor((point.timeValue - domainStart) / HALF_HOUR_MS)));
+      bucketMap.set(bucketIndex, (bucketMap.get(bucketIndex) ?? 0) + point.value);
+    });
 
-    const maxValue = points.reduce((max, point) => Math.max(max, point.value), 0);
+    const chartPoints: ChartPoint[] = Array.from({ length: 48 }, (_, bucketIndex) => {
+      const timeValue = domainStart + bucketIndex * HALF_HOUR_MS;
+      return {
+        time: new Date(timeValue).toISOString(),
+        timeValue,
+        bucketIndex,
+        value: bucketMap.get(bucketIndex) ?? 0,
+      };
+    });
+
+    const points = chartPoints.filter((point) => point.value > 0);
+    const maxValue = chartPoints.reduce((max, point) => Math.max(max, point.value), 0);
     const yMax = maxValue <= 0 ? 4 : Math.max(4, Math.ceil(maxValue * 1.2));
-    const hourTicks = buildHourlyTicks(domainStart, 1);
+    const hourTicks = buildHourlyTicks(domainStart, 2);
 
     const now = Date.now();
-    const nowX = now >= domainStart && now <= domainEnd ? now : null;
+    const nowX = now >= domainStart && now <= domainEnd ? domainStart + Math.floor((now - domainStart) / HALF_HOUR_MS) * HALF_HOUR_MS : null;
 
     return { points, chartPoints, domainStart, domainEnd, hourTicks, yMax, nowX };
   }, [data]);
@@ -139,42 +132,32 @@ const Last24HoursChart = memo(function Last24HoursChart({
       index?: number;
       payload?: ChartPoint;
     }) => {
-      if (typeof cx !== "number" || typeof cy !== "number" || typeof index !== "number") return null;
-      if (!payload || payload.isPadding) return null;
+      if (typeof cx !== "number" || typeof cy !== "number") return <g key={`dot-${index}`} />;
+      if (!payload || payload.value <= 0) return <g key={`dot-${index}`} />;
       const isLatest = latestTimeValue !== null && payload.timeValue === latestTimeValue;
-      const isActive = index === activeIndex;
-      const radius = isActive ? 6 : isLatest ? 5 : 4;
+      if (!isLatest) return <g key={`dot-${index}`} />;
       return (
-        <circle
-          cx={cx}
-          cy={cy}
-          r={radius}
-          fill="var(--last24-card-bg)"
-          stroke="var(--last24-accent)"
-          strokeWidth={2.5}
-        />
+        <g key={`dot-${index}`}>
+          <circle cx={cx} cy={cy} r={10} fill="var(--last24-accent)" fillOpacity={0.12} />
+          <circle cx={cx} cy={cy} r={5} fill="var(--last24-accent)" stroke="var(--last24-card-bg)" strokeWidth={2} />
+        </g>
       );
     },
-    [activeIndex, latestTimeValue]
+    [latestTimeValue]
   );
 
-  const handleMouseMove = useCallback(
-    (state: { isTooltipActive?: boolean; activeTooltipIndex?: number }) => {
-      if (state?.isTooltipActive && typeof state.activeTooltipIndex === "number") {
-        const hovered = chartPoints[state.activeTooltipIndex];
-        if (hovered?.isPadding) {
-          setActiveIndex(null);
-          return;
-        }
-        setActiveIndex(state.activeTooltipIndex);
-      } else {
-        setActiveIndex(null);
-      }
+  const renderActiveDot = useCallback(
+    ({ cx, cy }: { cx?: number; cy?: number }) => {
+      if (typeof cx !== "number" || typeof cy !== "number") return <g />;
+      return (
+        <g>
+          <circle cx={cx} cy={cy} r={12} fill="var(--last24-accent)" fillOpacity={0.1} />
+          <circle cx={cx} cy={cy} r={6} fill="var(--last24-accent)" stroke="var(--last24-card-bg)" strokeWidth={2.5} />
+        </g>
+      );
     },
-    [chartPoints]
+    []
   );
-
-  const handleMouseLeave = useCallback(() => setActiveIndex(null), []);
 
   const accentStyle = useMemo(
     () =>
@@ -206,22 +189,19 @@ const Last24HoursChart = memo(function Last24HoursChart({
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
               data={chartPoints}
-              margin={{ top: 6, right: 12, left: 0, bottom: 4 }}
-              onMouseMove={handleMouseMove}
-              onMouseLeave={handleMouseLeave}
+              margin={{ top: 10, right: 12, left: 0, bottom: 4 }}
             >
               <defs>
-                <linearGradient id={`last24Area_${gradientId}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--last24-accent)" stopOpacity={1} />
-                  <stop offset="100%" stopColor="var(--last24-accent)" stopOpacity={0.2} />
+                <linearGradient id="last24Gradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="var(--last24-accent)" stopOpacity={0.42} />
+                  <stop offset="50%" stopColor="var(--last24-accent)" stopOpacity={0.12} />
+                  <stop offset="100%" stopColor="var(--last24-accent)" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid stroke="var(--chart-grid)" strokeDasharray="3 3" vertical={false} />
+              <CartesianGrid stroke="var(--chart-grid)" strokeDasharray="3 3" vertical={false} strokeOpacity={0.4} />
               <XAxis
                 dataKey="timeValue"
-                type="number"
-                scale="time"
-                domain={[domainStart, domainEnd]}
+                type="category"
                 ticks={hourTicks}
                 tickFormatter={formatHourTick}
                 tick={{ fill: "var(--chart-text-secondary)", fontSize: 11, fontWeight: 500 }}
@@ -242,7 +222,7 @@ const Last24HoursChart = memo(function Last24HoursChart({
                 content={(props) => {
                   if (!props.active || !props.payload?.length) return null;
                   const point = props.payload[0]?.payload as ChartPoint | undefined;
-                  if (!point || point.isPadding) return null;
+                  if (!point || point.value <= 0) return null;
                   const label = point.value === 1 ? "Application" : "Applications";
                   return (
                     <div className="last24-tooltip">
@@ -253,8 +233,7 @@ const Last24HoursChart = memo(function Last24HoursChart({
                     </div>
                   );
                 }}
-                cursor={false}
-                shared={false}
+                cursor={{ stroke: "var(--last24-accent)", strokeOpacity: 0.25, strokeWidth: 1.5 }}
               />
               {nowX !== null ? (
                 <ReferenceLine
@@ -268,27 +247,11 @@ const Last24HoursChart = memo(function Last24HoursChart({
               <Area
                 type="monotone"
                 dataKey="value"
-                stroke="none"
-                fill={`url(#last24Area_${gradientId})`}
-                isAnimationActive={false}
-                dot={false}
-                activeDot={false}
-              />
-              <Line
-                type="monotone"
-                dataKey="value"
                 stroke="var(--last24-accent)"
-                strokeWidth={2}
-                dot={false}
-                activeDot={false}
-                isAnimationActive={false}
-              />
-              <Line
-                type="monotone"
-                dataKey="value"
-                stroke="none"
+                strokeWidth={2.5}
+                fill="url(#last24Gradient)"
                 dot={renderDot}
-                activeDot={false}
+                activeDot={renderActiveDot}
                 isAnimationActive={false}
               />
             </AreaChart>
