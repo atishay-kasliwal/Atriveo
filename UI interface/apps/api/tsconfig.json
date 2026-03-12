@@ -6,8 +6,7 @@
     "lib": ["ES2022", "WebWorker"],
     "strict": true,
     "skipLibCheck": true,
-    "types": ["@cloudflare/workers-types"],
-    "jsx": "react-jsx"
+    "types": ["@cloudflare/workers-types"]
   },
   "include": ["src"]
 }
