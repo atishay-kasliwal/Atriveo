@@ -45,6 +45,7 @@ const PLATFORM_EXTRACTOR_SCRIPTS = {
   jobscore: "content-scripts/generic-ats.js",
   clearcompany: "content-scripts/generic-ats.js",
   avature: "content-scripts/generic-ats.js",
+  jobright: "content-scripts/jobright.js",
   genericcareer: "content-scripts/generic-career.js"
 };
 const injectedExtractorByTabId = new Map();
@@ -942,6 +943,18 @@ const submitApplication = async ({ url, keyword_match, referral_name, applicatio
 
 chrome.runtime.onInstalled.addListener(() => {
   console.info("[Atriveo] Job Assistant installed.");
+});
+
+// Extension icon click: toggle the floating widget panel on supported pages,
+// or open the Atriveo dashboard on unsupported pages.
+chrome.action.onClicked.addListener((tab) => {
+  if (!tab?.id) return;
+  chrome.tabs.sendMessage(tab.id, { type: "TOGGLE_PANEL" }, (response) => {
+    if (chrome.runtime.lastError || !response?.ok) {
+      // Floater not present on this page — open the dashboard instead.
+      chrome.tabs.create({ url: "https://www.atriveo.com/" });
+    }
+  });
 });
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {

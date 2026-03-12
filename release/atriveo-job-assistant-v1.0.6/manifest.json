@@ -101,8 +101,7 @@
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "Atriveo Job Assistant",
-    "default_popup": "popup/popup.html"
+    "default_title": "Atriveo Job Assistant"
   },
   "content_scripts": [
     {

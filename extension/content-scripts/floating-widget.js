@@ -627,4 +627,13 @@
     const eventName = field.tagName === "SELECT" ? "change" : "input";
     field.addEventListener(eventName, onFormChange);
   });
+
+  // Allow the extension icon click (background.js) to toggle this panel.
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message?.type === "TOGGLE_PANEL") {
+      void togglePanel();
+      sendResponse({ ok: true });
+    }
+    return false;
+  });
 })();
