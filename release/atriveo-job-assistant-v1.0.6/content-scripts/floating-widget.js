@@ -573,6 +573,7 @@
         actionInFlight = false;
         updateActionState();
         setStatus("Application added successfully.", "success", 3200);
+        setTimeout(() => togglePanel(false), 2000);
         return;
       }
 
@@ -587,6 +588,7 @@
     actionInFlight = false;
     updateActionState();
     setStatus("Application added successfully.", "success", 3200);
+    setTimeout(() => togglePanel(false), 2000);
   };
 
   const togglePanel = async (open) => {
