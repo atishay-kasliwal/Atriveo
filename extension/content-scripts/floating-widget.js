@@ -62,7 +62,8 @@
     "block.xyz",
     "careers.squareup.com",
     "jobs.netflix.com",
-    "careers.google.com"
+    "careers.google.com",
+    "simplify.jobs"
   ];
   const CAREER_PATH_PATTERN =
     /\b(careers?|jobs?|job-details?|positions?|openings?|opportunities|requisition|vacanc(?:y|ies)|apply)\b/i;

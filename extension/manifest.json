@@ -90,6 +90,8 @@
     "https://netflix.com/jobs/*",
     "https://jobs.netflix.com/*",
     "https://careers.google.com/*",
+    "https://simplify.jobs/*",
+    "https://www.simplify.jobs/*",
     "https://job-tracker-api.katishay.workers.dev/*",
     "https://www.atriveo.com/*",
     "https://atriveo.com/*",
@@ -188,7 +190,9 @@
         "https://careers.squareup.com/*",
         "https://netflix.com/jobs/*",
         "https://jobs.netflix.com/*",
-        "https://careers.google.com/*"
+        "https://careers.google.com/*",
+        "https://simplify.jobs/*",
+        "https://www.simplify.jobs/*"
       ],
       "exclude_matches": [
         "https://www.atriveo.com/*",

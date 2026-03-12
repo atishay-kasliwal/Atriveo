@@ -64,7 +64,8 @@
     { token: "block.xyz", platform: "genericcareer" },
     { token: "careers.squareup.com", platform: "genericcareer" },
     { token: "jobs.netflix.com", platform: "genericcareer" },
-    { token: "careers.google.com", platform: "genericcareer" }
+    { token: "careers.google.com", platform: "genericcareer" },
+    { token: "simplify.jobs", platform: "genericcareer" }
   ];
 
   const CAREER_PATH_PATTERN =
