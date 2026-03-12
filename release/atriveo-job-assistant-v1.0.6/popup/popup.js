@@ -14,6 +14,7 @@ const EDITABLE_TEXT_FIELDS = [jobTitleEl, jobCompanyEl, jobApplicationIdEl, jobL
 const SINGLE_LINE_EDITABLE_FIELDS = [jobTitleEl, jobCompanyEl, jobApplicationIdEl, jobLinkEl];
 
 const ATS_HOSTS = [
+  // Core ATS platforms
   "myworkdayjobs.com",
   "greenhouse.io",
   "lever.co",
@@ -38,7 +39,45 @@ const ATS_HOSTS = [
   "linkedin.com",
   "avature.net",
   "amazon.jobs",
-  "ultipro.com"
+  "ultipro.com",
+  // Job aggregators
+  "jobright.ai",
+  "simplify.jobs",
+  // Company career pages
+  "careers.apple.com",
+  "metacareers.com",
+  "careers.microsoft.com",
+  "jobs.tesla.com",
+  "nvidia.com/en-us/about-nvidia/careers",
+  "jobs.cisco.com",
+  "jobs.intel.com",
+  "careers.ibm.com",
+  "careers.oracle.com",
+  "salesforce.com/company/careers",
+  "stripe.com/jobs",
+  "careers.airbnb.com",
+  "uber.com/us/en/careers",
+  "lyft.com/careers",
+  "snap.com/en-US/jobs",
+  "openai.com/careers",
+  "anthropic.com/careers",
+  "spacex.com/careers",
+  "databricks.com/company/careers",
+  "coinbase.com/careers",
+  "careers.robinhood.com",
+  "rivian.com/careers",
+  "boeing.com/careers",
+  "lockheedmartin.com/en-us/careers",
+  "careers.rtx.com",
+  "goldmansachs.com/careers",
+  "morganstanley.com/people/professionals",
+  "careers.jpmorgan.com",
+  "pinterestcareers.com",
+  "dropbox.com/jobs",
+  "block.xyz/careers",
+  "careers.squareup.com",
+  "jobs.netflix.com",
+  "careers.google.com"
 ];
 
 const BASE_CONTENT_SCRIPT_FILES = ["utils/extractText.js", "content-scripts/detector.js"];
@@ -66,7 +105,9 @@ const EXTRACTOR_SCRIPT_BY_PLATFORM = {
   workable: "content-scripts/generic-ats.js",
   jobscore: "content-scripts/generic-ats.js",
   clearcompany: "content-scripts/generic-ats.js",
-  avature: "content-scripts/generic-ats.js"
+  avature: "content-scripts/generic-ats.js",
+  jobright: "content-scripts/jobright.js",
+  genericcareer: "content-scripts/generic-career.js"
 };
 
 let activeTab = null;
@@ -131,6 +172,44 @@ const getPlatformFromUrl = (url = "") => {
   if (source.includes("avature.net")) return "avature";
   if (source.includes("amazon.jobs")) return "amazonjobs";
   if (source.includes("ultipro.com")) return "ultipro";
+  // Job aggregators
+  if (source.includes("jobright.ai")) return "jobright";
+  if (source.includes("simplify.jobs")) return "genericcareer";
+  // Company career pages
+  if (source.includes("careers.apple.com")) return "genericcareer";
+  if (source.includes("metacareers.com")) return "genericcareer";
+  if (source.includes("careers.microsoft.com")) return "genericcareer";
+  if (source.includes("jobs.tesla.com")) return "genericcareer";
+  if (source.includes("nvidia.com")) return "genericcareer";
+  if (source.includes("jobs.cisco.com")) return "genericcareer";
+  if (source.includes("jobs.intel.com")) return "genericcareer";
+  if (source.includes("careers.ibm.com")) return "genericcareer";
+  if (source.includes("careers.oracle.com")) return "genericcareer";
+  if (source.includes("salesforce.com")) return "genericcareer";
+  if (source.includes("stripe.com")) return "genericcareer";
+  if (source.includes("careers.airbnb.com")) return "genericcareer";
+  if (source.includes("uber.com")) return "genericcareer";
+  if (source.includes("lyft.com")) return "genericcareer";
+  if (source.includes("snap.com")) return "genericcareer";
+  if (source.includes("openai.com")) return "genericcareer";
+  if (source.includes("anthropic.com")) return "genericcareer";
+  if (source.includes("spacex.com")) return "genericcareer";
+  if (source.includes("databricks.com")) return "genericcareer";
+  if (source.includes("coinbase.com")) return "genericcareer";
+  if (source.includes("careers.robinhood.com")) return "genericcareer";
+  if (source.includes("rivian.com")) return "genericcareer";
+  if (source.includes("boeing.com")) return "genericcareer";
+  if (source.includes("lockheedmartin.com")) return "genericcareer";
+  if (source.includes("careers.rtx.com")) return "genericcareer";
+  if (source.includes("goldmansachs.com")) return "genericcareer";
+  if (source.includes("morganstanley.com")) return "genericcareer";
+  if (source.includes("careers.jpmorgan.com")) return "genericcareer";
+  if (source.includes("pinterestcareers.com")) return "genericcareer";
+  if (source.includes("dropbox.com")) return "genericcareer";
+  if (source.includes("block.xyz")) return "genericcareer";
+  if (source.includes("careers.squareup.com")) return "genericcareer";
+  if (source.includes("jobs.netflix.com")) return "genericcareer";
+  if (source.includes("careers.google.com")) return "genericcareer";
   return "";
 };
 
