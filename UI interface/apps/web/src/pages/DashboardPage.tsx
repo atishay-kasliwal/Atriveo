@@ -162,15 +162,6 @@ export default function DashboardPage() {
 
   const trendData = useMemo(() => {
     const raw = summary.dailyTrend ?? [];
-    const referralRaw = summary.referralDailyTrend ?? [];
-    const rejectedRaw = summary.rejectedDailyTrend ?? [];
-    const pendingRaw = summary.pendingDailyTrend ?? [];
-
-    // Create maps for quick lookup
-    const referralMap = new Map(referralRaw.map(r => [r.day, r.total ?? 0]));
-    const rejectedMap = new Map(rejectedRaw.map(r => [r.day, r.total ?? 0]));
-    const pendingMap = new Map(pendingRaw.map(r => [r.day, r.total ?? 0]));
-
     const weekIndexByStart = new Map<string, number>();
     raw.forEach((row) => {
       const weekStart = weekStartIsoUtc(String(row.day));
@@ -200,12 +191,9 @@ export default function DashboardPage() {
         weekIndex,
         weekStart,
         avg7,
-        referrals: referralMap.get(row.day) ?? 0,
-        rejected: rejectedMap.get(row.day) ?? 0,
-        pending: pendingMap.get(row.day) ?? 0,
       };
     });
-  }, [summary.dailyTrend, summary.referralDailyTrend, summary.rejectedDailyTrend, summary.pendingDailyTrend]);
+  }, [summary.dailyTrend]);
 
   /** KPIs derived from the same job/trend data used for the charts */
   const derivedKpis = useMemo(() => {

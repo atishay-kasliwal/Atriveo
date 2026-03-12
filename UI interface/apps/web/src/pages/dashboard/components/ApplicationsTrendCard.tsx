@@ -2,6 +2,7 @@ import {
   Area,
   Bar,
   CartesianGrid,
+  Cell,
   ComposedChart,
   Line,
   ReferenceLine,
@@ -10,7 +11,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { CHART_COLORS } from "../constants";
+import { CHART_COLORS, WEEK_COLORS } from "../constants";
 import { formatDay } from "../utils";
 
 type TrendRow = {
@@ -19,8 +20,6 @@ type TrendRow = {
   total?: number;
   avg7?: number;
   rejected?: number;
-  referrals?: number;
-  pending?: number;
   weekIndex: number;
 };
 
@@ -111,21 +110,18 @@ export default function ApplicationsTrendCard({
           </div>
         </div>
         <ResponsiveContainer width="100%" height={isMobile ? 300 : 520}>
-          <ComposedChart data={trendData} margin={{ top: 24, right: 24, left: 8, bottom: 8 }}>
+          <ComposedChart data={trendData} margin={{ top: 16, right: 24, left: 8, bottom: 8 }}>
             <defs>
               <linearGradient id="trendAreaGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#3B82F6" stopOpacity={0.4} />
-                <stop offset="100%" stopColor="#3B82F6" stopOpacity={0} />
+                <stop offset="0%" stopColor={CHART_COLORS.trendLine} stopOpacity={0.5} />
+                <stop offset="100%" stopColor={CHART_COLORS.trendLine} stopOpacity={0} />
               </linearGradient>
-              <linearGradient id="appBarGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#60A5FA" stopOpacity="0.95" />
-                <stop offset="100%" stopColor="#3B82F6" stopOpacity="1" />
+              <linearGradient id="trendBarGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={CHART_COLORS.barGradientTop} />
+                <stop offset="100%" stopColor={CHART_COLORS.barGradientBottom} />
               </linearGradient>
-              <filter id="barGlow">
-                <feDropShadow dx="0" dy="2" stdDeviation="1.5" floodColor="#3B82F6" floodOpacity="0.12" />
-              </filter>
             </defs>
-            <CartesianGrid strokeDasharray="4 6" stroke={CHART_COLORS.grid} vertical={false} opacity={0.5} />
+            <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
             <XAxis
               dataKey="label"
               stroke={CHART_COLORS.axis}
@@ -150,36 +146,18 @@ export default function ApplicationsTrendCard({
                 const data = props.payload[0].payload as TrendRow;
                 const dateStr = data.day ? formatDay(data.day) : props.label || "";
                 const title = data.label === todayLabel ? `Today — ${dateStr}` : dateStr;
-                
-                const applications = data.total ?? 0;
-                const referrals = data.referrals ?? 0;
-                const rejected = data.rejected ?? 0;
-                const pending = data.pending ?? 0;
-                const referralRate = applications > 0 ? ((referrals / applications) * 100).toFixed(0) : 0;
-
                 return (
                   <div
                     style={{
                       background: CHART_COLORS.tooltipBg,
                       border: `1px solid ${CHART_COLORS.tooltipBorder}`,
-                      borderRadius: 8,
-                      padding: "12px 16px",
-                      boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
-                      backdropFilter: "blur(8px)",
+                      borderRadius: 6,
+                      padding: "10px 14px",
                     }}
                   >
-                    <p style={{ margin: "0 0 8px 0", fontWeight: 500, fontSize: 11, color: CHART_COLORS.text }}>{title}</p>
-                    <p style={{ margin: "0 0 6px 0", fontSize: 13, fontWeight: 600, color: "#3B82F6" }}>
-                      Applications: {applications}
-                    </p>
-                    <p style={{ margin: "0 0 4px 0", fontSize: 12, color: CHART_COLORS.text }}>
-                      Referrals: <span style={{ color: "#22C55E", fontWeight: 500 }}>{referrals}</span> ({referralRate}%)
-                    </p>
-                    <p style={{ margin: "0 0 4px 0", fontSize: 12, color: CHART_COLORS.text }}>
-                      Rejected: <span style={{ color: "#EF4444", fontWeight: 500 }}>{rejected}</span>
-                    </p>
-                    <p style={{ margin: 0, fontSize: 12, color: CHART_COLORS.text }}>
-                      Pending: <span style={{ fontWeight: 500 }}>{pending}</span>
+                    <p style={{ margin: "0 0 6px 0", fontWeight: 500, fontSize: 11, color: CHART_COLORS.text }}>{title}</p>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: CHART_COLORS.trendLine }}>
+                      Applications: {data.total}
                     </p>
                   </div>
                 );
@@ -192,24 +170,35 @@ export default function ApplicationsTrendCard({
             <Area type="monotone" dataKey="total" stroke="none" fill="url(#trendAreaGradient)" />
             <Bar
               dataKey="total"
-              fill="url(#appBarGradient)"
-              radius={[7, 7, 0, 0]}
-              animationDuration={300}
-              filter="url(#barGlow)"
+              fillOpacity={0.85}
+              radius={[5, 5, 0, 0]}
+              activeBar={false}
               label={
                 isMobile
                   ? false
-                  : { position: "top", fill: CHART_COLORS.textSecondary, fontSize: 11, fontWeight: 500, dy: -8 }
+                  : { position: "top", fill: CHART_COLORS.textSecondary, fontSize: 11, fontWeight: 400, dy: -4 }
               }
-            />
+            >
+              {trendData.map((row, i) => (
+                <Cell key={row.day ?? i} fill={WEEK_COLORS[row.weekIndex % WEEK_COLORS.length]} />
+              ))}
+            </Bar>
             <Line
-              type="natural"
+              type="monotone"
               dataKey="total"
-              stroke="#3B82F6"
-              strokeWidth={2.5}
-              dot={{ r: 4, strokeWidth: 2, fill: "#fff", stroke: "#3B82F6" }}
+              stroke={CHART_COLORS.trendLine}
+              strokeWidth={2}
+              dot={{ r: 3, strokeWidth: 0, fill: CHART_COLORS.trendLine, opacity: 0.9 }}
               activeDot={false}
-              animationDuration={300}
+            />
+            <Line type="monotone" dataKey="avg7" stroke={CHART_COLORS.movingAverage} strokeWidth={1.2} strokeDasharray="4 4" dot={false} />
+            <Line
+              type="monotone"
+              dataKey="rejected"
+              stroke={CHART_COLORS.responseBar}
+              strokeWidth={1.4}
+              dot={false}
+              activeDot={false}
             />
           </ComposedChart>
         </ResponsiveContainer>

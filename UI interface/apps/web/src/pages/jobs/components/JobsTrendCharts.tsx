@@ -18,6 +18,8 @@ type ChartPoint = {
   dayLabel: string;
   applied: number;
   rejected: number;
+  referral: number;
+  referral_rejected: number;
 };
 
 type Props = {
@@ -102,6 +104,8 @@ export default function JobsTrendCharts({ statusFilter, isLoadingTrend, chartDat
                     formatter={(value: number, name: string) => {
                       if (name === "applied") return [`${value}`, "Applied"];
                       if (name === "rejected") return [`${value}`, "Rejected"];
+                      if (name === "referral") return [`${value}`, "Referral Received"];
+                      if (name === "referral_rejected") return [`${value}`, "Referral Rejected"];
                       return [value, name];
                     }}
                     labelStyle={{ color: CHART_COLORS.text, fontSize: 11, fontWeight: 500, marginBottom: 6 }}
