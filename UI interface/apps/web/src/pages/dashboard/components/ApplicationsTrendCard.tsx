@@ -2,6 +2,7 @@ import {
   Area,
   Bar,
   CartesianGrid,
+  Cell,
   ComposedChart,
   Line,
   ReferenceLine,
@@ -10,7 +11,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { CHART_COLORS } from "../constants";
+import { CHART_COLORS, WEEK_COLORS } from "../constants";
 import { formatDay } from "../utils";
 
 type TrendRow = {
@@ -23,47 +24,6 @@ type TrendRow = {
   pending?: number;
   weekIndex: number;
 };
-
-// Custom bar shape with gradient
-function CustomBar(props: any) {
-  const { x, y, width, height, payload, radius } = props;
-  
-  if (!payload || height === 0 || width === 0) return null;
-
-  return (
-    <g>
-      {/* Main bar with rounded corners and gradient */}
-      <rect
-        x={x}
-        y={y}
-        width={width}
-        height={height}
-        rx={radius?.[0] ?? 6}
-        ry={radius?.[1] ?? 6}
-        fill="url(#premiumBarGradient)"
-        opacity={0.9}
-        style={{
-          transition: "opacity 0.2s ease, filter 0.2s ease",
-          filter: "drop-shadow(0 1px 2px rgba(59, 130, 246, 0.15))",
-        }}
-      />
-
-      {/* Soft shadow glow */}
-      <rect
-        x={x}
-        y={y}
-        width={width}
-        height={height}
-        rx={radius?.[0] ?? 6}
-        ry={radius?.[1] ?? 6}
-        fill="none"
-        stroke="#3B82F6"
-        strokeWidth="0.5"
-        opacity="0.15"
-      />
-    </g>
-  );
-}
 
 type WeeklyInsights = {
   diff: number;
@@ -158,9 +118,9 @@ export default function ApplicationsTrendCard({
                 <stop offset="0%" stopColor={CHART_COLORS.trendLine} stopOpacity={0.5} />
                 <stop offset="100%" stopColor={CHART_COLORS.trendLine} stopOpacity={0} />
               </linearGradient>
-              <linearGradient id="premiumBarGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#3B82F6" stopOpacity="1" />
-                <stop offset="100%" stopColor="#2563EB" stopOpacity="0.85" />
+              <linearGradient id="trendBarGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={CHART_COLORS.barGradientTop} />
+                <stop offset="100%" stopColor={CHART_COLORS.barGradientBottom} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
@@ -188,34 +148,18 @@ export default function ApplicationsTrendCard({
                 const data = props.payload[0].payload as TrendRow;
                 const dateStr = data.day ? formatDay(data.day) : props.label || "";
                 const title = data.label === todayLabel ? `Today — ${dateStr}` : dateStr;
-                
-                const applications = data.total ?? 0;
-                const referrals = data.referrals ?? 0;
-                const rejected = data.rejected ?? 0;
-                const pending = data.pending ?? 0;
-                const referralRate = applications > 0 ? ((referrals / applications) * 100).toFixed(0) : 0;
-
                 return (
                   <div
                     style={{
                       background: CHART_COLORS.tooltipBg,
                       border: `1px solid ${CHART_COLORS.tooltipBorder}`,
                       borderRadius: 6,
-                      padding: "12px 14px",
+                      padding: "10px 14px",
                     }}
                   >
-                    <p style={{ margin: "0 0 8px 0", fontWeight: 500, fontSize: 11, color: CHART_COLORS.text }}>{title}</p>
-                    <p style={{ margin: "0 0 6px 0", fontSize: 13, fontWeight: 600, color: CHART_COLORS.trendLine }}>
-                      Applications: {applications}
-                    </p>
-                    <p style={{ margin: "0 0 4px 0", fontSize: 12, color: CHART_COLORS.text }}>
-                      Referrals: <span style={{ color: "#22C55E", fontWeight: 500 }}>{referrals}</span> ({referralRate}%)
-                    </p>
-                    <p style={{ margin: "0 0 4px 0", fontSize: 12, color: CHART_COLORS.text }}>
-                      Rejected: <span style={{ color: "#EF4444", fontWeight: 500 }}>{rejected}</span>
-                    </p>
-                    <p style={{ margin: 0, fontSize: 12, color: CHART_COLORS.text }}>
-                      Pending: <span style={{ fontWeight: 500 }}>{pending}</span>
+                    <p style={{ margin: "0 0 6px 0", fontWeight: 500, fontSize: 11, color: CHART_COLORS.text }}>{title}</p>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: CHART_COLORS.trendLine }}>
+                      Applications: {data.total}
                     </p>
                   </div>
                 );
@@ -228,16 +172,23 @@ export default function ApplicationsTrendCard({
             <Area type="monotone" dataKey="total" stroke="none" fill="url(#trendAreaGradient)" />
             <Bar
               dataKey="total"
-              fillOpacity={0.9}
-              radius={[6, 6, 0, 0]}
+              stackId="stack"
+              fillOpacity={0.85}
+              radius={[5, 5, 0, 0]}
               activeBar={false}
               label={
                 isMobile
                   ? false
                   : { position: "top", fill: CHART_COLORS.textSecondary, fontSize: 11, fontWeight: 400, dy: -4 }
               }
-              shape={<CustomBar />}
-            />
+            >
+              {trendData.map((row, i) => (
+                <Cell key={row.day ?? i} fill={WEEK_COLORS[row.weekIndex % WEEK_COLORS.length]} />
+              ))}
+            </Bar>
+            <Bar dataKey="referrals" stackId="stack" fill="#22C55E" radius={[0, 0, 0, 0]} activeBar={false} />
+            <Bar dataKey="rejected" stackId="stack" fill="#EF4444" radius={[0, 0, 0, 0]} activeBar={false} />
+            <Bar dataKey="pending" stackId="stack" fill="#A855F7" radius={[0, 0, 5, 5]} activeBar={false} />
             <Line
               type="monotone"
               dataKey="total"
