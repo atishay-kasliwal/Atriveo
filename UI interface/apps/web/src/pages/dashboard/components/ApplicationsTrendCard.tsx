@@ -24,21 +24,11 @@ type TrendRow = {
   weekIndex: number;
 };
 
-// Custom bar shape with gradient and accent indicators
+// Custom bar shape with gradient
 function CustomBar(props: any) {
   const { x, y, width, height, payload, radius } = props;
   
   if (!payload || height === 0 || width === 0) return null;
-
-  const total = payload.total ?? 0;
-  const referrals = payload.referrals ?? 0;
-  const rejected = payload.rejected ?? 0;
-
-  // Calculate accent heights as proportions
-  const referralHeight = total > 0 ? (referrals / total) * height : 0;
-  const rejectedHeight = total > 0 ? (rejected / total) * height : 0;
-
-  const barY = y + height;
 
   return (
     <g>
@@ -71,34 +61,6 @@ function CustomBar(props: any) {
         strokeWidth="0.5"
         opacity="0.15"
       />
-
-      {/* Rejected accent at bottom (red thin line) */}
-      {rejectedHeight > 0 && (
-        <rect
-          x={x}
-          y={barY - rejectedHeight}
-          width={width}
-          height={Math.max(rejectedHeight, 2)}
-          fill="#EF4444"
-          opacity="0.5"
-          rx={radius?.[0] ?? 6}
-          ry={radius?.[1] ?? 6}
-        />
-      )}
-
-      {/* Referral accent above rejected (green highlight) */}
-      {referralHeight > 0 && (
-        <rect
-          x={x}
-          y={barY - rejectedHeight - referralHeight}
-          width={width}
-          height={Math.max(referralHeight, 2)}
-          fill="#22C55E"
-          opacity="0.45"
-          rx={Math.max(radius?.[0] ?? 6, 2)}
-          ry={Math.max(radius?.[1] ?? 6, 2)}
-        />
-      )}
     </g>
   );
 }
