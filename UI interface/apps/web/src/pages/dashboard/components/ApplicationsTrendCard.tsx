@@ -111,7 +111,7 @@ export default function ApplicationsTrendCard({
           </div>
         </div>
         <ResponsiveContainer width="100%" height={isMobile ? 300 : 520}>
-          <ComposedChart data={trendData} margin={{ top: 16, right: 24, left: 8, bottom: 8 }}>
+          <ComposedChart data={trendData} margin={{ top: 24, right: 24, left: 8, bottom: 8 }}>
             <defs>
               <linearGradient id="trendAreaGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor={CHART_COLORS.trendLine} stopOpacity={0.5} />
@@ -121,8 +121,27 @@ export default function ApplicationsTrendCard({
                 <stop offset="0%" stopColor={CHART_COLORS.barGradientTop} />
                 <stop offset="100%" stopColor={CHART_COLORS.barGradientBottom} />
               </linearGradient>
+              <linearGradient id="rejectedGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#FCA5A5" stopOpacity={0.9} />
+                <stop offset="100%" stopColor="#EF4444" stopOpacity={0.95} />
+              </linearGradient>
+              <linearGradient id="referralGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#4ADE80" stopOpacity={0.9} />
+                <stop offset="100%" stopColor="#22C55E" stopOpacity={0.95} />
+              </linearGradient>
+              <linearGradient id="applicationsGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#60A5FA" stopOpacity={0.95} />
+                <stop offset="100%" stopColor="#2563EB" stopOpacity={1} />
+              </linearGradient>
+              <linearGradient id="pendingGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#E9D5FF" stopOpacity={0.9} />
+                <stop offset="100%" stopColor="#A855F7" stopOpacity={0.95} />
+              </linearGradient>
+              <filter id="barShadow" x="-50%" y="-50%" width="200%" height="200%">
+                <feDropShadow dx="0" dy="1" stdDeviation="1" floodOpacity="0.08" />
+              </filter>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
+            <CartesianGrid strokeDasharray="4 6" stroke={CHART_COLORS.grid} vertical={false} opacity={0.5} />
             <XAxis
               dataKey="label"
               stroke={CHART_COLORS.axis}
@@ -152,8 +171,10 @@ export default function ApplicationsTrendCard({
                     style={{
                       background: CHART_COLORS.tooltipBg,
                       border: `1px solid ${CHART_COLORS.tooltipBorder}`,
-                      borderRadius: 6,
-                      padding: "10px 14px",
+                      borderRadius: 8,
+                      padding: "12px 16px",
+                      boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)",
+                      backdropFilter: "blur(8px)",
                     }}
                   >
                     <p style={{ margin: "0 0 6px 0", fontWeight: 500, fontSize: 11, color: CHART_COLORS.text }}>{title}</p>
@@ -169,31 +190,69 @@ export default function ApplicationsTrendCard({
               <ReferenceLine x={todayLabel} stroke={CHART_COLORS.textSecondary} strokeWidth={1.5} strokeDasharray="4 4" label={{ value: "Today", fill: CHART_COLORS.textSecondary, fontSize: 10 }} />
             ) : null}
             <Area type="monotone" dataKey="total" stroke="none" fill="url(#trendAreaGradient)" />
-            <Bar dataKey="rejected" stackId="stack" fill="#EF4444" radius={[0, 0, 5, 5]} activeBar={false} />
-            <Bar dataKey="referrals" stackId="stack" fill="#22C55E" radius={[0, 0, 0, 0]} activeBar={false} />
+            <Bar 
+              dataKey="rejected" 
+              stackId="stack" 
+              fill="url(#rejectedGradient)" 
+              radius={[0, 0, 6, 6]} 
+              activeBar={false}
+              isAnimationActive={true}
+              animationDuration={300}
+            />
+            <Bar 
+              dataKey="referrals" 
+              stackId="stack" 
+              fill="url(#referralGradient)" 
+              radius={[0, 0, 0, 0]} 
+              activeBar={false}
+              isAnimationActive={true}
+              animationDuration={300}
+            />
             <Bar
               dataKey="total"
               stackId="stack"
-              fill={CHART_COLORS.trendLine}
-              fillOpacity={0.85}
+              fill="url(#applicationsGradient)"
+              fillOpacity={0.95}
               radius={[0, 0, 0, 0]}
               activeBar={false}
+              isAnimationActive={true}
+              animationDuration={300}
               label={
                 isMobile
                   ? false
-                  : { position: "top", fill: CHART_COLORS.textSecondary, fontSize: 11, fontWeight: 400, dy: -4 }
+                  : { position: "top", fill: CHART_COLORS.textSecondary, fontSize: 11, fontWeight: 500, dy: -6 }
               }
             />
-            <Bar dataKey="pending" stackId="stack" fill="#A855F7" radius={[5, 5, 0, 0]} activeBar={false} />
+            <Bar 
+              dataKey="pending" 
+              stackId="stack" 
+              fill="url(#pendingGradient)" 
+              radius={[6, 6, 0, 0]} 
+              activeBar={false}
+              isAnimationActive={true}
+              animationDuration={300}
+            />
             <Line
               type="monotone"
               dataKey="total"
               stroke={CHART_COLORS.trendLine}
-              strokeWidth={2}
-              dot={{ r: 3, strokeWidth: 0, fill: CHART_COLORS.trendLine, opacity: 0.9 }}
+              strokeWidth={2.5}
+              dot={{ r: 4, strokeWidth: 2, fill: "#fff", stroke: CHART_COLORS.trendLine, opacity: 1 }}
               activeDot={false}
+              isAnimationActive={true}
+              animationDuration={300}
             />
-            <Line type="monotone" dataKey="avg7" stroke={CHART_COLORS.movingAverage} strokeWidth={1.2} strokeDasharray="4 4" dot={false} />
+            <Line 
+              type="monotone" 
+              dataKey="avg7" 
+              stroke={CHART_COLORS.movingAverage} 
+              strokeWidth={1.5} 
+              strokeDasharray="5 4" 
+              dot={false}
+              isAnimationActive={true}
+              animationDuration={300}
+              opacity={0.8}
+            />
             <Line
               type="monotone"
               dataKey="rejected"
@@ -201,6 +260,7 @@ export default function ApplicationsTrendCard({
               strokeWidth={1.4}
               dot={false}
               activeDot={false}
+              opacity={0.6}
             />
           </ComposedChart>
         </ResponsiveContainer>
