@@ -2145,6 +2145,36 @@ app.post("/api/friends/:id/block", async (c) => {
   return c.json({ ok: true, friendship: row });
 });
 
+app.post("/api/friends/:id/unblock", async (c) => {
+  const userId = c.get("authUser").id;
+  const friendshipId = Number(c.req.param("id"));
+  if (!Number.isFinite(friendshipId) || friendshipId <= 0) {
+    return c.json({ error: "Invalid friendship id." }, 400);
+  }
+
+  const [row] = await query<{ id: number; status: string; updated_at: string }>(
+    c.env,
+    `
+    UPDATE friendships
+    SET status = 'rejected',
+        blocked_at = NULL,
+        accepted_at = NULL,
+        rejected_at = NOW(),
+        updated_at = NOW()
+    WHERE id = $1
+      AND status = 'blocked'
+      AND (requester_id = $2 OR receiver_id = $2)
+    RETURNING id, status, updated_at::text AS updated_at
+    `,
+    [friendshipId, userId],
+  );
+
+  if (!row) {
+    return c.json({ error: "Blocked friendship not found." }, 404);
+  }
+  return c.json({ ok: true, friendship: row });
+});
+
 const networkFieldVisibilityUpdateInput = z.object({
   share_company: z.boolean().optional(),
   share_role: z.boolean().optional(),
