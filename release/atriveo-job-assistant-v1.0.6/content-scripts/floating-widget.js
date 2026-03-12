@@ -73,6 +73,17 @@
   const pathname = String(window.location.pathname || "");
   const title = String(document.title || "");
   const bodyText = String(document.body?.innerText || "").slice(0, 2400);
+  const lowerUrl = currentUrl.toLowerCase();
+  const lowerPath = pathname.toLowerCase();
+  const lowerTitle = title.toLowerCase();
+  const lowerBodyText = bodyText.toLowerCase();
+
+  const isPostApplyConfirmationPage =
+    /(?:thank\s*you\s*for\s*applying|application\s*(?:submitted|received|complete)|submission\s*complete|already\s*applied)/i.test(
+      `${lowerTitle} ${lowerBodyText}`
+    ) ||
+    /\b(?:confirmation|confirm|submitted|success|thank-you|thank_you)\b/.test(lowerPath) ||
+    /\b(?:application[_-]?submitted|submission[_-]?complete|thank[_-]?you)\b/.test(lowerUrl);
 
   const isLinkedInHost = host.includes("linkedin.com");
   const isLinkedInJobPage =
@@ -709,7 +720,7 @@
   });
 
   // Auto-open on supported job pages so users can immediately review extracted data.
-  if (isSupportedPage && !forceWidget && !isFlowDismissed(currentUrl)) {
+  if (isSupportedPage && !forceWidget && !isPostApplyConfirmationPage && !isFlowDismissed(currentUrl)) {
     void togglePanel(true);
   }
 
@@ -722,7 +733,7 @@
     }
 
     if (message?.type === "AUTO_OPEN_PANEL") {
-      if (ui.panel.hidden && !isFlowDismissed(currentUrl)) {
+      if (ui.panel.hidden && !isPostApplyConfirmationPage && !isFlowDismissed(currentUrl)) {
         void togglePanel(true);
       }
       sendResponse({ ok: true });
