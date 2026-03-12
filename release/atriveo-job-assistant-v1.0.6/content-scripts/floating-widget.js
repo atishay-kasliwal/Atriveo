@@ -629,6 +629,11 @@
     field.addEventListener(eventName, onFormChange);
   });
 
+  // Auto-open on supported job pages so users can immediately review extracted data.
+  if (isSupportedPage && !forceWidget) {
+    void togglePanel(true);
+  }
+
   // Allow the extension icon click (background.js) to toggle this panel.
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === "TOGGLE_PANEL") {
