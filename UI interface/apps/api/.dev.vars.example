@@ -30,8 +30,8 @@ EMAIL_FROM=noreply@atriveo.com
 # RESET_PASSWORD_URL_BASE=https://www.atriveo.com/?token=
 RESET_PASSWORD_URL_BASE=
 
-# Optional: reset token expiry in minutes (default 30, max 120).
-PASSWORD_RESET_TOKEN_TTL_MINUTES=30
+# Optional: reset token expiry in minutes (default 10, max 120).
+PASSWORD_RESET_TOKEN_TTL_MINUTES=10
 
 # Optional: media signed URL secret. If unset, API_SHARED_TOKEN is used as fallback.
 MEDIA_URL_SIGNING_SECRET=

@@ -476,7 +476,7 @@ function areSignupsEnabled(env: Bindings): boolean {
 
 function getPasswordResetTtlMinutes(env: Bindings): number {
   const parsed = Number(env.PASSWORD_RESET_TOKEN_TTL_MINUTES);
-  if (!Number.isFinite(parsed) || parsed <= 0) return 30;
+  if (!Number.isFinite(parsed) || parsed <= 0) return 10;
   return Math.min(Math.floor(parsed), 120);
 }
 
@@ -522,22 +522,60 @@ function buildResetPasswordUrl(base: string, token: string): string {
   }
 }
 
-async function sendPasswordResetEmail(env: Bindings, toEmail: string, resetUrl: string): Promise<void> {
+function formatResetTtlLabel(ttlMinutes: number): string {
+  const minutes = Math.max(1, Math.floor(ttlMinutes));
+  return `${minutes} minute${minutes === 1 ? "" : "s"}`;
+}
+
+async function sendPasswordResetEmail(
+  env: Bindings,
+  args: {
+    toEmail: string;
+    firstName?: string | null;
+    resetUrl: string;
+    ttlMinutes: number;
+  },
+): Promise<void> {
   const resendApiKey = String(env.RESEND_API_KEY ?? "").trim();
   const sender = String(env.EMAIL_FROM ?? "noreply@atriveo.com").trim() || "noreply@atriveo.com";
+  const { toEmail, firstName, resetUrl, ttlMinutes } = args;
+  const ttlLabel = formatResetTtlLabel(ttlMinutes);
+  const greetingName = String(firstName ?? "").trim();
+  const greeting = greetingName ? `Hi ${greetingName},` : "Hi there,";
 
   if (!resendApiKey) {
     console.warn(`[auth] RESEND_API_KEY is not set. Password reset link for ${toEmail}: ${resetUrl}`);
     return;
   }
 
-  const subject = "Reset your Atriveo password";
+  const subject = `Reset your Atriveo password (${ttlLabel} link)`;
   const html = [
-    "<p>We received a request to reset your Atriveo password.</p>",
-    `<p><a href=\"${resetUrl}\">Reset password</a></p>`,
-    "<p>This link expires soon. If you did not request this, you can ignore this email.</p>",
+    "<div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#f8fafc;padding:24px;color:#0f172a;\">",
+    "<div style=\"max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;padding:24px;\">",
+    "<p style=\"margin:0 0 10px;font-size:14px;letter-spacing:0.08em;text-transform:uppercase;color:#64748b;\">Atriveo</p>",
+    `<p style=\"margin:0 0 14px;font-size:16px;line-height:1.5;\">${greeting}</p>`,
+    "<h2 style=\"margin:0 0 12px;font-size:22px;line-height:1.3;color:#0f172a;\">Reset your Atriveo password</h2>",
+    "<p style=\"margin:0 0 18px;font-size:15px;line-height:1.6;color:#334155;\">We received a request to reset your password. Use the button below to set a new one.</p>",
+    `<p style=\"margin:0 0 18px;\"><a href=\"${resetUrl}\" style=\"display:inline-block;background:#1d4ed8;color:#ffffff;text-decoration:none;font-weight:700;padding:11px 18px;border-radius:10px;\">Reset password</a></p>`,
+    `<p style=\"margin:0 0 10px;font-size:14px;line-height:1.6;color:#334155;\"><strong>Security note:</strong> this link is valid for <strong>${ttlLabel}</strong> and can be used only once.</p>`,
+    "<p style=\"margin:0 0 16px;font-size:14px;line-height:1.6;color:#475569;\">If you did not request this, you can safely ignore this email.</p>",
+    "<p style=\"margin:0;font-size:14px;line-height:1.6;color:#475569;\">With care,<br/>The Atriveo Team</p>",
+    "</div>",
+    "</div>",
   ].join("");
-  const text = `Reset your Atriveo password: ${resetUrl}\n\nIf you did not request this, you can ignore this email.`;
+  const text = [
+    greeting,
+    "",
+    "We received a request to reset your Atriveo password.",
+    `Reset password: ${resetUrl}`,
+    "",
+    `Security note: this link is valid for ${ttlLabel} and can be used only once.`,
+    "",
+    "If you did not request this, you can safely ignore this email.",
+    "",
+    "With care,",
+    "The Atriveo Team",
+  ].join("\n");
 
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -834,9 +872,9 @@ app.post("/auth/forgot-password", async (c) => {
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
 
   const email = normalizeEmail(parsed.data.email);
-  const [user] = await query<{ id: number; email: string }>(
+  const [user] = await query<{ id: number; email: string; first_name: string | null }>(
     c.env,
-    "SELECT id, email FROM dashboard_users WHERE LOWER(email) = $1 LIMIT 1",
+    "SELECT id, email, first_name FROM dashboard_users WHERE LOWER(email) = $1 LIMIT 1",
     [email],
   );
 
@@ -867,7 +905,12 @@ app.post("/auth/forgot-password", async (c) => {
   const resetUrl = buildResetPasswordUrl(getResetPasswordBaseUrl(c.env), token);
 
   try {
-    await sendPasswordResetEmail(c.env, String(user.email), resetUrl);
+    await sendPasswordResetEmail(c.env, {
+      toEmail: String(user.email),
+      firstName: user.first_name ?? null,
+      resetUrl,
+      ttlMinutes,
+    });
   } catch (err) {
     console.error("[auth] forgot-password email send failed", err);
   }
