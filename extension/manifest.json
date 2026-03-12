@@ -30,9 +30,6 @@
     "https://*.avature.net/*",
     "https://*.amazon.jobs/*",
     "https://*.ultipro.com/*",
-    "https://*/careers/*",
-    "https://*/jobs/*",
-    "https://*/openings/*",
     "https://job-tracker-api.katishay.workers.dev/*",
     "https://www.atriveo.com/*",
     "https://atriveo.com/*",
@@ -71,10 +68,7 @@
         "https://*.linkedin.com/*",
         "https://*.avature.net/*",
         "https://*.amazon.jobs/*",
-        "https://*.ultipro.com/*",
-        "https://*/careers/*",
-        "https://*/jobs/*",
-        "https://*/openings/*"
+        "https://*.ultipro.com/*"
       ],
       "exclude_matches": [
         "https://www.atriveo.com/*",
