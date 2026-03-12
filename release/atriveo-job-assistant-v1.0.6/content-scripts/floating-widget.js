@@ -82,8 +82,9 @@
     /\b(apply now|job title|requisition id|employment type|hiring|career site)\b/i.test(bodyText);
 
   const isSupportedPage = isSupportedHost || isLikelyCareerPage;
+  const forceWidget = Boolean(window.__ATRIVEO_FORCE_WIDGET__);
 
-  if (!isSupportedPage) return;
+  if (!isSupportedPage && !forceWidget) return;
 
   const runtimeMessage = (payload) =>
     new Promise((resolve, reject) => {

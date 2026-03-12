@@ -949,11 +949,53 @@ chrome.runtime.onInstalled.addListener(() => {
 // or open the Atriveo dashboard on unsupported pages.
 chrome.action.onClicked.addListener((tab) => {
   if (!tab?.id) return;
-  chrome.tabs.sendMessage(tab.id, { type: "TOGGLE_PANEL" }, (response) => {
-    if (chrome.runtime.lastError || !response?.ok) {
-      // Floater not present on this page — open the dashboard instead.
-      chrome.tabs.create({ url: "https://www.atriveo.com/" });
+
+  const tabId = tab.id;
+  chrome.tabs.sendMessage(tabId, { type: "TOGGLE_PANEL" }, (response) => {
+    if (!chrome.runtime.lastError && response?.ok) {
+      return;
     }
+
+    // Floater is not present yet. Attempt dynamic injection on the active tab
+    // so users can still add applications manually on unsupported pages.
+    chrome.scripting.executeScript(
+      {
+        target: { tabId },
+        func: () => {
+          window.__ATRIVEO_FORCE_WIDGET__ = true;
+        }
+      },
+      () => {
+        chrome.scripting.insertCSS(
+          {
+            target: { tabId },
+            files: ["content-scripts/floating-widget.css"]
+          },
+          () => {
+            chrome.scripting.executeScript(
+              {
+                target: { tabId },
+                files: [
+                  "utils/extractText.js",
+                  "content-scripts/detector.js",
+                  "content-scripts/floating-widget.js"
+                ]
+              },
+              () => {
+                chrome.tabs.sendMessage(tabId, { type: "TOGGLE_PANEL" }, (retryResponse) => {
+                  if (!chrome.runtime.lastError && retryResponse?.ok) {
+                    return;
+                  }
+
+                  // Restricted pages (chrome://, extensions, web store) can't be scripted.
+                  chrome.tabs.create({ url: "https://www.atriveo.com/" });
+                });
+              }
+            );
+          }
+        );
+      }
+    );
   });
 });
 
