@@ -660,7 +660,7 @@ export function updateTargets(payload: {
   );
 }
 
-export type JobsTrendData = Array<{ day: string; applied: number; rejected: number; referral: number; referral_rejected: number }>;
+export type JobsTrendData = Array<{ day: string; applied: number; rejected: number }>;
 
 export function getJobsTrend(days?: number) {
   const search = new URLSearchParams();

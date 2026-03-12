@@ -2506,16 +2506,14 @@ app.get("/api/jobs/trend", async (c) => {
   const anchorDateSql = anchorDay ? `$2::date` : `CURRENT_DATE`;
   const params = anchorDay ? [userId, anchorDay] : [userId];
 
-  // Get daily applied, rejected, and referral counts for the last N days
-  const trendData = await query<{ day: string; applied: number; rejected: number; referral: number; referral_rejected: number }>(
+  // Get daily applied and rejected counts for the last N days
+  const trendData = await query<{ day: string; applied: number; rejected: number }>(
     env,
     `
     SELECT 
       d.day::text AS day,
       COALESCE(applied.cnt, 0)::int AS applied,
-      COALESCE(rejected.cnt, 0)::int AS rejected,
-      COALESCE(referral.cnt, 0)::int AS referral,
-      COALESCE(referral_rejected.cnt, 0)::int AS referral_rejected
+      COALESCE(rejected.cnt, 0)::int AS rejected
     FROM (
       SELECT generate_series(
         (${anchorDateSql} - (${days - 1}::text || ' days')::interval)::date,
@@ -2538,22 +2536,6 @@ app.get("/api/jobs/trend", async (c) => {
         AND (archive_date IS NOT NULL OR date_saved IS NOT NULL)
       GROUP BY DATE(COALESCE(archive_date, date_saved))
     ) rejected ON rejected.day = d.day
-    LEFT JOIN (
-      SELECT DATE(COALESCE(request_date, updated_date)) AS day, COUNT(*)::int AS cnt
-      FROM referrals
-      WHERE user_id = $1 
-        AND TRIM(COALESCE(referral_received, '')) = 'Yes'
-        AND (request_date IS NOT NULL OR updated_date IS NOT NULL)
-      GROUP BY DATE(COALESCE(request_date, updated_date))
-    ) referral ON referral.day = d.day
-    LEFT JOIN (
-      SELECT DATE(COALESCE(request_date, updated_date)) AS day, COUNT(*)::int AS cnt
-      FROM referrals
-      WHERE user_id = $1 
-        AND TRIM(COALESCE(referral_received, '')) IN ('Rejected', 'Declined')
-        AND (request_date IS NOT NULL OR updated_date IS NOT NULL)
-      GROUP BY DATE(COALESCE(request_date, updated_date))
-    ) referral_rejected ON referral_rejected.day = d.day
     ORDER BY d.day ASC
     `,
     params,
