@@ -82,4 +82,19 @@ jobs:
           CLOUDFLARE_PAGES_PROJECT_NAME: ${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }}
         run: |
           PROJECT_NAME="${CLOUDFLARE_PAGES_PROJECT_NAME:-noobly}"
-          npx wrangler pages deploy "apps/web/dist" --project-name "$PROJECT_NAME" --branch master
+          MAX_ATTEMPTS=5
+          ATTEMPT=1
+          until [ "$ATTEMPT" -gt "$MAX_ATTEMPTS" ]; do
+            echo "Cloudflare Pages deploy attempt ${ATTEMPT}/${MAX_ATTEMPTS}"
+            if npx wrangler pages deploy "apps/web/dist" --project-name "$PROJECT_NAME" --branch master; then
+              exit 0
+            fi
+            if [ "$ATTEMPT" -eq "$MAX_ATTEMPTS" ]; then
+              echo "Cloudflare Pages deploy failed after ${MAX_ATTEMPTS} attempts."
+              exit 1
+            fi
+            SLEEP_SECONDS=$((ATTEMPT * 15))
+            echo "Deploy attempt failed. Retrying in ${SLEEP_SECONDS}s..."
+            sleep "$SLEEP_SECONDS"
+            ATTEMPT=$((ATTEMPT + 1))
+          done
