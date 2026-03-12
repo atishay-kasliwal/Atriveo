@@ -1,19 +1,19 @@
 @keyframes atriveoFade {
   from {
     opacity: 0;
-    transform: translateX(15px) translateY(-50%);
+    transform: translateX(15px);
   }
   to {
     opacity: 1;
-    transform: translateX(0) translateY(-50%);
+    transform: translateX(0);
   }
 }
 
 #atriveo-widget {
   position: fixed;
-  top: 50%;
+  top: 72px;
   right: -20px;
-  transform: translateY(-50%);
+  transform: none;
   z-index: 2147483646;
   animation: atriveoFade 0.3s ease forwards;
   touch-action: none;
