@@ -24,93 +24,6 @@ type TrendRow = {
   weekIndex: number;
 };
 
-// Custom bar component with subtle referral/rejected indicators
-function PremiumApplicationBar(props: any) {
-  const { x, y, width, height, payload, radius } = props;
-  
-  if (!payload || height === 0 || width === 0) return null;
-
-  const total = payload.total ?? 0;
-  const referrals = payload.referrals ?? 0;
-  const rejected = payload.rejected ?? 0;
-
-  const barY = y + height; // bottom of bar
-  const barWidth = width;
-  const dotSize = 3;
-
-  // Calculate number of indicator dots
-  const referralDots = Math.min(Math.ceil(referrals / Math.max(total / 5, 1)), 5);
-  const rejectedDots = Math.min(Math.ceil(rejected / Math.max(total / 5, 1)), 3);
-
-  return (
-    <g>
-      {/* Main blue bar with gradient */}
-      <defs>
-        <linearGradient id={`premiumAppBar-${payload.day}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#60A5FA" stopOpacity="0.95" />
-          <stop offset="100%" stopColor="#3B82F6" stopOpacity="1" />
-        </linearGradient>
-        <filter id={`barGlow-${payload.day}`}>
-          <feDropShadow dx="0" dy="2" stdDeviation="2" floodColor="#3B82F6" floodOpacity="0.1" />
-        </filter>
-      </defs>
-
-      {/* Main application bar */}
-      <rect
-        x={x}
-        y={y}
-        width={width}
-        height={height}
-        rx={radius?.[0] ?? 7}
-        ry={radius?.[1] ?? 7}
-        fill={`url(#premiumAppBar-${payload.day})`}
-        filter={`url(#barGlow-${payload.day})`}
-        style={{ transition: "opacity 0.2s ease" }}
-      />
-
-      {/* Referral dots at the base (green) */}
-      {referralDots > 0 && (
-        <g opacity={0.6}>
-          {Array.from({ length: referralDots }).map((_, i) => {
-            const spacing = (barWidth - dotSize * referralDots) / (referralDots + 1);
-            const dotX = x + spacing + i * (dotSize + spacing);
-            return (
-              <circle
-                key={`referral-dot-${i}`}
-                cx={dotX + dotSize / 2}
-                cy={barY - 6}
-                r={dotSize / 2}
-                fill="#22C55E"
-                opacity={0.65}
-              />
-            );
-          })}
-        </g>
-      )}
-
-      {/* Rejected dots below referral dots (red) */}
-      {rejectedDots > 0 && (
-        <g opacity={0.5}>
-          {Array.from({ length: rejectedDots }).map((_, i) => {
-            const spacing = (barWidth - dotSize * rejectedDots) / (rejectedDots + 1);
-            const dotX = x + spacing + i * (dotSize + spacing);
-            return (
-              <circle
-                key={`rejected-dot-${i}`}
-                cx={dotX + dotSize / 2}
-                cy={barY - 2}
-                r={dotSize / 2}
-                fill="#EF4444"
-                opacity={0.55}
-              />
-            );
-          })}
-        </g>
-      )}
-    </g>
-  );
-}
-
 type WeeklyInsights = {
   diff: number;
   status: "ahead" | "behind" | "equal";
@@ -204,6 +117,13 @@ export default function ApplicationsTrendCard({
                 <stop offset="0%" stopColor="#3B82F6" stopOpacity={0.4} />
                 <stop offset="100%" stopColor="#3B82F6" stopOpacity={0} />
               </linearGradient>
+              <linearGradient id="appBarGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#60A5FA" stopOpacity="0.95" />
+                <stop offset="100%" stopColor="#3B82F6" stopOpacity="1" />
+              </linearGradient>
+              <filter id="barGlow">
+                <feDropShadow dx="0" dy="2" stdDeviation="1.5" floodColor="#3B82F6" floodOpacity="0.12" />
+              </filter>
             </defs>
             <CartesianGrid strokeDasharray="4 6" stroke={CHART_COLORS.grid} vertical={false} opacity={0.5} />
             <XAxis
@@ -272,28 +192,24 @@ export default function ApplicationsTrendCard({
             <Area type="monotone" dataKey="total" stroke="none" fill="url(#trendAreaGradient)" />
             <Bar
               dataKey="total"
-              fill="#3B82F6"
+              fill="url(#appBarGradient)"
               radius={[7, 7, 0, 0]}
-              activeBar={false}
-              isAnimationActive={true}
               animationDuration={300}
+              filter="url(#barGlow)"
               label={
                 isMobile
                   ? false
                   : { position: "top", fill: CHART_COLORS.textSecondary, fontSize: 11, fontWeight: 500, dy: -8 }
               }
-              shape={<PremiumApplicationBar />}
             />
             <Line
-              type="monotone"
+              type="natural"
               dataKey="total"
               stroke="#3B82F6"
               strokeWidth={2.5}
-              dot={{ r: 4, strokeWidth: 2, fill: "#fff", stroke: "#3B82F6", opacity: 1 }}
+              dot={{ r: 4, strokeWidth: 2, fill: "#fff", stroke: "#3B82F6" }}
               activeDot={false}
-              isAnimationActive={true}
               animationDuration={300}
-              yAxisId="left"
             />
           </ComposedChart>
         </ResponsiveContainer>
