@@ -173,6 +173,72 @@
   overflow-y: auto;
 }
 
+.network-applications-row .network-signals-sidebar .target-signal-card {
+  padding: 8px;
+  gap: 5px;
+}
+
+.network-applications-row .network-signals-sidebar .target-signal-title {
+  min-width: 0;
+  font-size: 0.92rem;
+}
+
+.network-applications-row .network-signals-sidebar .target-signal-title > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.network-applications-row .network-signals-sidebar .target-signal-summary {
+  gap: 4px;
+}
+
+.network-applications-row .network-signals-sidebar .target-signal-stat-chip {
+  font-size: 0.7rem;
+  padding: 2px 7px;
+}
+
+.network-applications-row .network-signals-sidebar .target-signal-meta-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2px;
+}
+
+.network-applications-row .network-signals-sidebar .target-signal-meta-context {
+  max-width: none;
+  text-align: left;
+}
+
+.network-applications-row .network-signals-sidebar .target-signal-app {
+  padding: 6px;
+  gap: 5px;
+}
+
+.network-applications-row .network-signals-sidebar .target-signal-app-role {
+  display: block;
+  min-width: 0;
+}
+
+.network-applications-row .network-signals-sidebar .target-signal-app-kv-grid {
+  grid-template-columns: 1fr;
+  gap: 3px;
+}
+
+.network-applications-row .network-signals-sidebar .target-signal-app-kv-item {
+  font-size: 0.69rem;
+}
+
+.network-applications-row .network-signals-sidebar .target-signal-app-actions {
+  gap: 6px;
+}
+
+.network-applications-row .network-signals-sidebar .target-signal-add-btn {
+  max-width: 100%;
+  font-size: 0.7rem;
+  padding: 4px 8px;
+}
+
 @media (max-width: 900px) {
   .network-applications-row {
     grid-template-columns: 1fr;
