@@ -20,6 +20,8 @@ const WEB_TAB_PATTERNS = [
   "https://atriveo.com/*",
   "https://*.atriveo.com/*"
 ];
+const DASHBOARD_SIGNAL_MESSAGE_TYPE = "ATRIVEO_JOB_ADDED";
+const DASHBOARD_REFRESH_EVENT_NAME = "dashboard-refresh";
 const PLATFORM_EXTRACTOR_SCRIPTS = {
   workday: "content-scripts/workday.js",
   greenhouse: "content-scripts/greenhouse.js",
@@ -324,6 +326,31 @@ const openLoginPage = async () => {
   }
 
   return chrome.tabs.create({ url: WEB_LOGIN_URL, active: true });
+};
+
+const notifyDashboardTabsJobAdded = async () => {
+  const tabs = await chrome.tabs.query({ url: WEB_TAB_PATTERNS });
+  const notifyTasks = tabs
+    .filter((tab) => typeof tab?.id === "number")
+    .map(
+      (tab) =>
+        new Promise((resolve) => {
+          chrome.tabs.sendMessage(
+            tab.id,
+            {
+              type: DASHBOARD_SIGNAL_MESSAGE_TYPE,
+              event: DASHBOARD_REFRESH_EVENT_NAME
+            },
+            () => {
+              // Ignore errors when Atriveo dashboard content script is not ready in a tab.
+              void chrome.runtime.lastError;
+              resolve(null);
+            }
+          );
+        })
+    );
+
+  await Promise.all(notifyTasks);
 };
 
 const readSessionFromTab = async (tabId) => {
@@ -931,6 +958,12 @@ const submitApplication = async ({ url, keyword_match, referral_name, applicatio
     [STORAGE_KEYS.PREPARED_PAYLOAD]: preparedPayload,
     [STORAGE_KEYS.LAST_UPDATED]: Date.now()
   });
+
+  try {
+    await notifyDashboardTabsJobAdded();
+  } catch (_) {
+    // Best-effort notification; save flow must not fail on tab messaging issues.
+  }
 
   try {
     const bc = new BroadcastChannel("atriveo-sync");
