@@ -2145,6 +2145,63 @@ app.post("/api/friends/:id/block", async (c) => {
   return c.json({ ok: true, friendship: row });
 });
 
+app.post("/api/friends/unblock", async (c) => {
+  const userId = c.get("authUser").id;
+  const parsed = friendRequestInput.safeParse(await c.req.json());
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
+  const payload = parsed.data;
+  if (!payload.receiver_id && !payload.email) {
+    return c.json({ error: "receiver_id or email is required." }, 400);
+  }
+
+  let otherUserId: number | null = null;
+  if (payload.receiver_id) {
+    const [receiver] = await query<{ id: number }>(
+      c.env,
+      "SELECT id FROM dashboard_users WHERE id = $1 LIMIT 1",
+      [payload.receiver_id],
+    );
+    if (!receiver) return c.json({ error: "User not found." }, 404);
+    otherUserId = Number(receiver.id);
+  } else {
+    const normalizedEmail = normalizeEmail(String(payload.email ?? ""));
+    const [receiver] = await query<{ id: number }>(
+      c.env,
+      "SELECT id FROM dashboard_users WHERE LOWER(email) = $1 LIMIT 1",
+      [normalizedEmail],
+    );
+    if (!receiver) return c.json({ error: "User not found." }, 404);
+    otherUserId = Number(receiver.id);
+  }
+
+  if (!otherUserId || otherUserId === userId) {
+    return c.json({ error: "Invalid target user." }, 400);
+  }
+
+  const [row] = await query<{ id: number; status: string; updated_at: string }>(
+    c.env,
+    `
+    UPDATE friendships
+    SET status = 'rejected',
+        blocked_at = NULL,
+        accepted_at = NULL,
+        rejected_at = NOW(),
+        updated_at = NOW()
+    WHERE LEAST(requester_id, receiver_id) = LEAST($1::bigint, $2::bigint)
+      AND GREATEST(requester_id, receiver_id) = GREATEST($1::bigint, $2::bigint)
+      AND status = 'blocked'
+      AND (requester_id = $1 OR receiver_id = $1)
+    RETURNING id, status, updated_at::text AS updated_at
+    `,
+    [userId, otherUserId],
+  );
+
+  if (!row) {
+    return c.json({ error: "Blocked friendship not found." }, 404);
+  }
+  return c.json({ ok: true, friendship: row });
+});
+
 app.post("/api/friends/:id/unblock", async (c) => {
   const userId = c.get("authUser").id;
   const friendshipId = Number(c.req.param("id"));
