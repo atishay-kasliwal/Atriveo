@@ -74,7 +74,14 @@
   const title = String(document.title || "");
   const bodyText = String(document.body?.innerText || "").slice(0, 2400);
 
-  const isSupportedHost = SUPPORTED_HOST_TOKENS.some((token) => host.includes(token));
+  const isLinkedInHost = host.includes("linkedin.com");
+  const isLinkedInJobPage =
+    /\/jobs(?:\/|$)/i.test(pathname) ||
+    /(?:currentjobid|trk=public_jobs)/i.test(currentUrl);
+
+  const isSupportedHost =
+    SUPPORTED_HOST_TOKENS.some((token) => host.includes(token)) &&
+    (!isLinkedInHost || isLinkedInJobPage);
   const isLikelyCareerPage =
     CAREER_PATH_PATTERN.test(pathname) ||
     CAREER_QUERY_PATTERN.test(currentUrl) ||
