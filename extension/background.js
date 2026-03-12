@@ -945,6 +945,22 @@ chrome.runtime.onInstalled.addListener(() => {
   console.info("[Atriveo] Job Assistant installed.");
 });
 
+// Auto-open the floater after supported pages finish loading.
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status !== "complete") return;
+
+  const tabUrl = asText(tab?.url);
+  if (!tabUrl || !/^https?:\/\//i.test(tabUrl)) return;
+
+  const platform = inferAtsPlatformFromUrl(tabUrl);
+  if (!platform) return;
+
+  chrome.tabs.sendMessage(tabId, { type: "AUTO_OPEN_PANEL" }, () => {
+    // Content script may not exist on every URL variant; ignore message errors.
+    void chrome.runtime.lastError;
+  });
+});
+
 // Extension icon click: toggle the floating widget panel on supported pages,
 // or open the Atriveo dashboard on unsupported pages.
 chrome.action.onClicked.addListener((tab) => {

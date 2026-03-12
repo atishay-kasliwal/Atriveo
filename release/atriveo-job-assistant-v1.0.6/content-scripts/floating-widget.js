@@ -639,6 +639,14 @@
     if (message?.type === "TOGGLE_PANEL") {
       void togglePanel();
       sendResponse({ ok: true });
+      return false;
+    }
+
+    if (message?.type === "AUTO_OPEN_PANEL") {
+      if (ui.panel.hidden) {
+        void togglePanel(true);
+      }
+      sendResponse({ ok: true });
     }
     return false;
   });
