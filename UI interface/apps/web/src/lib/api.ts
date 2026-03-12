@@ -201,12 +201,12 @@ export type GetJobsParams = {
   company?: string; // Backward-compatible alias for search
   stage?: "Applied" | "OA" | "Interview" | "Offer" | "Archive";
   applicationStatus?: "Applied" | "Under consideration" | "Rejected";
-  timeRange?: "0" | "7" | "14" | "21" | "30" | "all";
+  timeRange?: "0" | "1" | "2" | "7" | "14" | "21" | "30" | "all";
   referral?: "yes" | "no" | "all";
   oa?: "yes" | "no" | "all";
   sort?: "date_saved" | "applied_at" | "company" | "role" | "referral_status" | "job_link";
   order?: "asc" | "desc";
-  status?: string; // 'active' | 'rejected' | 'archive' | 'all'
+  status?: "active" | "rejected" | "archive" | "all";
   anchorDay?: string;
 };
 

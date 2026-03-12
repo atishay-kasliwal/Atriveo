@@ -1,0 +1,143 @@
+.last24-chart-card {
+  --last24-accent: #3B82F6;
+  --last24-accent-soft: color-mix(in srgb, #3B82F6 22%, transparent);
+  --last24-card-bg: var(--bg-card);
+  --last24-card-border: var(--bg-card-border);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--bg-card) 92%, var(--accent) 8%), var(--bg-card) 60%);
+  border: 1px solid var(--last24-card-border);
+  border-radius: 18px;
+  padding: 22px 22px 18px;
+  box-shadow: var(--card-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 320px;
+  height: 100%;
+}
+
+.last24-chart-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.last24-chart-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.last24-chart-title {
+  margin: 0;
+  font-size: 1.02rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--text-primary);
+}
+
+.last24-chart-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.last24-chart-meta-muted {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.last24-chart-total {
+  font-size: 1.9rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--text-primary);
+}
+
+.last24-chart-change {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.last24-chart-change--up {
+  color: #22c55e;
+}
+
+.last24-chart-change--down {
+  color: #f97316;
+}
+
+.last24-chart-change--flat {
+  color: var(--text-secondary);
+}
+
+.last24-chart-divider {
+  color: color-mix(in srgb, var(--text-muted) 70%, transparent);
+}
+
+.last24-chart-body {
+  width: 100%;
+  flex: 1;
+  min-height: 240px;
+}
+
+.last24-chart-empty {
+  height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed color-mix(in srgb, var(--bg-card-border) 80%, transparent);
+  border-radius: 14px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  background: color-mix(in srgb, var(--bg-card-elevated) 60%, transparent);
+}
+
+.last24-tooltip {
+  background: color-mix(in srgb, var(--bg-card) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--bg-card-border) 70%, transparent);
+  border-radius: 8px;
+  padding: 6px 8px;
+  color: var(--text-primary);
+  box-shadow: 0 6px 14px rgba(2, 6, 23, 0.12);
+}
+
+.last24-tooltip-flag {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.last24-tooltip-time {
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.last24-tooltip-value {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+@media (max-width: 720px) {
+  .last24-chart-card {
+    padding: 18px 18px 16px;
+  }
+
+  .last24-chart-body {
+    height: 220px;
+  }
+
+  .last24-chart-total {
+    font-size: 1.6rem;
+  }
+}

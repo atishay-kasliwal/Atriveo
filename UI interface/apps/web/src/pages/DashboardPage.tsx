@@ -25,6 +25,7 @@ import quotesData from "../lib/quotes.json";
 import useIsMobileViewport from "../hooks/useIsMobileViewport";
 import {
   getDashboardSummary,
+  getJobs,
   getTargetProgress,
   updateTargets,
   type DashboardSummary,
@@ -38,8 +39,8 @@ import {
   trackProductEvent,
 } from "../analytics/events";
 import ApplicationsTrendCard from "./dashboard/components/ApplicationsTrendCard";
-import MonthTargetViewCard from "./dashboard/components/MonthTargetViewCard";
 import DailyActivityHeatmapCard from "./dashboard/components/DailyActivityHeatmapCard";
+import Last24HoursChart from "../components/analytics/Last24HoursChart";
 import {
   CHART_COLORS,
   DEFAULT_TARGETS,
@@ -61,12 +62,21 @@ import {
   weekStartIsoUtc,
 } from "./dashboard/utils";
 
+function toLocalIso(date: Date): string {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return [
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`,
+    `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`,
+  ].join("T");
+}
+
 export default function DashboardPage() {
   const isMobileDashboard = useIsMobileViewport(640);
   const [mobileDashboardPanel, setMobileDashboardPanel] = useState<"pending" | "referrals" | "oa" | "notes">("pending");
   const [summary, setSummary] = useState<DashboardSummary>(defaultSummary);
   const [mtdSummary, setMtdSummary] = useState<DashboardSummary>(defaultSummary);
   const [targetProgress, setTargetProgress] = useState<TargetProgress | null>(null);
+  const [last24Jobs, setLast24Jobs] = useState<Array<Record<string, unknown>>>([]);
   const [showTargetModal, setShowTargetModal] = useState(false);
   const [isSavingTarget, setIsSavingTarget] = useState(false);
   const [targetForm, setTargetForm] = useState({
@@ -122,8 +132,24 @@ export default function DashboardPage() {
     }
   }
 
+  async function loadLast24Jobs() {
+    try {
+      const res = await getJobs({
+        timeRange: "2",
+        limit: 200,
+        sort: "date_saved",
+        order: "desc",
+        status: "all",
+      });
+      setLast24Jobs(res.data ?? []);
+    } catch {
+      setLast24Jobs([]);
+    }
+  }
+
   useEffect(() => {
     loadSummary();
+    loadLast24Jobs();
   }, [days]);
 
   useEffect(() => {
@@ -151,6 +177,7 @@ export default function DashboardPage() {
       loadSummary();
       loadMtdSummary();
       loadTargetSummary();
+      loadLast24Jobs();
     };
     window.addEventListener("dashboard-refresh", onRefresh);
     return () => window.removeEventListener("dashboard-refresh", onRefresh);
@@ -269,6 +296,47 @@ export default function DashboardPage() {
     summary.kpis.pending,
     summary.kpis.rejected,
   ]);
+
+  const last24Series = useMemo(() => {
+    const daily = summary.dailyTrend ?? [];
+    const latest = daily.length ? daily[daily.length - 1] : null;
+    const previous = daily.length > 1 ? daily[daily.length - 2] : null;
+    const todayTotal = latest?.total ?? 0;
+    const prevTotal = previous?.total ?? 0;
+    const changePercent =
+      prevTotal === 0 ? (todayTotal === 0 ? 0 : 100) : Math.round(((todayTotal - prevTotal) / prevTotal) * 100);
+
+    const now = new Date();
+    const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const dayEnd = dayStart + 24 * 60 * 60 * 1000;
+
+    const buckets = new Map<number, number>();
+    last24Jobs.forEach((job) => {
+      const jobRecord = job as { applied_at?: unknown; date_saved?: unknown; created_at?: unknown };
+      const rawTime = jobRecord.applied_at ?? jobRecord.date_saved ?? jobRecord.created_at;
+      const rawStr = rawTime ? String(rawTime) : "";
+      let resolved = rawStr;
+      if (rawStr && rawStr.length <= 10 && jobRecord.created_at) {
+        resolved = String(jobRecord.created_at);
+      }
+      if (!resolved) return;
+      const timeValue = new Date(resolved).getTime();
+      if (!Number.isFinite(timeValue) || timeValue < dayStart || timeValue > dayEnd) return;
+      const bucket = Math.floor(timeValue / 1_800_000) * 1_800_000;
+      buckets.set(bucket, (buckets.get(bucket) ?? 0) + 1);
+    });
+
+    const data = Array.from(buckets.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([bucket, value]) => ({
+        time: toLocalIso(new Date(bucket)),
+        value,
+      }));
+
+    const total = data.reduce((sum, point) => sum + point.value, 0);
+
+    return { data, total, changePercent };
+  }, [last24Jobs, summary.dailyTrend]);
 
   const todayLabel = useMemo(() => {
     const daily = summary.dailyTrend ?? [];
@@ -508,61 +576,6 @@ export default function DashboardPage() {
     if (lastMonth === 0) return thisMonth === 0 ? 0 : 100;
     return Math.round(((thisMonth - lastMonth) / lastMonth) * 100);
   }, [mtdCompare]);
-
-  const mtdDailyCompare = useMemo(() => {
-    const daily = mtdSummary.dailyTrend ?? [];
-    if (!daily.length) return [];
-    const map = new Map<string, number>();
-    daily.forEach((d) => {
-      map.set(String(d.day), d.total ?? 0);
-    });
-    const lastIso = String(daily[daily.length - 1].day);
-    const lastDate = utcDateFromIsoDay(lastIso);
-    if (!lastDate) return [];
-
-    const y = lastDate.getUTCFullYear();
-    const m = lastDate.getUTCMonth();
-    const daysInThisMonth = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
-    const daysInLastMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
-
-    const rows: Array<{ day: number; thisMonth: number; lastMonth: number }> = [];
-    for (let d = 1; d <= daysInThisMonth; d += 1) {
-      const thisIso = new Date(Date.UTC(y, m, d)).toISOString().slice(0, 10);
-      const lastIsoDay = d <= daysInLastMonth ? new Date(Date.UTC(y, m - 1, d)).toISOString().slice(0, 10) : "";
-      const thisVal = map.get(thisIso) ?? 0;
-      const lastVal = lastIsoDay ? map.get(lastIsoDay) ?? 0 : 0;
-      rows.push({
-        day: d,
-        thisMonth: thisVal,
-        lastMonth: lastVal,
-      });
-    }
-    let runningThis = 0;
-    let runningLast = 0;
-    return rows.map((r) => {
-      runningThis += r.thisMonth;
-      runningLast += r.lastMonth;
-      return { ...r, thisCum: runningThis, lastCum: runningLast };
-    });
-  }, [mtdSummary.dailyTrend]);
-
-  const mtdStats = useMemo(() => {
-    if (!mtdDailyCompare.length) return null;
-    const thisTotal = mtdDailyCompare.reduce((s, r) => s + r.thisMonth, 0);
-    const lastTotal = mtdDailyCompare.reduce((s, r) => s + r.lastMonth, 0);
-    const days = mtdDailyCompare.length;
-    const thisAvg = days ? thisTotal / days : 0;
-    const lastAvg = days ? lastTotal / days : 0;
-    const bestThis = mtdDailyCompare.reduce(
-      (max, r) => (r.thisMonth > max.value ? { day: r.day, value: r.thisMonth } : max),
-      { day: 0, value: 0 },
-    );
-    const bestLast = mtdDailyCompare.reduce(
-      (max, r) => (r.lastMonth > max.value ? { day: r.day, value: r.lastMonth } : max),
-      { day: 0, value: 0 },
-    );
-    return { thisTotal, lastTotal, thisAvg, lastAvg, bestThis, bestLast };
-  }, [mtdDailyCompare]);
 
   const weeklyInsights = useMemo(() => {
     const daily = (mtdSummary.dailyTrend?.length ? mtdSummary.dailyTrend : summary.dailyTrend) ?? [];
@@ -992,10 +1005,11 @@ export default function DashboardPage() {
       />
 
       <section className="chart-grid chart-grid-two chart-grid-70-30" style={{ gridTemplateColumns: "minmax(0, 7fr) minmax(0, 3fr)" }}>
-        <MonthTargetViewCard
-          mtdStats={mtdStats}
-          mtdDailyCompare={mtdDailyCompare}
-          dailyTarget={effectiveTargets.daily}
+        <Last24HoursChart
+          title="Application count for the day"
+          metricTotal={last24Series.total}
+          changePercent={last24Series.changePercent}
+          data={last24Series.data}
         />
         <DailyActivityHeatmapCard monthHeatmap={monthHeatmap} />
       </section>
