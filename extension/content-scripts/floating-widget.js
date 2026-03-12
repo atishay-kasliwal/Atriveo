@@ -106,6 +106,68 @@
     });
 
   const toText = (value = "") => String(value || "").trim();
+  const DISMISSED_FLOW_STORAGE_KEY = "__ATRIVEO_DISMISSED_FLOWS__";
+  const DISMISSED_FLOW_LIMIT = 80;
+
+  const readDismissedFlows = () => {
+    try {
+      const raw = window.sessionStorage.getItem(DISMISSED_FLOW_STORAGE_KEY);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
+    }
+  };
+
+  const writeDismissedFlows = (flows = {}) => {
+    const entries = Object.entries(flows).sort((a, b) => Number(b[1] || 0) - Number(a[1] || 0));
+    const trimmed = Object.fromEntries(entries.slice(0, DISMISSED_FLOW_LIMIT));
+    try {
+      window.sessionStorage.setItem(DISMISSED_FLOW_STORAGE_KEY, JSON.stringify(trimmed));
+    } catch {
+      // Ignore storage quota/privacy mode errors.
+    }
+  };
+
+  const getApplicationFlowKey = (url = "") => {
+    const raw = toText(url);
+    if (!raw) return "";
+
+    try {
+      const parsed = new URL(raw, window.location.origin);
+      const params = parsed.searchParams;
+      const identityPairs = [];
+
+      for (const [key, value] of params.entries()) {
+        if (!key || !value) continue;
+        if (/(?:job|req|requisition|opening|position|posting|token|application|gh_jid|currentjobid|id)/i.test(key)) {
+          identityPairs.push(`${key.toLowerCase()}=${value}`);
+        }
+      }
+
+      identityPairs.sort();
+      const identity = identityPairs.length > 0 ? `?${identityPairs.join("&")}` : "";
+      return `${parsed.origin}${parsed.pathname}${identity}`;
+    } catch {
+      return raw;
+    }
+  };
+
+  const markFlowDismissed = (url = "") => {
+    const key = getApplicationFlowKey(url);
+    if (!key) return;
+    const flows = readDismissedFlows();
+    flows[key] = Date.now();
+    writeDismissedFlows(flows);
+  };
+
+  const isFlowDismissed = (url = "") => {
+    const key = getApplicationFlowKey(url);
+    if (!key) return false;
+    const flows = readDismissedFlows();
+    return Boolean(flows[key]);
+  };
 
   const isValidHttpUrl = (value = "") => {
     const raw = toText(value);
@@ -592,7 +654,15 @@
   };
 
   const togglePanel = async (open) => {
+    const wasOpen = !ui.panel.hidden;
     const shouldOpen = typeof open === "boolean" ? open : ui.panel.hidden;
+
+    if (!shouldOpen && wasOpen) {
+      const payloadNow = getPayloadFromForm(ui.fields);
+      const flowUrl = isValidHttpUrl(payloadNow.job_link) ? payloadNow.job_link : currentUrl;
+      markFlowDismissed(flowUrl);
+    }
+
     ui.panel.hidden = !shouldOpen;
 
     if (shouldOpen) {
@@ -639,7 +709,7 @@
   });
 
   // Auto-open on supported job pages so users can immediately review extracted data.
-  if (isSupportedPage && !forceWidget) {
+  if (isSupportedPage && !forceWidget && !isFlowDismissed(currentUrl)) {
     void togglePanel(true);
   }
 
@@ -652,7 +722,7 @@
     }
 
     if (message?.type === "AUTO_OPEN_PANEL") {
-      if (ui.panel.hidden) {
+      if (ui.panel.hidden && !isFlowDismissed(currentUrl)) {
         void togglePanel(true);
       }
       sendResponse({ ok: true });
