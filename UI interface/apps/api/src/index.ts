@@ -95,8 +95,11 @@ const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const DIGEST_SCHEDULE_TIME_ZONE = "America/New_York";
 const DIGEST_ONE_TIME_CRON_UTC = "30 2 * * *";
 const DIGEST_DAILY_CRON_UTC = "0 0 * * *";
+const DIGEST_CATCHUP_CRON_1_UTC = "30 0 * * *"; // 8:30 PM ET — first catchup
+const DIGEST_CATCHUP_CRON_2_UTC = "0 1 * * *";  // 9:00 PM ET — second catchup
 const DIGEST_ONE_TIME_ET_DATE = "2026-03-11";
 const DIGEST_DAILY_START_ET_DATE = "2026-03-12";
+const DIGEST_SEND_CONCURRENCY = 8;
 const NETWORK_REQUIRED_VISIBILITY_FIELDS = ["share_company", "share_role", "share_applied_at", "share_job_application_id"] as const;
 const MEDIA_MAX_BYTES = 8 * 1024 * 1024; // 8 MB
 const MEDIA_SIGNED_URL_DEFAULT_TTL_SECONDS = 15 * 60; // 15 minutes
@@ -149,6 +152,21 @@ function toEasternIsoDate(input = new Date()): string {
 }
 
 async function sendDailyDigestForAllUsers(env: Bindings, digestType: string): Promise<void> {
+  const EXCLUDED_EMAILS = [
+    "smoke.friend.a.20260228@example.com",
+    "smoke.friend.b.20260228@example.com",
+    "smoke.friend.c.20260228@example.com",
+    "alex.shah.network01@maildemo.app",
+    "sam.lee.network02@networkseed.dev",
+    "jordan.brown.network03@example.net",
+    "taylor.ross.network04@maildemo.app",
+    "flowshine3191@localglobalmail.com",
+    "hemantkasliwal@gmail.com",
+    "kavitakasliwal@gmail.com",
+    "likhitkasliwal@gmail.vom",
+    "testcwsblr@gmail.com",
+  ];
+  const placeholders = EXCLUDED_EMAILS.map((_, i) => `$${i + 1}`).join(", ");
   const users = await query<{ id: number }>(
     env,
     `
@@ -156,30 +174,52 @@ async function sendDailyDigestForAllUsers(env: Bindings, digestType: string): Pr
     FROM dashboard_users
     WHERE email IS NOT NULL
       AND TRIM(email) <> ''
+      AND LOWER(TRIM(email)) NOT IN (${placeholders})
     ORDER BY id ASC
     `,
+    EXCLUDED_EMAILS.map((e) => e.toLowerCase()),
+  );
+
+  // Remove stale reservation rows (status='skipped' for >5 min) left by aborted
+  // prior runs so catchup crons can re-claim and send to those users.
+  const todayDate = toEasternIsoDate(new Date());
+  await query(
+    env,
+    `
+    DELETE FROM daily_digest_email_sends
+    WHERE digest_date = $1::date
+      AND digest_type = $2
+      AND status = 'skipped'
+      AND created_at < NOW() - INTERVAL '5 minutes'
+    `,
+    [todayDate, digestType],
   );
 
   let sent = 0;
   let skipped = 0;
   let failed = 0;
 
-  for (const user of users) {
-    try {
-      const result = await sendDailyDigestForUser(env, {
-        userId: Number(user.id),
-        digestType,
-      });
-      if (!result.ok) {
+  for (let batchStart = 0; batchStart < users.length; batchStart += DIGEST_SEND_CONCURRENCY) {
+    const batch = users.slice(batchStart, batchStart + DIGEST_SEND_CONCURRENCY);
+    const settled = await Promise.allSettled(
+      batch.map((user) => sendDailyDigestForUser(env, { userId: Number(user.id), digestType })),
+    );
+    for (const outcome of settled) {
+      if (outcome.status === "rejected") {
         failed += 1;
-      } else if (result.skipped) {
-        skipped += 1;
+        console.error("[digest-scheduler] user send failed", {
+          error: outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason),
+        });
       } else {
-        sent += 1;
+        const result = outcome.value;
+        if (!result.ok) {
+          failed += 1;
+        } else if (result.skipped) {
+          skipped += 1;
+        } else {
+          sent += 1;
+        }
       }
-    } catch (error) {
-      failed += 1;
-      console.error("[digest-scheduler] user send failed", { userId: user.id, error: error instanceof Error ? error.message : String(error) });
     }
   }
 
@@ -201,7 +241,12 @@ async function runScheduledDigests(controller: ScheduledController, env: Binding
     return;
   }
 
-  if (controller.cron === DIGEST_DAILY_CRON_UTC) {
+  const DAILY_DIGEST_CRONS = new Set<string>([
+    DIGEST_DAILY_CRON_UTC,
+    DIGEST_CATCHUP_CRON_1_UTC,
+    DIGEST_CATCHUP_CRON_2_UTC,
+  ]);
+  if (DAILY_DIGEST_CRONS.has(controller.cron)) {
     if (etDate < DIGEST_DAILY_START_ET_DATE) return;
     await sendDailyDigestForAllUsers(env, "daily_network_digest_auto_8pm_et");
   }
@@ -1190,6 +1235,45 @@ app.post("/api/email/daily-digest/send-test", async (c) => {
   }
 
   return c.json({ ok: true, result });
+});
+
+// Admin-only: send digest for a specific list of emails (must be katishay@gmail.com)
+app.post("/api/admin/email/daily-digest/send-for-emails", async (c) => {
+  const authUser = c.get("authUser");
+  if (authUser.email !== "katishay@gmail.com") {
+    return c.json({ error: "Forbidden." }, 403);
+  }
+
+  const body = await c.req.json().catch(() => ({})) as Record<string, unknown>;
+  const emails: string[] = Array.isArray(body.emails)
+    ? (body.emails as unknown[]).map((e) => String(e).trim().toLowerCase()).filter(Boolean)
+    : [];
+  const digestType = typeof body.digestType === "string" ? body.digestType : "daily_network_digest_auto_1030pm_et_once";
+  const digestDate = typeof body.digestDate === "string" ? body.digestDate : undefined;
+
+  if (emails.length === 0) {
+    return c.json({ error: "emails array is required." }, 400);
+  }
+
+  const placeholders = emails.map((_, i) => `$${i + 1}`).join(", ");
+  const rows = await query<{ id: number; email: string }>(
+    c.env,
+    `SELECT id, email FROM dashboard_users WHERE LOWER(email) IN (${placeholders}) LIMIT 50`,
+    emails,
+  );
+
+  const results: Record<string, unknown>[] = [];
+  for (const row of rows) {
+    const result = await sendDailyDigestForUser(c.env, {
+      userId: row.id,
+      digestDate,
+      digestType,
+    });
+    results.push({ email: row.email, userId: row.id, ...result });
+  }
+
+  const notFound = emails.filter((e) => !rows.find((r) => r.email.toLowerCase() === e));
+  return c.json({ ok: true, results, notFound });
 });
 
 app.post("/api/auth/logout", async (c) => {

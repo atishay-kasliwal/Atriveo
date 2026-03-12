@@ -39,4 +39,5 @@ APP_ENV = "production"
 SIGNUPS_ENABLED = "true"
 
 [env.production.triggers]
-crons = ["30 2 * * *", "0 0 * * *"]
+# 10:30 PM ET one-time  |  8:00 PM ET daily  |  8:30 PM ET catchup 1  |  9:00 PM ET catchup 2
+crons = ["30 2 * * *", "0 0 * * *", "30 0 * * *", "0 1 * * *"]
