@@ -6,7 +6,9 @@ import {
   createSession,
   hashPassword,
   normalizeEmail,
+  revokeAllUserSessions,
   revokeSession,
+  sha256Hex,
   verifyPassword,
 } from "./auth";
 import { query, transaction, type SqlStatement } from "./db";
@@ -45,6 +47,15 @@ const signupInput = z.object({
   password: z.string().min(8).max(128),
   first_name: z.string().trim().max(80).optional(),
   last_name: z.string().trim().max(80).optional(),
+});
+
+const forgotPasswordInput = z.object({
+  email: z.string().email(),
+});
+
+const resetPasswordInput = z.object({
+  token: z.string().min(20).max(512),
+  password: z.string().min(8).max(128),
 });
 
 const GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo";
@@ -463,6 +474,92 @@ function areSignupsEnabled(env: Bindings): boolean {
   return normalized === "true" || normalized === "1" || normalized === "yes";
 }
 
+function getPasswordResetTtlMinutes(env: Bindings): number {
+  const parsed = Number(env.PASSWORD_RESET_TOKEN_TTL_MINUTES);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 30;
+  return Math.min(Math.floor(parsed), 120);
+}
+
+function getResetPasswordBaseUrl(env: Bindings): string {
+  const configured = String(env.RESET_PASSWORD_URL_BASE ?? "").trim();
+  if (configured) return configured;
+  return "https://www.atriveo.com/?token=";
+}
+
+function makeRandomToken(bytes = 32): string {
+  const arr = new Uint8Array(bytes);
+  crypto.getRandomValues(arr);
+  return btoa(String.fromCharCode(...arr))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
+
+function buildResetPasswordUrl(base: string, token: string): string {
+  try {
+    const direct = new URL(base);
+    if (direct.searchParams.has("token")) {
+      direct.searchParams.set("token", token);
+      return direct.toString();
+    }
+    if (direct.search || direct.hash) {
+      direct.searchParams.set("token", token);
+      return direct.toString();
+    }
+    const noTrailingSlash = direct.toString().replace(/\/+$/, "");
+    return `${noTrailingSlash}?token=${encodeURIComponent(token)}`;
+  } catch {
+    if (base.includes("{token}")) {
+      return base.replaceAll("{token}", encodeURIComponent(token));
+    }
+    if (base.endsWith("=") || base.endsWith("/")) {
+      return `${base}${encodeURIComponent(token)}`;
+    }
+    if (base.includes("token=")) {
+      return `${base}${encodeURIComponent(token)}`;
+    }
+    return `${base}?token=${encodeURIComponent(token)}`;
+  }
+}
+
+async function sendPasswordResetEmail(env: Bindings, toEmail: string, resetUrl: string): Promise<void> {
+  const resendApiKey = String(env.RESEND_API_KEY ?? "").trim();
+  const sender = String(env.EMAIL_FROM ?? "noreply@atriveo.com").trim() || "noreply@atriveo.com";
+
+  if (!resendApiKey) {
+    console.warn(`[auth] RESEND_API_KEY is not set. Password reset link for ${toEmail}: ${resetUrl}`);
+    return;
+  }
+
+  const subject = "Reset your Atriveo password";
+  const html = [
+    "<p>We received a request to reset your Atriveo password.</p>",
+    `<p><a href=\"${resetUrl}\">Reset password</a></p>`,
+    "<p>This link expires soon. If you did not request this, you can ignore this email.</p>",
+  ].join("");
+  const text = `Reset your Atriveo password: ${resetUrl}\n\nIf you did not request this, you can ignore this email.`;
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${resendApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: sender,
+      to: [toEmail],
+      subject,
+      html,
+      text,
+    }),
+  });
+
+  if (!response.ok) {
+    const details = await response.text();
+    throw new Error(`Resend email failed (${response.status}): ${details}`);
+  }
+}
+
 type GoogleTokenInfoResponse = {
   aud?: string;
   email?: string;
@@ -730,6 +827,95 @@ app.post("/auth/google", async (c) => {
     },
     created ? 201 : 200,
   );
+});
+
+app.post("/auth/forgot-password", async (c) => {
+  const parsed = forgotPasswordInput.safeParse(await c.req.json());
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
+
+  const email = normalizeEmail(parsed.data.email);
+  const [user] = await query<{ id: number; email: string }>(
+    c.env,
+    "SELECT id, email FROM dashboard_users WHERE LOWER(email) = $1 LIMIT 1",
+    [email],
+  );
+
+  if (!user) {
+    return c.json({ ok: true, message: "If an account exists, a reset email has been sent." });
+  }
+
+  const token = makeRandomToken(32);
+  const tokenHash = await sha256Hex(token);
+  const ttlMinutes = getPasswordResetTtlMinutes(c.env);
+  const requestIp = c.req.header("cf-connecting-ip") ?? c.req.header("x-forwarded-for") ?? null;
+  const requestUserAgent = c.req.header("user-agent") ?? null;
+
+  await transaction(c.env, [
+    {
+      text: "UPDATE password_reset_tokens SET used_at = NOW() WHERE user_id = $1 AND used_at IS NULL",
+      params: [Number(user.id)],
+    },
+    {
+      text: `
+        INSERT INTO password_reset_tokens (user_id, token_hash, expires_at, requested_ip, requested_user_agent)
+        VALUES ($1, $2, NOW() + ($3::text || ' minutes')::interval, $4, $5)
+      `,
+      params: [Number(user.id), tokenHash, ttlMinutes, requestIp, requestUserAgent],
+    },
+  ]);
+
+  const resetUrl = buildResetPasswordUrl(getResetPasswordBaseUrl(c.env), token);
+
+  try {
+    await sendPasswordResetEmail(c.env, String(user.email), resetUrl);
+  } catch (err) {
+    console.error("[auth] forgot-password email send failed", err);
+  }
+
+  return c.json({ ok: true, message: "If an account exists, a reset email has been sent." });
+});
+
+app.post("/auth/reset-password", async (c) => {
+  const parsed = resetPasswordInput.safeParse(await c.req.json());
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
+
+  const tokenHash = await sha256Hex(parsed.data.token);
+  const [tokenRow] = await query<{ id: number; user_id: number }>(
+    c.env,
+    `
+    SELECT id, user_id
+    FROM password_reset_tokens
+    WHERE token_hash = $1
+      AND used_at IS NULL
+      AND expires_at > NOW()
+    LIMIT 1
+    `,
+    [tokenHash],
+  );
+
+  if (!tokenRow) {
+    return c.json({ error: "Reset link is invalid or expired." }, 400);
+  }
+
+  const { hash, salt, iterations } = await hashPassword(parsed.data.password);
+
+  await transaction(c.env, [
+    {
+      text: `
+        UPDATE dashboard_users
+        SET password_hash = $2, password_salt = $3, password_iterations = $4, updated_at = NOW()
+        WHERE id = $1
+      `,
+      params: [Number(tokenRow.user_id), hash, salt, iterations],
+    },
+    {
+      text: "UPDATE password_reset_tokens SET used_at = NOW() WHERE id = $1",
+      params: [Number(tokenRow.id)],
+    },
+  ]);
+
+  await revokeAllUserSessions(c.env, Number(tokenRow.user_id));
+  return c.json({ ok: true, message: "Password reset successful. Please log in again." });
 });
 
 // Public route intended for short-lived signed URLs generated by /api/media/:id/signed-url.

@@ -13,6 +13,10 @@ export type Bindings = {
   ALLOW_SIGNUPS?: string;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_IDS?: string;
+  RESEND_API_KEY?: string;
+  EMAIL_FROM?: string;
+  RESET_PASSWORD_URL_BASE?: string;
+  PASSWORD_RESET_TOKEN_TTL_MINUTES?: string;
 };
 
 export type DbRow = Record<string, unknown>;

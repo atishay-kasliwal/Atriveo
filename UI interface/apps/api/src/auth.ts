@@ -135,6 +135,14 @@ export async function revokeSession(env: Bindings, token: string): Promise<void>
   );
 }
 
+export async function revokeAllUserSessions(env: Bindings, userId: number): Promise<void> {
+  await query(
+    env,
+    "UPDATE dashboard_sessions SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL",
+    [userId],
+  );
+}
+
 export async function authMiddleware(
   c: Context<{ Bindings: Bindings; Variables: { authUser: AuthUser } }>,
   next: Next,

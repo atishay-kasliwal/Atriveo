@@ -139,6 +139,22 @@ export function googleAuth(idToken: string) {
   );
 }
 
+export function requestPasswordReset(email: string) {
+  return request<{ ok: boolean; message: string }>(
+    "/auth/forgot-password",
+    { method: "POST", body: JSON.stringify({ email }) },
+    { skipAuth: true },
+  );
+}
+
+export function resetPassword(token: string, password: string) {
+  return request<{ ok: boolean; message: string }>(
+    "/auth/reset-password",
+    { method: "POST", body: JSON.stringify({ token, password }) },
+    { skipAuth: true },
+  );
+}
+
 export function getMe() {
   return request<{ user: AuthUser }>("/api/auth/me");
 }

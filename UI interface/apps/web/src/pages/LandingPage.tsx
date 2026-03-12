@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent, type MouseEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { GoogleAuthButton } from "../components/GoogleAuthButton";
 import { ThemeToggle } from "../components/ThemeToggle";
-import { login, setStoredSession, signup, type AuthSession } from "../lib/api";
+import { login, requestPasswordReset, resetPassword, setStoredSession, signup, type AuthSession } from "../lib/api";
 import { DASHBOARD_BASE_PATH, withDashboardBase } from "../lib/paths";
 import { ANALYTICS_EVENTS, trackErrorEvent, trackFunnelStep, trackProductEvent } from "../analytics/events";
 import {
@@ -39,14 +39,18 @@ export default function LandingPage({
   onAuthenticated,
 }: LandingPageProps) {
   const navigate = useNavigate();
+  type AuthMode = "login" | "signup" | "forgotPassword" | "resetPassword";
   const [authOpen, setAuthOpen] = useState(false);
-  const [authMode, setAuthMode] = useState<"login" | "signup">("login");
+  const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [resetToken, setResetToken] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState("");
+  const [authNotice, setAuthNotice] = useState("");
   const [scrolled, setScrolled] = useState(false);
 
   const proofQuotes = [
@@ -84,6 +88,9 @@ export default function LandingPage({
   function openAuth(mode: "login" | "signup", source = "landing") {
     setAuthMode(mode);
     setAuthError("");
+    setAuthNotice("");
+    setPassword("");
+    setPasswordConfirm("");
     setAuthOpen(true);
     if (mode === "signup") {
       trackProductEvent(ANALYTICS_EVENTS.signup_started, {
@@ -99,6 +106,16 @@ export default function LandingPage({
     if (authLoading) return;
     setAuthOpen(false);
     setAuthError("");
+    setAuthNotice("");
+  }
+
+  function openForgotPassword() {
+    setAuthMode("forgotPassword");
+    setAuthError("");
+    setAuthNotice("");
+    setPassword("");
+    setPasswordConfirm("");
+    setAuthOpen(true);
   }
 
   function handleAuthOverlayClick(event: MouseEvent<HTMLDivElement>) {
@@ -125,6 +142,19 @@ export default function LandingPage({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [authOpen, authLoading]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const tokenFromUrl = params.get("token") || params.get("resetToken");
+    if (!tokenFromUrl) return;
+
+    setResetToken(tokenFromUrl);
+    setAuthMode("resetPassword");
+    setAuthNotice("Set a new password for your account.");
+    setAuthError("");
+    setAuthOpen(true);
+  }, []);
 
   function completeAuth(
     response: { token: string; user: AuthSession["user"] },
@@ -164,6 +194,58 @@ export default function LandingPage({
   async function onSubmitAuth(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setAuthError("");
+    setAuthNotice("");
+
+    if (authMode === "forgotPassword") {
+      if (!email.trim()) {
+        setAuthError("Email is required.");
+        return;
+      }
+      try {
+        setAuthLoading(true);
+        const response = await requestPasswordReset(email.trim());
+        setAuthMode("login");
+        setAuthNotice(response.message || "If your account exists, a reset email has been sent.");
+      } catch (err) {
+        setAuthError((err as Error).message || "Unable to send reset email.");
+      } finally {
+        setAuthLoading(false);
+      }
+      return;
+    }
+
+    if (authMode === "resetPassword") {
+      if (!resetToken.trim()) {
+        setAuthError("Reset token is missing. Please use the link from your email.");
+        return;
+      }
+      if (!password.trim()) {
+        setAuthError("New password is required.");
+        return;
+      }
+      if (password.trim().length < 8) {
+        setAuthError("Password must be at least 8 characters.");
+        return;
+      }
+      if (password !== passwordConfirm) {
+        setAuthError("Passwords do not match.");
+        return;
+      }
+      try {
+        setAuthLoading(true);
+        const response = await resetPassword(resetToken.trim(), password);
+        setAuthMode("login");
+        setAuthNotice(response.message || "Password reset successful. Please log in.");
+        setPassword("");
+        setPasswordConfirm("");
+      } catch (err) {
+        setAuthError((err as Error).message || "Unable to reset password.");
+      } finally {
+        setAuthLoading(false);
+      }
+      return;
+    }
+
     if (!email.trim() || !password.trim()) {
       trackErrorEvent(ANALYTICS_EVENTS.validation_error, {
         component_name: "landing_auth_modal",
@@ -193,7 +275,7 @@ export default function LandingPage({
               last_name: lastName.trim() || undefined,
             })
           : await login(email.trim(), password);
-      completeAuth(response, "landing_auth_modal_email", "password", authMode);
+      completeAuth(response, "landing_auth_modal_email", "password", authMode as "login" | "signup");
     } catch (err) {
       trackErrorEvent(ANALYTICS_EVENTS.form_submission_error, {
         component_name: "landing_auth_modal",
@@ -751,12 +833,22 @@ export default function LandingPage({
               ×
             </button>
             <h2 className="lp-auth-title">
-              {authMode === "login" ? "Log in to Atriveo" : "Create your Atriveo account"}
+              {authMode === "login"
+                ? "Log in to Atriveo"
+                : authMode === "signup"
+                  ? "Create your Atriveo account"
+                  : authMode === "forgotPassword"
+                    ? "Reset your password"
+                    : "Set a new password"}
             </h2>
             <p className="lp-auth-subtitle">
               {authMode === "login"
                 ? "Use your email and password to continue."
-                : "Start your tracker with a clean private workspace."}
+                : authMode === "signup"
+                  ? "Start your tracker with a clean private workspace."
+                  : authMode === "forgotPassword"
+                    ? "Enter your account email and we will send a reset link."
+                    : "Enter and confirm your new password."}
             </p>
             <form className="lp-auth-form" onSubmit={onSubmitAuth}>
               {authMode === "signup" ? (
@@ -791,61 +883,118 @@ export default function LandingPage({
                   </div>
                 </div>
               ) : null}
-              <label className="lp-auth-label" htmlFor="lp-email">
-                Email
-              </label>
-              <input
-                id="lp-email"
-                className="lp-auth-input"
-                type="email"
-                autoComplete="email"
-                placeholder="you@company.com"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-              />
-              <label className="lp-auth-label" htmlFor="lp-password">
-                Password
-              </label>
-              <input
-                id="lp-password"
-                className="lp-auth-input"
-                type="password"
-                autoComplete={authMode === "signup" ? "new-password" : "current-password"}
-                placeholder={authMode === "signup" ? "Minimum 8 characters" : "Enter your password"}
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-              />
+              {authMode !== "resetPassword" ? (
+                <>
+                  <label className="lp-auth-label" htmlFor="lp-email">
+                    Email
+                  </label>
+                  <input
+                    id="lp-email"
+                    className="lp-auth-input"
+                    type="email"
+                    autoComplete="email"
+                    placeholder="you@company.com"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                  />
+                </>
+              ) : null}
+
+              {authMode !== "forgotPassword" ? (
+                <>
+                  <label className="lp-auth-label" htmlFor="lp-password">
+                    {authMode === "resetPassword" ? "New password" : "Password"}
+                  </label>
+                  <input
+                    id="lp-password"
+                    className="lp-auth-input"
+                    type="password"
+                    autoComplete={authMode === "login" ? "current-password" : "new-password"}
+                    placeholder={authMode === "login" ? "Enter your password" : "Minimum 8 characters"}
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                  />
+                </>
+              ) : null}
+
+              {authMode === "resetPassword" ? (
+                <>
+                  <label className="lp-auth-label" htmlFor="lp-password-confirm">
+                    Confirm new password
+                  </label>
+                  <input
+                    id="lp-password-confirm"
+                    className="lp-auth-input"
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder="Repeat your new password"
+                    value={passwordConfirm}
+                    onChange={(event) => setPasswordConfirm(event.target.value)}
+                  />
+                </>
+              ) : null}
+
+              {authMode === "login" ? (
+                <button type="button" className="lp-auth-link-btn" onClick={openForgotPassword}>
+                  Forgot password?
+                </button>
+              ) : null}
+
+              {authNotice ? <div className="lp-auth-notice">{authNotice}</div> : null}
               {authError ? <div className="lp-auth-error">{authError}</div> : null}
               <button type="submit" className="lp-auth-submit" disabled={authLoading}>
                 {authLoading
                   ? authMode === "login"
                     ? "Signing in..."
+                    : authMode === "forgotPassword"
+                      ? "Sending reset link..."
+                      : authMode === "resetPassword"
+                        ? "Saving password..."
                     : "Creating account..."
                   : authMode === "login"
                     ? "Log in"
-                    : "Create account"}
+                    : authMode === "signup"
+                      ? "Create account"
+                      : authMode === "forgotPassword"
+                        ? "Send reset link"
+                        : "Set new password"}
               </button>
-              <div className="lp-auth-divider" role="separator" aria-label="or">
-                <span>or</span>
-              </div>
-              <GoogleAuthButton
-                mode={authMode}
-                theme={theme}
-                disabled={authLoading}
-                onSuccess={(response) => completeAuth(response, "landing_auth_modal_google", "google", authMode)}
-                onError={(message) => {
-                  trackErrorEvent(ANALYTICS_EVENTS.form_submission_error, {
-                    component_name: "landing_auth_modal",
-                    error_type: "google_auth_failed",
-                    form_name: authMode,
-                  });
-                  setAuthError(message);
-                }}
-              />
+              {authMode === "login" || authMode === "signup" ? (
+                <>
+                  <div className="lp-auth-divider" role="separator" aria-label="or">
+                    <span>or</span>
+                  </div>
+                  <GoogleAuthButton
+                    mode={authMode}
+                    theme={theme}
+                    disabled={authLoading}
+                    onSuccess={(response) => completeAuth(response, "landing_auth_modal_google", "google", authMode)}
+                    onError={(message) => {
+                      trackErrorEvent(ANALYTICS_EVENTS.form_submission_error, {
+                        component_name: "landing_auth_modal",
+                        error_type: "google_auth_failed",
+                        form_name: authMode,
+                      });
+                      setAuthError(message);
+                    }}
+                  />
+                </>
+              ) : null}
             </form>
             <p className="lp-auth-switch">
-              {authMode === "login" ? "No account? " : "Already have access? "}
-              <button type="button" onClick={() => setAuthMode(authMode === "login" ? "signup" : "login")}>
+              {authMode === "login" ? "No account? " : authMode === "signup" ? "Already have access? " : "Back to sign in? "}
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthError("");
+                  setAuthNotice("");
+                  if (authMode === "login") {
+                    setAuthMode("signup");
+                  } else {
+                    setAuthMode("login");
+                  }
+                }}
+              >
                 {authMode === "login" ? "Create one" : "Log in"}
               </button>
             </p>

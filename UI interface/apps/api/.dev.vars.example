@@ -18,6 +18,21 @@ GOOGLE_CLIENT_ID=
 # Comma-separated allowlist (useful for multiple envs/domains).
 GOOGLE_CLIENT_IDS=
 
+# Optional: Resend email API key for forgot-password emails.
+RESEND_API_KEY=
+
+# Optional: sender address used for forgot-password emails.
+EMAIL_FROM=noreply@atriveo.com
+
+# Optional: reset link base used in emails.
+# Examples:
+# RESET_PASSWORD_URL_BASE=http://localhost:5173/?token=
+# RESET_PASSWORD_URL_BASE=https://www.atriveo.com/?token=
+RESET_PASSWORD_URL_BASE=
+
+# Optional: reset token expiry in minutes (default 30, max 120).
+PASSWORD_RESET_TOKEN_TTL_MINUTES=30
+
 # Optional: media signed URL secret. If unset, API_SHARED_TOKEN is used as fallback.
 MEDIA_URL_SIGNING_SECRET=
 

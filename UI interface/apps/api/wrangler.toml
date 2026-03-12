@@ -5,6 +5,10 @@ compatibility_date = "2025-02-22"
 [vars]
 APP_ENV = "development"
 SIGNUPS_ENABLED = "true"
+# Forgot password email setup:
+# EMAIL_FROM = "noreply@atriveo.com"
+# RESET_PASSWORD_URL_BASE = "http://localhost:5173/?token="
+# PASSWORD_RESET_TOKEN_TTL_MINUTES = "30"
 # Optional for signed media URLs:
 # MEDIA_URL_SIGNING_SECRET = "set-a-strong-secret"
 # Optional if bucket is public via custom domain:
