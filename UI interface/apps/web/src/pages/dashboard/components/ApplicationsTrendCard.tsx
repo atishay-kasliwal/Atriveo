@@ -1,5 +1,5 @@
+import { useState } from "react";
 import {
-  Area,
   Bar,
   CartesianGrid,
   Cell,
@@ -14,11 +14,14 @@ import {
 import { CHART_COLORS, WEEK_COLORS } from "../constants";
 import { formatDay } from "../utils";
 
+type TrendLineKey = "applications" | "referral" | "rejected" | "all";
+
 type TrendRow = {
   day?: string;
   label?: string;
   total?: number;
   avg7?: number;
+  referral?: number;
   rejected?: number;
   weekIndex: number;
 };
@@ -67,6 +70,34 @@ export default function ApplicationsTrendCard({
   dailyMotivation,
   isMobile = false,
 }: Props) {
+  const [trendLine, setTrendLine] = useState<TrendLineKey>("applications");
+
+  function renderLabeledDot(color: string, valueKey: keyof TrendRow) {
+    return (props: Record<string, unknown>) => {
+      const cx = props.cx as number;
+      const cy = props.cy as number;
+      const payload = props.payload as TrendRow;
+      const value = payload?.[valueKey] as number | undefined;
+      return (
+        <g key={`dot-${cx}-${cy}`}>
+          <circle cx={cx} cy={cy} r={4} fill={color} opacity={1} />
+          {value != null && (
+            <text
+              x={cx}
+              y={cy - 7}
+              textAnchor="middle"
+              fontSize={11}
+              fill={CHART_COLORS.textSecondary}
+              fontWeight={400}
+            >
+              {value}
+            </text>
+          )}
+        </g>
+      );
+    };
+  }
+
   return (
     <section className="chart-grid chart-grid-trend">
       <div className="card card-chart-trend" style={{ paddingBottom: 24 }}>
@@ -92,9 +123,17 @@ export default function ApplicationsTrendCard({
               <span className="delta-pill-sep">•</span>
               Behind <strong>{targetHeaderMetrics.monthlyBehind}</strong>
             </span>
-            <label className="chart-filter-label" htmlFor="trend-days">
-              Show last
-            </label>
+            <select
+              id="trend-line"
+              className="chart-filter-select"
+              value={trendLine}
+              onChange={(e) => setTrendLine(e.target.value as TrendLineKey)}
+            >
+              <option value="applications">Application Trendline</option>
+              <option value="referral">Referral Trendline</option>
+              <option value="rejected">Rejected Trendline</option>
+              <option value="all">All Trendlines</option>
+            </select>
             <select
               id="trend-days"
               className="chart-filter-select"
@@ -103,24 +142,14 @@ export default function ApplicationsTrendCard({
             >
               {[60, 30, 15, 10, 7].map((d) => (
                 <option key={d} value={d}>
-                  {d} days
+                  {d}d
                 </option>
               ))}
             </select>
           </div>
         </div>
         <ResponsiveContainer width="100%" height={isMobile ? 300 : 520}>
-          <ComposedChart data={trendData} margin={{ top: 16, right: 24, left: 8, bottom: 8 }}>
-            <defs>
-              <linearGradient id="trendAreaGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={CHART_COLORS.trendLine} stopOpacity={0.5} />
-                <stop offset="100%" stopColor={CHART_COLORS.trendLine} stopOpacity={0} />
-              </linearGradient>
-              <linearGradient id="trendBarGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={CHART_COLORS.barGradientTop} />
-                <stop offset="100%" stopColor={CHART_COLORS.barGradientBottom} />
-              </linearGradient>
-            </defs>
+          <ComposedChart data={trendData} margin={{ top: 24, right: 24, left: 8, bottom: 8 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
             <XAxis
               dataKey="label"
@@ -159,6 +188,16 @@ export default function ApplicationsTrendCard({
                     <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: CHART_COLORS.trendLine }}>
                       Applications: {data.total}
                     </p>
+                    {(trendLine === "referral" || trendLine === "all") ? (
+                      <p style={{ margin: "4px 0 0 0", fontSize: 13, fontWeight: 600, color: CHART_COLORS.weeklyBar }}>
+                        Referrals: {data.referral ?? 0}
+                      </p>
+                    ) : null}
+                    {(trendLine === "rejected" || trendLine === "all") ? (
+                      <p style={{ margin: "4px 0 0 0", fontSize: 13, fontWeight: 600, color: CHART_COLORS.responseBar }}>
+                        Rejected: {data.rejected ?? 0}
+                      </p>
+                    ) : null}
                   </div>
                 );
               }}
@@ -167,7 +206,6 @@ export default function ApplicationsTrendCard({
             {showTodayLine ? (
               <ReferenceLine x={todayLabel} stroke={CHART_COLORS.textSecondary} strokeWidth={1.5} strokeDasharray="4 4" label={{ value: "Today", fill: CHART_COLORS.textSecondary, fontSize: 10 }} />
             ) : null}
-            <Area type="monotone" dataKey="total" stroke="none" fill="url(#trendAreaGradient)" />
             <Bar
               dataKey="total"
               fillOpacity={0.85}
@@ -183,23 +221,50 @@ export default function ApplicationsTrendCard({
                 <Cell key={row.day ?? i} fill={WEEK_COLORS[row.weekIndex % WEEK_COLORS.length]} />
               ))}
             </Bar>
-            <Line
-              type="monotone"
-              dataKey="total"
-              stroke={CHART_COLORS.trendLine}
-              strokeWidth={2}
-              dot={{ r: 3, strokeWidth: 0, fill: CHART_COLORS.trendLine, opacity: 0.9 }}
-              activeDot={false}
-            />
-            <Line type="monotone" dataKey="avg7" stroke={CHART_COLORS.movingAverage} strokeWidth={1.2} strokeDasharray="4 4" dot={false} />
-            <Line
-              type="monotone"
-              dataKey="rejected"
-              stroke={CHART_COLORS.responseBar}
-              strokeWidth={1.4}
-              dot={false}
-              activeDot={false}
-            />
+            {(trendLine === "applications" || trendLine === "all") ? (
+              <>
+                <Line
+                  type="monotone"
+                  dataKey="total"
+                  stroke={CHART_COLORS.trendLine}
+                  strokeWidth={2}
+                  dot={{ r: 3, strokeWidth: 0, fill: CHART_COLORS.trendLine, opacity: 0.9 }}
+                  activeDot={false}
+                />
+                {trendLine === "applications" ? (
+                  <Line
+                    type="monotone"
+                    dataKey="avg7"
+                    stroke={CHART_COLORS.movingAverage}
+                    strokeWidth={1.2}
+                    strokeDasharray="4 4"
+                    dot={false}
+                  />
+                ) : null}
+              </>
+            ) : null}
+            {(trendLine === "referral" || trendLine === "all") ? (
+              <Line
+                type="monotone"
+                dataKey="referral"
+                stroke={CHART_COLORS.weeklyBar}
+                strokeWidth={2}
+                strokeDasharray={trendLine === "all" ? "5 4" : undefined}
+                dot={renderLabeledDot(CHART_COLORS.weeklyBar, "referral")}
+                activeDot={false}
+              />
+            ) : null}
+            {(trendLine === "rejected" || trendLine === "all") ? (
+              <Line
+                type="monotone"
+                dataKey="rejected"
+                stroke={CHART_COLORS.responseBar}
+                strokeWidth={2}
+                strokeDasharray={trendLine === "all" ? "5 4" : undefined}
+                dot={renderLabeledDot(CHART_COLORS.responseBar, "rejected")}
+                activeDot={false}
+              />
+            ) : null}
           </ComposedChart>
         </ResponsiveContainer>
         {weeklyInsights && (

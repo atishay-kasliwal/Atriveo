@@ -189,6 +189,8 @@ export default function DashboardPage() {
 
   const trendData = useMemo(() => {
     const raw = summary.dailyTrend ?? [];
+    const referralMap = new Map((summary.referralDailyTrend ?? []).map((d) => [String(d.day), d.total ?? 0]));
+    const rejectedMap = new Map((summary.rejectedDailyTrend ?? []).map((d) => [String(d.day), d.total ?? 0]));
     const weekIndexByStart = new Map<string, number>();
     raw.forEach((row) => {
       const weekStart = weekStartIsoUtc(String(row.day));
@@ -218,9 +220,11 @@ export default function DashboardPage() {
         weekIndex,
         weekStart,
         avg7,
+        referral: referralMap.get(String(row.day)) ?? 0,
+        rejected: rejectedMap.get(String(row.day)) ?? 0,
       };
     });
-  }, [summary.dailyTrend]);
+  }, [summary.dailyTrend, summary.referralDailyTrend, summary.rejectedDailyTrend]);
 
   /** KPIs derived from the same job/trend data used for the charts */
   const derivedKpis = useMemo(() => {
