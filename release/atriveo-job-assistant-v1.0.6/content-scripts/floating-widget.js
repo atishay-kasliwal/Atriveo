@@ -27,8 +27,7 @@
     "linkedin.com",
     "avature.net",
     "amazon.jobs",
-    "ultipro.com",
-    "jobright.ai"
+    "ultipro.com"
   ];
   const CAREER_PATH_PATTERN =
     /\b(careers?|jobs?|job-details?|positions?|openings?|opportunities|requisition|vacanc(?:y|ies)|apply)\b/i;

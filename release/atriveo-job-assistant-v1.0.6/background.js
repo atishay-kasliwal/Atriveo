@@ -45,7 +45,6 @@ const PLATFORM_EXTRACTOR_SCRIPTS = {
   jobscore: "content-scripts/generic-ats.js",
   clearcompany: "content-scripts/generic-ats.js",
   avature: "content-scripts/generic-ats.js",
-  jobright: "content-scripts/jobright.js",
   genericcareer: "content-scripts/generic-career.js"
 };
 const injectedExtractorByTabId = new Map();
