@@ -169,12 +169,14 @@ export default function ApplicationsTrendCard({
               <ReferenceLine x={todayLabel} stroke={CHART_COLORS.textSecondary} strokeWidth={1.5} strokeDasharray="4 4" label={{ value: "Today", fill: CHART_COLORS.textSecondary, fontSize: 10 }} />
             ) : null}
             <Area type="monotone" dataKey="total" stroke="none" fill="url(#trendAreaGradient)" />
+            <Bar dataKey="rejected" stackId="stack" fill="#EF4444" radius={[0, 0, 5, 5]} activeBar={false} />
+            <Bar dataKey="referrals" stackId="stack" fill="#22C55E" radius={[0, 0, 0, 0]} activeBar={false} />
             <Bar
               dataKey="total"
               stackId="stack"
               fill={CHART_COLORS.trendLine}
               fillOpacity={0.85}
-              radius={[5, 5, 0, 0]}
+              radius={[0, 0, 0, 0]}
               activeBar={false}
               label={
                 isMobile
@@ -182,9 +184,7 @@ export default function ApplicationsTrendCard({
                   : { position: "top", fill: CHART_COLORS.textSecondary, fontSize: 11, fontWeight: 400, dy: -4 }
               }
             />
-            <Bar dataKey="referrals" stackId="stack" fill="#22C55E" radius={[0, 0, 0, 0]} activeBar={false} />
-            <Bar dataKey="rejected" stackId="stack" fill="#EF4444" radius={[0, 0, 0, 0]} activeBar={false} />
-            <Bar dataKey="pending" stackId="stack" fill="#A855F7" radius={[0, 0, 5, 5]} activeBar={false} />
+            <Bar dataKey="pending" stackId="stack" fill="#A855F7" radius={[5, 5, 0, 0]} activeBar={false} />
             <Line
               type="monotone"
               dataKey="total"
