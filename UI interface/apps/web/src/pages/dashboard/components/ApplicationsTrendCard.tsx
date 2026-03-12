@@ -2,7 +2,6 @@ import {
   Area,
   Bar,
   CartesianGrid,
-  Cell,
   ComposedChart,
   Line,
   ReferenceLine,
@@ -11,7 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { CHART_COLORS, WEEK_COLORS } from "../constants";
+import { CHART_COLORS } from "../constants";
 import { formatDay } from "../utils";
 
 type TrendRow = {
@@ -173,6 +172,7 @@ export default function ApplicationsTrendCard({
             <Bar
               dataKey="total"
               stackId="stack"
+              fill={CHART_COLORS.trendLine}
               fillOpacity={0.85}
               radius={[5, 5, 0, 0]}
               activeBar={false}
@@ -181,11 +181,7 @@ export default function ApplicationsTrendCard({
                   ? false
                   : { position: "top", fill: CHART_COLORS.textSecondary, fontSize: 11, fontWeight: 400, dy: -4 }
               }
-            >
-              {trendData.map((row, i) => (
-                <Cell key={row.day ?? i} fill={WEEK_COLORS[row.weekIndex % WEEK_COLORS.length]} />
-              ))}
-            </Bar>
+            />
             <Bar dataKey="referrals" stackId="stack" fill="#22C55E" radius={[0, 0, 0, 0]} activeBar={false} />
             <Bar dataKey="rejected" stackId="stack" fill="#EF4444" radius={[0, 0, 0, 0]} activeBar={false} />
             <Bar dataKey="pending" stackId="stack" fill="#A855F7" radius={[0, 0, 5, 5]} activeBar={false} />
