@@ -153,7 +153,14 @@ function toEasternIsoDate(input = new Date()): string {
   }).format(input);
 }
 
+function normalizeDigestTypeForIdempotency(raw: string): string {
+  const value = String(raw || "daily_network_digest").trim() || "daily_network_digest";
+  if (value.startsWith("daily_network_digest_auto")) return "daily_network_digest_auto";
+  return value;
+}
+
 async function sendDailyDigestForAllUsers(env: Bindings, digestType: string, digestDate: string): Promise<void> {
+  const idempotencyDigestType = normalizeDigestTypeForIdempotency(digestType);
   const EXCLUDED_EMAILS = [
     "smoke.friend.a.20260228@example.com",
     "smoke.friend.b.20260228@example.com",
@@ -193,7 +200,7 @@ async function sendDailyDigestForAllUsers(env: Bindings, digestType: string, dig
       AND status = 'skipped'
       AND created_at < NOW() - INTERVAL '5 minutes'
     `,
-    [digestDate, digestType],
+    [digestDate, idempotencyDigestType],
   );
 
   let sent = 0;
@@ -226,6 +233,7 @@ async function sendDailyDigestForAllUsers(env: Bindings, digestType: string, dig
 
   console.log("[digest-scheduler] completed", {
     digestType,
+    idempotencyDigestType,
     totalUsers: users.length,
     sent,
     skipped,
