@@ -34,6 +34,13 @@ function normalizeDigestDate(raw?: string | null): string {
   return estDateIso();
 }
 
+function normalizeDigestType(raw?: string | null): string {
+  const value = String(raw ?? "daily_network_digest").trim() || "daily_network_digest";
+  // Use one idempotency key for all scheduled auto variants to prevent duplicate sends.
+  if (value.startsWith("daily_network_digest_auto")) return "daily_network_digest_auto";
+  return value;
+}
+
 async function sendViaResend(
   env: Bindings,
   toEmail: string,
@@ -183,7 +190,7 @@ export async function sendDailyDigestForUser(
 ): Promise<SendDailyDigestResult> {
   const userId = Number(args.userId);
   const digestDate = normalizeDigestDate(args.digestDate);
-  const digestType = String(args.digestType ?? "daily_network_digest").trim() || "daily_network_digest";
+  const digestType = normalizeDigestType(args.digestType);
 
   const [idempotentInsert] = await query<{ id: number }>(
     env,

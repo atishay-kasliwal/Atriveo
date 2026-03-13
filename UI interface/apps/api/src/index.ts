@@ -153,7 +153,7 @@ function toEasternIsoDate(input = new Date()): string {
   }).format(input);
 }
 
-async function sendDailyDigestForAllUsers(env: Bindings, digestType: string): Promise<void> {
+async function sendDailyDigestForAllUsers(env: Bindings, digestType: string, digestDate: string): Promise<void> {
   const EXCLUDED_EMAILS = [
     "smoke.friend.a.20260228@example.com",
     "smoke.friend.b.20260228@example.com",
@@ -184,7 +184,6 @@ async function sendDailyDigestForAllUsers(env: Bindings, digestType: string): Pr
 
   // Remove stale reservation rows (status='skipped' for >5 min) left by aborted
   // prior runs so catchup crons can re-claim and send to those users.
-  const todayDate = toEasternIsoDate(new Date());
   await query(
     env,
     `
@@ -194,7 +193,7 @@ async function sendDailyDigestForAllUsers(env: Bindings, digestType: string): Pr
       AND status = 'skipped'
       AND created_at < NOW() - INTERVAL '5 minutes'
     `,
-    [todayDate, digestType],
+    [digestDate, digestType],
   );
 
   let sent = 0;
@@ -204,7 +203,7 @@ async function sendDailyDigestForAllUsers(env: Bindings, digestType: string): Pr
   for (let batchStart = 0; batchStart < users.length; batchStart += DIGEST_SEND_CONCURRENCY) {
     const batch = users.slice(batchStart, batchStart + DIGEST_SEND_CONCURRENCY);
     const settled = await Promise.allSettled(
-      batch.map((user) => sendDailyDigestForUser(env, { userId: Number(user.id), digestType })),
+      batch.map((user) => sendDailyDigestForUser(env, { userId: Number(user.id), digestDate, digestType })),
     );
     for (const outcome of settled) {
       if (outcome.status === "rejected") {
@@ -239,7 +238,7 @@ async function runScheduledDigests(controller: ScheduledController, env: Binding
 
   if (controller.cron === DIGEST_ONE_TIME_CRON_UTC) {
     if (etDate !== DIGEST_ONE_TIME_ET_DATE) return;
-    await sendDailyDigestForAllUsers(env, "daily_network_digest_auto_1030pm_et_once");
+    await sendDailyDigestForAllUsers(env, "daily_network_digest_auto_1030pm_et_once", etDate);
     return;
   }
 
@@ -250,7 +249,7 @@ async function runScheduledDigests(controller: ScheduledController, env: Binding
   ]);
   if (DAILY_DIGEST_CRONS.has(controller.cron)) {
     if (etDate < DIGEST_DAILY_START_ET_DATE) return;
-    await sendDailyDigestForAllUsers(env, "daily_network_digest_auto_8pm_et");
+    await sendDailyDigestForAllUsers(env, "daily_network_digest_auto_8pm_et", etDate);
   }
 }
 
@@ -1463,6 +1462,23 @@ app.post("/api/admin/email/daily-digest/send-for-emails", async (c) => {
 
   const notFound = emails.filter((e) => !rows.find((r) => r.email.toLowerCase() === e));
   return c.json({ ok: true, results, notFound });
+});
+
+// Admin-only: trigger digest for all users for a single date (default = today ET).
+app.post("/api/admin/email/daily-digest/send-for-all", async (c) => {
+  const authUser = c.get("authUser");
+  if (authUser.email !== "katishay@gmail.com") {
+    return c.json({ error: "Forbidden." }, 403);
+  }
+
+  const body = await c.req.json().catch(() => ({})) as Record<string, unknown>;
+  const digestType = typeof body.digestType === "string" ? body.digestType : "daily_network_digest_auto_8pm_et";
+  const digestDate = typeof body.digestDate === "string" && ISO_DATE_REGEX.test(body.digestDate)
+    ? body.digestDate
+    : toEasternIsoDate(new Date());
+
+  await sendDailyDigestForAllUsers(c.env, digestType, digestDate);
+  return c.json({ ok: true, digestType, digestDate, message: "Digest run queued for all users." });
 });
 
 app.post("/api/auth/logout", async (c) => {
