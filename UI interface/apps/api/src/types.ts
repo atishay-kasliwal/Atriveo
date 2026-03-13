@@ -20,6 +20,7 @@ export type Bindings = {
   EMAIL_FROM?: string;
   RESET_PASSWORD_URL_BASE?: string;
   PASSWORD_RESET_TOKEN_TTL_MINUTES?: string;
+  DIGEST_EXCLUDED_EMAILS?: string;
 };
 
 export type DbRow = Record<string, unknown>;

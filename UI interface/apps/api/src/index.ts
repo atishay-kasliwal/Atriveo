@@ -161,21 +161,14 @@ function normalizeDigestTypeForIdempotency(raw: string): string {
 
 async function sendDailyDigestForAllUsers(env: Bindings, digestType: string, digestDate: string): Promise<void> {
   const idempotencyDigestType = normalizeDigestTypeForIdempotency(digestType);
-  const EXCLUDED_EMAILS = [
-    "smoke.friend.a.20260228@example.com",
-    "smoke.friend.b.20260228@example.com",
-    "smoke.friend.c.20260228@example.com",
-    "alex.shah.network01@maildemo.app",
-    "sam.lee.network02@networkseed.dev",
-    "jordan.brown.network03@example.net",
-    "taylor.ross.network04@maildemo.app",
-    "flowshine3191@localglobalmail.com",
-    "hemantkasliwal@gmail.com",
-    "kavitakasliwal@gmail.com",
-    "likhitkasliwal@gmail.vom",
-    "testcwsblr@gmail.com",
-  ];
-  const placeholders = EXCLUDED_EMAILS.map((_, i) => `$${i + 1}`).join(", ");
+  const excludedEmails = String(env.DIGEST_EXCLUDED_EMAILS ?? "")
+    .split(",")
+    .map((v) => v.trim().toLowerCase())
+    .filter(Boolean);
+
+  const exclusionClause = excludedEmails.length
+    ? `\n      AND LOWER(TRIM(email)) NOT IN (${excludedEmails.map((_, i) => `$${i + 1}`).join(", ")})`
+    : "";
   const users = await query<{ id: number }>(
     env,
     `
@@ -183,10 +176,10 @@ async function sendDailyDigestForAllUsers(env: Bindings, digestType: string, dig
     FROM dashboard_users
     WHERE email IS NOT NULL
       AND TRIM(email) <> ''
-      AND LOWER(TRIM(email)) NOT IN (${placeholders})
+      ${exclusionClause}
     ORDER BY id ASC
     `,
-    EXCLUDED_EMAILS.map((e) => e.toLowerCase()),
+    excludedEmails,
   );
 
   // Remove stale reservation rows (status='skipped' for >5 min) left by aborted
