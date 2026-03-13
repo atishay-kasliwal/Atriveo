@@ -150,7 +150,7 @@ function toEasternIsoDate(input = new Date()): string {
   }).format(input);
 }
 
-async function sendDailyDigestForAllUsers(env: Bindings, digestType: string): Promise<void> {
+async function sendDailyDigestForAllUsers(env: Bindings, digestType: string, digestDate: string): Promise<void> {
   const users = await query<{ id: number }>(
     env,
     `
@@ -170,6 +170,7 @@ async function sendDailyDigestForAllUsers(env: Bindings, digestType: string): Pr
     try {
       const result = await sendDailyDigestForUser(env, {
         userId: Number(user.id),
+        digestDate,
         digestType,
       });
       if (!result.ok) {
@@ -199,13 +200,13 @@ async function runScheduledDigests(controller: ScheduledController, env: Binding
 
   if (controller.cron === DIGEST_ONE_TIME_CRON_UTC) {
     if (etDate !== DIGEST_ONE_TIME_ET_DATE) return;
-    await sendDailyDigestForAllUsers(env, "daily_network_digest_auto_1030pm_et_once");
+    await sendDailyDigestForAllUsers(env, "daily_network_digest_auto_1030pm_et_once", etDate);
     return;
   }
 
   if (controller.cron === DIGEST_DAILY_CRON_UTC) {
     if (etDate < DIGEST_DAILY_START_ET_DATE) return;
-    await sendDailyDigestForAllUsers(env, "daily_network_digest_auto_8pm_et");
+    await sendDailyDigestForAllUsers(env, "daily_network_digest_auto_8pm_et", etDate);
   }
 }
 
