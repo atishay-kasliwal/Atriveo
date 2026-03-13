@@ -3426,6 +3426,215 @@ function asTrimmedString(value: unknown): string | null {
   return raw ? raw : null;
 }
 
+const MULTI_LABEL_PUBLIC_SUFFIXES = new Set([
+  "co.uk",
+  "org.uk",
+  "ac.uk",
+  "gov.uk",
+  "co.in",
+  "co.jp",
+  "com.au",
+  "com.br",
+  "co.kr",
+  "com.sg",
+  "com.tr",
+  "com.mx",
+  "com.cn",
+  "com.hk",
+  "co.nz",
+  "com.sa",
+  "com.ar",
+  "com.pl",
+  "com.tw",
+  "com.my",
+  "co.id",
+  "co.th",
+  "com.ua",
+  "com.eg",
+]);
+
+function normalizeCompanyDirectoryName(value: unknown): string | null {
+  const raw = String(value ?? "")
+    .toLowerCase()
+    .replace(/[^\w\s]/g, " ")
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!raw) return null;
+  let normalized = raw;
+  const suffixRegex = /\b(incorporated|inc|llc|ltd|limited|corp|corporation|co|company)\.?$/i;
+  while (suffixRegex.test(normalized)) {
+    normalized = normalized.replace(suffixRegex, "").trim();
+  }
+  return normalized || null;
+}
+
+function toApexDomain(hostname: string): string | null {
+  const host = String(hostname || "")
+    .toLowerCase()
+    .replace(/\.$/, "")
+    .replace(/^www\./, "")
+    .trim();
+  if (!host || !host.includes(".") || /\s/.test(host)) return null;
+  const labels = host.split(".").filter(Boolean);
+  if (labels.length < 2) return null;
+  if (labels.length === 2) return host;
+  const last2 = labels.slice(-2).join(".");
+  if (MULTI_LABEL_PUBLIC_SUFFIXES.has(last2) && labels.length >= 3) {
+    return labels.slice(-3).join(".");
+  }
+  return labels.slice(-2).join(".");
+}
+
+function extractDomainFromJobLink(value: unknown): string | null {
+  const raw = asTrimmedString(value);
+  if (!raw) return null;
+  const candidate = raw.includes("://") ? raw : `https://${raw}`;
+  try {
+    const url = new URL(candidate);
+    return toApexDomain(url.hostname);
+  } catch {
+    return null;
+  }
+}
+
+function resolveCompanyLogoBaseUrl(env: Bindings): string | null {
+  const raw = String(env.COMPANY_LOGO_BASE_URL ?? env.MEDIA_PUBLIC_BASE_URL ?? "").trim();
+  if (!raw) return null;
+  return raw.replace(/\/+$/, "");
+}
+
+function buildCompanyLogoUrl(env: Bindings, logoKey: unknown): string | null {
+  const key = asTrimmedString(logoKey);
+  if (!key) return null;
+  if (/^https?:\/\//i.test(key)) return key;
+  const base = resolveCompanyLogoBaseUrl(env);
+  if (!base) return null;
+  return `${base}/${key.replace(/^\/+/, "")}`;
+}
+
+const JOBBOARD_FAVICON_BLOCKLIST = new Set([
+  "example.com",
+  "jobright.ai",
+  "greenhouse.io",
+  "boards.greenhouse.io",
+  "greenhousejobboard.com",
+  "lever.co",
+  "jobs.lever.co",
+  "workdayjobs.com",
+  "myworkdayjobs.com",
+  "smartrecruiters.com",
+  "icims.com",
+  "ashbyhq.com",
+  "jobvite.com",
+  "successfactors.com",
+  "oraclecloud.com",
+  "clearcompany.com",
+  "tally.so",
+  "linkedin.com",
+  "lnkd.in",
+  "workatastartup.com",
+  "applytojob.com",
+]);
+
+const JOBBOARD_FAVICON_BLOCK_PATTERNS = [
+  /(^|\.)greenhouse\.io$/i,
+  /(^|\.)greenhousejobboard\.com$/i,
+  /(^|\.)lever\.co$/i,
+  /(^|\.)myworkdayjobs\.com$/i,
+  /(^|\.)workdayjobs\.com$/i,
+  /(^|\.)smartrecruiters\.com$/i,
+  /(^|\.)icims\.com$/i,
+  /(^|\.)ashbyhq\.com$/i,
+  /(^|\.)jobvite\.com$/i,
+  /(^|\.)successfactors\.com$/i,
+  /(^|\.)oraclecloud\.com$/i,
+  /(^|\.)clearcompany\.com$/i,
+  /(^|\.)linkedin\.com$/i,
+  /(^|\.)lnkd\.in$/i,
+];
+
+function isBlockedJobboardDomain(domain: string): boolean {
+  const normalized = String(domain || "").trim().toLowerCase();
+  if (!normalized) return true;
+  if (JOBBOARD_FAVICON_BLOCKLIST.has(normalized)) return true;
+  return JOBBOARD_FAVICON_BLOCK_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
+const COMPANY_TOKEN_STOPWORDS = new Set([
+  "the",
+  "and",
+  "group",
+  "company",
+  "co",
+  "inc",
+  "llc",
+  "ltd",
+  "corp",
+  "corporation",
+  "holdings",
+  "technologies",
+  "technology",
+  "solutions",
+  "systems",
+  "services",
+  "service",
+]);
+
+function isLikelyCompanyDomainMatch(normalizedCompanyName: string, domain: string): boolean {
+  const normalized = normalizeCompanyDirectoryName(normalizedCompanyName);
+  if (!normalized) return false;
+  const apex = toApexDomain(domain);
+  if (!apex) return false;
+  const hostToken = apex.split(".")[0] || "";
+  if (!hostToken) return false;
+
+  const compactCompany = normalized.replace(/[^a-z0-9]/g, "");
+  if (compactCompany.length >= 3 && (hostToken.includes(compactCompany) || compactCompany.includes(hostToken))) {
+    return true;
+  }
+
+  const tokens = normalized
+    .split(/\s+/)
+    .map((token) => token.replace(/[^a-z0-9]/g, ""))
+    .filter((token) => token.length >= 3 && !COMPANY_TOKEN_STOPWORDS.has(token));
+
+  if (tokens.some((token) => hostToken.includes(token))) return true;
+
+  if (tokens.length >= 2) {
+    const joined = tokens.join("");
+    if (joined.length >= 4 && (hostToken.includes(joined) || joined.includes(hostToken))) return true;
+  }
+
+  return false;
+}
+
+function resolveJobCompanyLogoUrl(env: Bindings, row: Record<string, unknown>): string | null {
+  const companyName = String(row.company ?? "").trim();
+  const knownDomain = extractDomainFromJobLink(row.company_domain);
+  const logoAvailable = toBoolean(row.company_logo_available, false);
+  const logoKey = asTrimmedString(row.company_logo_key);
+  if (logoAvailable && logoKey) {
+    const fromStore = buildCompanyLogoUrl(env, logoKey);
+    if (fromStore) {
+      const isPngLogo = /\.png$/i.test(logoKey);
+      if (!isPngLogo) return fromStore;
+      if (
+        knownDomain &&
+        !isBlockedJobboardDomain(knownDomain) &&
+        isLikelyCompanyDomainMatch(companyName, knownDomain)
+      ) {
+        return fromStore;
+      }
+    }
+  }
+
+  const domain = knownDomain ?? extractDomainFromJobLink(row.job_link);
+  if (!domain || isBlockedJobboardDomain(domain)) return null;
+  if (!isLikelyCompanyDomainMatch(companyName, domain)) return null;
+  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`;
+}
+
 function toIsoDate(value: unknown): string | null {
   const raw = String(value ?? "").trim();
   if (!raw) return null;
@@ -3548,6 +3757,49 @@ async function syncReferralFromJob(
   );
 }
 
+type CompanyDirectorySyncOptions = {
+  usageIncrement?: number;
+};
+
+async function syncCompanyDirectoryFromJob(
+  env: Bindings,
+  job: Record<string, unknown>,
+  options?: CompanyDirectorySyncOptions,
+): Promise<void> {
+  const company = asTrimmedString(job.company);
+  if (!company) return;
+  const normalizedName = normalizeCompanyDirectoryName(company);
+  if (!normalizedName) return;
+  const domain = extractDomainFromJobLink((job as Record<string, unknown>).job_link);
+  const usageIncrement = Math.max(0, Math.floor(Number(options?.usageIncrement ?? 1)));
+
+  await query(
+    env,
+    `
+    INSERT INTO company_directory (
+      normalized_name,
+      display_name,
+      domain,
+      logo_available,
+      logo_key,
+      usage_count,
+      last_seen_at,
+      created_at,
+      updated_at
+    )
+    VALUES ($1, $2, $3, FALSE, NULL, GREATEST($4, 1), NOW(), NOW(), NOW())
+    ON CONFLICT (normalized_name) DO UPDATE
+    SET
+      display_name = COALESCE(NULLIF(TRIM(company_directory.display_name), ''), EXCLUDED.display_name),
+      domain = COALESCE(NULLIF(TRIM(company_directory.domain), ''), EXCLUDED.domain),
+      usage_count = company_directory.usage_count + $4,
+      last_seen_at = GREATEST(company_directory.last_seen_at, EXCLUDED.last_seen_at),
+      updated_at = NOW()
+    `,
+    [normalizedName, company, domain, usageIncrement],
+  );
+}
+
 function insertJobsImportBatchStatement(userId: number, rows: CsvImportRow[]): SqlStatement {
   return {
     text: `
@@ -3604,6 +3856,85 @@ function insertJobsImportBatchStatement(userId: number, rows: CsvImportRow[]): S
     )
     `,
     params: [userId, JSON.stringify(rows)],
+  };
+}
+
+type CompanyDirectoryImportRow = {
+  normalized_name: string;
+  display_name: string;
+  domain: string | null;
+  usage_delta: number;
+};
+
+function buildCompanyDirectoryImportRows(rows: CsvImportRow[]): CompanyDirectoryImportRow[] {
+  const byNormalized = new Map<string, CompanyDirectoryImportRow>();
+
+  for (const row of rows) {
+    const displayName = asTrimmedString(row.company);
+    if (!displayName) continue;
+    const normalizedName = normalizeCompanyDirectoryName(displayName);
+    if (!normalizedName) continue;
+    const domain = extractDomainFromJobLink(row.job_link);
+    const existing = byNormalized.get(normalizedName);
+    if (!existing) {
+      byNormalized.set(normalizedName, {
+        normalized_name: normalizedName,
+        display_name: displayName,
+        domain,
+        usage_delta: 1,
+      });
+      continue;
+    }
+    existing.usage_delta += 1;
+    if (!existing.domain && domain) existing.domain = domain;
+  }
+
+  return Array.from(byNormalized.values());
+}
+
+function upsertCompanyDirectoryFromImportRowsBatchStatement(rows: CsvImportRow[]): SqlStatement | null {
+  const payload = buildCompanyDirectoryImportRows(rows);
+  if (!payload.length) return null;
+  return {
+    text: `
+    INSERT INTO company_directory (
+      normalized_name,
+      display_name,
+      domain,
+      logo_available,
+      logo_key,
+      usage_count,
+      last_seen_at,
+      created_at,
+      updated_at
+    )
+    SELECT
+      NULLIF(TRIM(r.normalized_name), ''),
+      NULLIF(TRIM(r.display_name), ''),
+      NULLIF(TRIM(r.domain), ''),
+      FALSE,
+      NULL,
+      GREATEST(COALESCE(r.usage_delta, 0), 1),
+      NOW(),
+      NOW(),
+      NOW()
+    FROM jsonb_to_recordset($1::jsonb) AS r(
+      normalized_name text,
+      display_name text,
+      domain text,
+      usage_delta integer
+    )
+    WHERE NULLIF(TRIM(r.normalized_name), '') IS NOT NULL
+      AND NULLIF(TRIM(r.display_name), '') IS NOT NULL
+    ON CONFLICT (normalized_name) DO UPDATE
+    SET
+      display_name = COALESCE(NULLIF(TRIM(company_directory.display_name), ''), EXCLUDED.display_name),
+      domain = COALESCE(NULLIF(TRIM(company_directory.domain), ''), EXCLUDED.domain),
+      usage_count = company_directory.usage_count + GREATEST(EXCLUDED.usage_count, 1),
+      last_seen_at = GREATEST(company_directory.last_seen_at, EXCLUDED.last_seen_at),
+      updated_at = NOW()
+    `,
+    params: [JSON.stringify(payload)],
   };
 }
 
@@ -3775,6 +4106,28 @@ app.get("/api/jobs", async (c) => {
   const offset = (page - 1) * limit;
 
   const orderBy = `j.${sort} ${order} NULLS LAST, COALESCE(j.applied_at, j.date_saved, j.created_at) DESC NULLS LAST, j.created_at DESC NULLS LAST, j.id DESC`;
+  const companyDirectoryNormalizedExpr = `
+    LOWER(
+      TRIM(
+        REGEXP_REPLACE(
+          REGEXP_REPLACE(
+            REGEXP_REPLACE(
+              REGEXP_REPLACE(COALESCE(j.company, ''), '[^[:alnum:]_[:space:]]+', ' ', 'g'),
+              '[_]+',
+              ' ',
+              'g'
+            ),
+            '[[:space:]]+(incorporated|inc|llc|ltd|limited|corp|corporation|co|company)\\.?$',
+            '',
+            'i'
+          ),
+          '[[:space:]]+',
+          ' ',
+          'g'
+        )
+      )
+    )
+  `;
   const stageSql = `
     CASE
       -- Canonical pipeline values stored in application_status
@@ -3790,6 +4143,8 @@ app.get("/api/jobs", async (c) => {
   `;
   const fromSql = `
     FROM jobs j
+    LEFT JOIN company_directory cd
+      ON cd.normalized_name = ${companyDirectoryNormalizedExpr}
     LEFT JOIN LATERAL (
       SELECT r.referred_by_name
       FROM referrals r
@@ -3915,6 +4270,9 @@ app.get("/api/jobs", async (c) => {
     SELECT
       j.*,
       ref.referred_by_name,
+      cd.domain AS company_domain,
+      cd.logo_available AS company_logo_available,
+      cd.logo_key AS company_logo_key,
       (${stageSql}) AS dashboard_stage
     ${fromSql}
     ${whereClause}
@@ -3922,7 +4280,14 @@ app.get("/api/jobs", async (c) => {
     `,
     params as unknown[],
   );
-  return c.json({ page, limit, total, data: rows });
+  const data = rows.map((row) => {
+    const record = row as Record<string, unknown>;
+    return {
+      ...record,
+      company_logo_url: resolveJobCompanyLogoUrl(c.env, record),
+    };
+  });
+  return c.json({ page, limit, total, data });
 });
 
 const jobInput = z.object({
@@ -4045,6 +4410,7 @@ async function createJobRecord(env: Bindings, input: CreateJobRecordInput): Prom
     await syncReferralFromJob(env, input.user_id, row as Record<string, unknown>, {
       referredByName: input.referred_by_name,
     });
+    await syncCompanyDirectoryFromJob(env, row as Record<string, unknown>, { usageIncrement: 1 });
   }
 
   return (row as Record<string, unknown>) || null;
@@ -4352,6 +4718,8 @@ app.post("/api/jobs/import/csv", async (c) => {
   const statements: SqlStatement[] = [];
   for (const batch of batches) {
     statements.push(insertJobsImportBatchStatement(userId, batch));
+    const companyDirectoryStatement = upsertCompanyDirectoryFromImportRowsBatchStatement(batch);
+    if (companyDirectoryStatement) statements.push(companyDirectoryStatement);
     statements.push(syncReferralsFromImportRowsBatchStatement(userId, batch));
   }
   await transaction(c.env, statements);
@@ -4514,6 +4882,7 @@ app.patch("/api/jobs/:id", async (c) => {
   );
   if (!row) return c.json({ error: "Not found" }, 404);
   await syncReferralFromJob(c.env, userId, row as Record<string, unknown>, { referredByName: p.referred_by_name ?? null });
+  await syncCompanyDirectoryFromJob(c.env, row as Record<string, unknown>, { usageIncrement: 0 });
   return c.json(row);
 });
 

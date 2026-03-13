@@ -4,6 +4,7 @@ export type Bindings = {
   MEDIA_BUCKET?: R2Bucket;
   MEDIA_URL_SIGNING_SECRET?: string;
   MEDIA_PUBLIC_BASE_URL?: string;
+  COMPANY_LOGO_BASE_URL?: string;
   OWNER_DASHBOARD_PASSWORD?: string;
   OWNER_EMAIL?: string;
   OWNER_ACCESS_ONLY?: string;

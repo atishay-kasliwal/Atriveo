@@ -15,6 +15,8 @@ type ReferralRow = { id: number | string; name: string; company: string; role: s
 type ActiveCard = {
   id: number | string;
   company: string;
+  companyLogoUrl: string;
+  companyLogoKind: "brand" | "favicon" | "fallback";
   role: string;
   appliedDate: string;
   appliedDateTime: string;

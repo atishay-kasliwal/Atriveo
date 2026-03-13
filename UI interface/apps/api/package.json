@@ -14,11 +14,15 @@
     "audit:dashboard": "node scripts/audit-dashboard-api.mjs",
     "audit:csv": "node scripts/audit-csv-import-export.mjs",
     "audit:referrals": "node scripts/audit-referral-sync.js",
+    "logos:sync:r2": "node scripts/sync-company-logos-to-r2.mjs",
+    "logos:backfill:missing": "node scripts/backfill-missing-company-logos.mjs",
+    "logos:maintenance": "node scripts/logos-maintenance.mjs",
     "referrals:sync": "node scripts/sync-referrals-from-jobs.js",
     "seed:users": "node scripts/seed-users.js",
     "seed:users:reset": "node scripts/seed-users.js --reset"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1008.0",
     "@neondatabase/serverless": "^1.0.1",
     "hono": "^4.7.2",
     "zod": "^3.24.1"

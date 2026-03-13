@@ -39,3 +39,7 @@ MEDIA_URL_SIGNING_SECRET=
 # Optional: if you expose your R2 bucket via custom/public domain, set base URL here.
 # Example: https://media.atriveo.com
 MEDIA_PUBLIC_BASE_URL=
+
+# Optional: base URL used for company logos stored in R2.
+# Example: https://cdn.atriveo.com
+COMPANY_LOGO_BASE_URL=

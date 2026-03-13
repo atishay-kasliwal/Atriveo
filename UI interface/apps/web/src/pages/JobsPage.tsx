@@ -59,6 +59,8 @@ type DashboardStage = (typeof APPLICATION_PIPELINE_STAGES)[number];
 type ActiveCard = {
   id: number | string;
   company: string;
+  companyLogoUrl: string;
+  companyLogoKind: "brand" | "favicon" | "fallback";
   role: string;
   appliedDate: string;
   appliedDateTime: string;
@@ -405,9 +407,18 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     const appliedDateTime = formatTableDateTime(appliedValue);
     const appliedDate = formatTableDate(appliedValue);
 
+    const companyLogoUrl = String((job as any).company_logo_url ?? "").trim();
+    const companyLogoKind: ActiveCard["companyLogoKind"] = companyLogoUrl
+      ? /google\.com\/s2\/favicons/i.test(companyLogoUrl)
+        ? "favicon"
+        : "brand"
+      : "fallback";
+
     return {
       id: (job.id as number | string | undefined) ?? `${String(job.company ?? "job")}-${String(job.role ?? "role")}`,
       company: String(job.company ?? "-") || "-",
+      companyLogoUrl,
+      companyLogoKind,
       role: String(job.role ?? "-") || "-",
       appliedDate,
       appliedDateTime,

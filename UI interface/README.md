@@ -41,6 +41,7 @@ React dashboard + Cloudflare Worker API + Postgres database.
   - Analytics uses GA4 Measurement ID `G-8LNKTSL8MF` (configured in web `index.html`)
   - Analytics implementation guide: `docs/analytics.md`
   - Optional R2 media storage setup: `docs/r2-media-storage.md`
+  - Company logo sync runbook: `docs/company-logo-sync-runbook.md`
 8. Run apps (two terminals):
    - Terminal A: `npm run dev:api`
    - Terminal B: `npm run dev:web`
