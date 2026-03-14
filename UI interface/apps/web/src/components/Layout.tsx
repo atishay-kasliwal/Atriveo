@@ -1,5 +1,5 @@
 import { useState, useEffect, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from "react";
-import { NavLink, Outlet, Link, useLocation } from "react-router-dom";
+import { NavLink, Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import {
   acceptFriendRequest,
   blockFriendship,
@@ -238,6 +238,7 @@ export default function Layout({
   onToggleTheme,
 }: LayoutProps) {
   const location = useLocation();
+  const navigate = useNavigate();
   const isNetworkView = location.pathname.includes("/network");
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
@@ -800,6 +801,7 @@ export default function Layout({
                 onExportCsv={() => openCsvModal("export")}
                 onAddFriend={openFriendModal}
                 onLogout={onLogout}
+                onProfile={() => navigate("profile")}
                 templateHref="/jobs_import_sample.csv"
                 initials={avatarInitials}
               />

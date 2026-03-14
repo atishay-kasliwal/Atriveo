@@ -1365,6 +1365,88 @@ app.get("/api/auth/me", (c) => {
   return c.json({ user: c.get("authUser") });
 });
 
+app.get("/api/profile", async (c) => {
+  const user = c.get("authUser");
+  const [row] = await query<{
+    bio: string | null;
+    university: string | null;
+    grad_year: number | null;
+    target_roles: string | null;
+    target_companies: string | null;
+    location_pref: string | null;
+    experience_level: string | null;
+    share_applications: number;
+  }>(
+    c.env,
+    `SELECT bio, university, grad_year, target_roles, target_companies, location_pref, experience_level, share_applications
+     FROM dashboard_users WHERE id = $1 LIMIT 1`,
+    [user.id],
+  );
+  if (!row) return c.json({ error: "User not found" }, 404);
+  return c.json({
+    profile: {
+      bio: row.bio ?? null,
+      university: row.university ?? null,
+      grad_year: row.grad_year ?? null,
+      target_roles: row.target_roles ? (JSON.parse(row.target_roles) as string[]) : [],
+      target_companies: row.target_companies ? (JSON.parse(row.target_companies) as string[]) : [],
+      location_pref: row.location_pref ?? null,
+      experience_level: row.experience_level ?? null,
+      share_applications: row.share_applications === 1,
+    },
+  });
+});
+
+const updateProfileInput = z.object({
+  bio: z.string().trim().max(300).optional(),
+  university: z.string().trim().max(120).optional(),
+  grad_year: z.number().int().min(1990).max(2040).nullable().optional(),
+  target_roles: z.array(z.string().trim().max(80)).max(10).optional(),
+  target_companies: z.array(z.string().trim().max(120)).max(50).optional(),
+  location_pref: z.string().trim().max(120).optional(),
+  experience_level: z.string().trim().max(80).optional(),
+  share_applications: z.boolean().optional(),
+  first_name: z.string().trim().max(80).optional(),
+  last_name: z.string().trim().max(80).optional(),
+});
+
+app.put("/api/profile", async (c) => {
+  const user = c.get("authUser");
+  const parsed = updateProfileInput.safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
+  const d = parsed.data;
+  await query(
+    c.env,
+    `UPDATE dashboard_users SET
+      bio = COALESCE($1, bio),
+      university = COALESCE($2, university),
+      grad_year = COALESCE($3, grad_year),
+      target_roles = COALESCE($4, target_roles),
+      target_companies = COALESCE($5, target_companies),
+      location_pref = COALESCE($6, location_pref),
+      experience_level = COALESCE($7, experience_level),
+      share_applications = COALESCE($8, share_applications),
+      first_name = COALESCE($9, first_name),
+      last_name = COALESCE($10, last_name),
+      updated_at = NOW()
+     WHERE id = $11`,
+    [
+      d.bio ?? null,
+      d.university ?? null,
+      d.grad_year !== undefined ? d.grad_year : null,
+      d.target_roles !== undefined ? JSON.stringify(d.target_roles) : null,
+      d.target_companies !== undefined ? JSON.stringify(d.target_companies) : null,
+      d.location_pref ?? null,
+      d.experience_level ?? null,
+      d.share_applications !== undefined ? (d.share_applications ? 1 : 0) : null,
+      d.first_name ?? null,
+      d.last_name ?? null,
+      user.id,
+    ],
+  );
+  return c.json({ ok: true });
+});
+
 app.post("/api/email/daily-digest/preview", async (c) => {
   const parsed = dailyDigestPreviewInput.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);

@@ -8,6 +8,7 @@ import ReferralsPage from "./pages/ReferralsPage";
 import PendingPage from "./pages/PendingPage";
 import NotesPage from "./pages/NotesPage";
 import NetworkPage from "./pages/NetworkPage";
+import ProfilePage from "./pages/ProfilePage";
 import LandingPage from "./pages/LandingPage";
 import HeaderTestPage from "./pages/HeaderTestPage";
 import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
@@ -190,6 +191,7 @@ export default function App() {
             <Route path="pending" element={<PendingPage />} />
             <Route path="notes" element={<NotesPage />} />
             <Route path="network" element={<NetworkPage />} />
+            <Route path="profile" element={<ProfilePage />} />
             <Route path="friends" element={<Navigate to="network" replace />} />
           </Route>
           <Route path="/app/*" element={<Navigate to={withDashboardBase("")} replace />} />

@@ -15,6 +15,7 @@ import {
   DownloadIcon,
   LogoutIcon,
   MenuItem,
+  ProfileIcon,
   SectionLabel,
   TemplateIcon,
   UploadIcon,
@@ -26,6 +27,7 @@ type HeaderAvatarMenuProps = {
   onExportCsv: () => void;
   onAddFriend: () => void;
   onLogout: () => void;
+  onProfile: () => void;
   templateHref: string;
   initials?: string;
 };
@@ -43,6 +45,7 @@ export default function HeaderAvatarMenu({
   onExportCsv,
   onAddFriend,
   onLogout,
+  onProfile,
   templateHref,
   initials = "U",
 }: HeaderAvatarMenuProps) {
@@ -66,6 +69,7 @@ export default function HeaderAvatarMenu({
         download: true,
       },
       { id: "friend", label: "Add Friend", section: "workspace", icon: <AddFriendIcon />, onSelect: onAddFriend },
+      { id: "profile", label: "Edit Profile", section: "account", icon: <ProfileIcon />, onSelect: onProfile },
       {
         id: "logout",
         label: "Logout",
@@ -75,7 +79,7 @@ export default function HeaderAvatarMenu({
         onSelect: onLogout,
       },
     ],
-    [onAddFriend, onExportCsv, onImportCsv, onLogout, templateHref],
+    [onAddFriend, onExportCsv, onImportCsv, onLogout, onProfile, templateHref],
   );
 
   useEffect(() => {

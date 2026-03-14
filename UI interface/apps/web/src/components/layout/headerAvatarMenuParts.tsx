@@ -120,6 +120,17 @@ export function AddFriendIcon() {
   );
 }
 
+export function ProfileIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-5.3 0-8 2.7-8 4v1h16v-1c0-1.3-2.7-4-8-4Z"
+      />
+    </svg>
+  );
+}
+
 export function LogoutIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">

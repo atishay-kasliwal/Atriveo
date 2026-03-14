@@ -760,3 +760,38 @@ export function deleteMedia(mediaId: number | string) {
     method: "DELETE",
   });
 }
+
+export type UserProfile = {
+  bio: string | null;
+  university: string | null;
+  grad_year: number | null;
+  target_roles: string[];
+  target_companies: string[];
+  location_pref: string | null;
+  experience_level: string | null;
+  share_applications: boolean;
+};
+
+export type UpdateProfileInput = {
+  first_name?: string;
+  last_name?: string;
+  bio?: string;
+  university?: string;
+  grad_year?: number | null;
+  target_roles?: string[];
+  target_companies?: string[];
+  location_pref?: string;
+  experience_level?: string;
+  share_applications?: boolean;
+};
+
+export function getProfile() {
+  return request<{ profile: UserProfile }>("/api/profile");
+}
+
+export function updateProfile(data: UpdateProfileInput) {
+  return request<{ ok: boolean }>("/api/profile", {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
