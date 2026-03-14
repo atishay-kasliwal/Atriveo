@@ -47,10 +47,10 @@
 }
 
 .app-nav-top {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  position: relative;
+  display: flex;
   align-items: center;
-  gap: 20px;
+  justify-content: space-between;
   min-height: 44px;
   padding: 0 4px;
 }
@@ -61,11 +61,14 @@
 }
 
 .app-nav-center {
-  min-width: 0;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 0;
+  pointer-events: auto;
 }
 
 .app-nav-menu-toggle {
