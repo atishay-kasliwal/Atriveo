@@ -90,6 +90,9 @@ export default function NetworkPage() {
   const [fieldVisibilityError, setFieldVisibilityError] = useState("");
   const [selectedWeeklyCompareKey, setSelectedWeeklyCompareKey] = useState("");
   const [showBadgeGallery, setShowBadgeGallery] = useState(false);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
+  const [ageLabel, setAgeLabel] = useState("just now");
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const todayApplicationsSectionRef = useRef<HTMLElement | null>(null);
   const [todayApplicationsSectionHeight, setTodayApplicationsSectionHeight] = useState(0);
   const [fieldVisibility, setFieldVisibility] = useState<NetworkFieldVisibility>({
@@ -778,7 +781,7 @@ export default function NetworkPage() {
     };
   }, [insightCharts.weeklyDailyRows, insightCharts.weeklyLeaderboard]);
   const weeklyBoardLeader = insightCharts.weeklyLeaderboard[0] ?? null;
-  const weeklyBoardTopThree = insightCharts.weeklyLeaderboard.slice(0, 3);
+  const weeklyBoardTopThree = insightCharts.weeklyLeaderboard.slice(0, 5);
   const weeklyHeaderTotal = useMemo(() => {
     const selfRow = insightCharts.weeklyLeaderboard.find((row) => row.isSelf) ?? null;
     return Number((selfRow ?? weeklyBoardLeader)?.total ?? 0);
@@ -834,7 +837,9 @@ export default function NetworkPage() {
 
     return {
       title: isDefending
-        ? `Need ${appsNeededThisWeek} app${appsNeededThisWeek === 1 ? "" : "s"} this week to stay ahead`
+        ? appsNeededThisWeek === 0
+          ? `You're locked in — maintain your lead`
+          : `Need ${appsNeededThisWeek} more app${appsNeededThisWeek === 1 ? "" : "s"} to secure your lead`
         : `Need ${appsNeededThisWeek} app${appsNeededThisWeek === 1 ? "" : "s"} this week to take #1`,
       detail: isDefending
         ? appsNeededThisWeek > 0
@@ -935,7 +940,7 @@ export default function NetworkPage() {
           />
           </div>
         </section>
-        <div className="network-signals-sidebar" style={syncedSignalsSidebarStyle}>
+        <div className="network-signals-sidebar">
           <TargetSignalsCarousel
             todayData={todayData}
             useDemoFallback={useTargetDemoFallback}

@@ -1,7 +1,10 @@
+import { useState } from "react";
 import Spinner from "../../../components/Spinner";
 import type { NetworkFieldVisibility } from "../../../lib/api";
 import { formatTableDateTime } from "../../../lib/formatDate";
 import { normalizeOaStatus } from "../utils";
+
+const PAGE_SIZE = 10;
 
 type JobSnapshot = {
   company: string | null;
@@ -57,6 +60,10 @@ export default function NetworkTodayApplicationsContent({
   privacyHiddenLabel,
   onSelectFriendJob,
 }: Props) {
+  const [page, setPage] = useState(0);
+  const totalPages = Math.max(1, Math.ceil(todayApplicationsFlat.length / PAGE_SIZE));
+  const pagedRows = todayApplicationsFlat.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
+
   if (isLoading) return <Spinner />;
 
   if (todayApplicationsFlat.length === 0) {
@@ -93,7 +100,8 @@ export default function NetworkTodayApplicationsContent({
             </tr>
           </thead>
           <tbody>
-            {todayApplicationsFlat.map((row, idx) => {
+            {pagedRows.map((row, idx) => {
+              const idx_global = page * PAGE_SIZE + idx;
               const { job, friendName } = row;
               const canViewIdentity = Boolean(job.can_view_company && job.can_view_role);
               const canOpenLink = canViewIdentity && Boolean(job.job_link);
@@ -119,7 +127,7 @@ export default function NetworkTodayApplicationsContent({
                     });
                   }}
                 >
-                  <td className="network-cell-index" data-label="#">{idx + 1}</td>
+                  <td className="network-cell-index" data-label="#">{idx_global + 1}</td>
                   <td className="network-cell-company-role" data-label="Company">
                     {canViewIdentity ? (
                       <div className="job-main">
@@ -228,6 +236,32 @@ export default function NetworkTodayApplicationsContent({
           </tbody>
         </table>
       </div>
+      {totalPages > 1 && (
+        <div className="network-pagination">
+          <button
+            type="button"
+            className="network-pagination-btn"
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={page === 0}
+            aria-label="Previous page"
+          >
+            ← Prev
+          </button>
+          <span className="network-pagination-info">
+            {page + 1} / {totalPages}
+            <span className="network-pagination-total"> · {todayApplicationsFlat.length} total</span>
+          </span>
+          <button
+            type="button"
+            className="network-pagination-btn"
+            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+            disabled={page === totalPages - 1}
+            aria-label="Next page"
+          >
+            Next →
+          </button>
+        </div>
+      )}
     </div>
   );
 }

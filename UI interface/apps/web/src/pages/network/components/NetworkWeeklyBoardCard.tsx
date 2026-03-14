@@ -54,8 +54,9 @@ export default function NetworkWeeklyBoardCard({
         <div className="chart-title-group network-rivalry-head">
           <h2 className="network-insight-title">🏆 Weekly Board</h2>
         </div>
-        <strong className="network-weekly-board-total" aria-label="Today total applications">
+        <strong className="network-weekly-board-total" aria-label="Your weekly application total">
           {weeklyHeaderTotal}
+          <span className="network-weekly-board-total-unit">apps</span>
         </strong>
       </div>
       {weeklyBoardLeader ? (
@@ -106,20 +107,38 @@ export default function NetworkWeeklyBoardCard({
         </div>
       ) : null}
       {weeklyBoardTopThree.length ? (
-        <div className="network-rivalry-top3-grid" aria-label="Top 3 competitors">
-          {weeklyBoardTopThree.map((row, index) => (
-            <div
-              key={`top3-${row.key}`}
-              className={`network-rivalry-top3-card place-${index + 1}`}
-            >
-              <div className="network-rivalry-rank-badge" aria-hidden="true">
-                {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
+        <>
+          <div className="network-rivalry-top3-grid" aria-label="Top 3 competitors">
+            {weeklyBoardTopThree.slice(0, 3).map((row, index) => (
+              <div
+                key={`top3-${row.key}`}
+                className={`network-rivalry-top3-card place-${index + 1}`}
+              >
+                <div className="network-rivalry-rank-badge" aria-hidden="true">
+                  {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
+                </div>
+                <p className="network-rivalry-top3-name">{row.displayName}</p>
+                <strong className="network-rivalry-top3-score">{row.total}</strong>
               </div>
-              <p className="network-rivalry-top3-name">{row.displayName}</p>
-              <strong className="network-rivalry-top3-score">{row.total}</strong>
+            ))}
+          </div>
+          {weeklyBoardTopThree.length > 3 ? (
+            <div className="network-rivalry-top3-grid network-rivalry-top45-grid" aria-label="4th and 5th place">
+              {weeklyBoardTopThree.slice(3).map((row, index) => (
+                <div
+                  key={`top45-${row.key}`}
+                  className={`network-rivalry-top3-card place-${index + 4}`}
+                >
+                  <div className="network-rivalry-rank-badge" aria-hidden="true">
+                    {index + 4}
+                  </div>
+                  <p className="network-rivalry-top3-name">{row.displayName}</p>
+                  <strong className="network-rivalry-top3-score">{row.total}</strong>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          ) : null}
+        </>
       ) : null}
       {weeklySelfStreak ? (
         <div className="network-rivalry-streak">

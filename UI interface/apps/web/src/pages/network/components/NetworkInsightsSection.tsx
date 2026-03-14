@@ -1,16 +1,7 @@
-import type { ComponentType, Dispatch, SetStateAction } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import Spinner from "../../../components/Spinner";
-import NetworkPerformanceSnapshotCard from "./NetworkPerformanceSnapshotCard";
 import NetworkRivalryModeCard from "./NetworkRivalryModeCard";
 import NetworkWeeklyBoardCard from "./NetworkWeeklyBoardCard";
-
-type BadgePreview = {
-  id: string;
-  name: string;
-  description: string;
-  tier: string;
-  Icon: ComponentType;
-};
 
 type CompareFriendOption = {
   key: string;
@@ -83,7 +74,6 @@ type Props = {
   setInsightsOpen: Dispatch<SetStateAction<boolean>>;
   isLoading: boolean;
   insightCharts: InsightCharts;
-  topEarnedBadges: BadgePreview[];
   compareFriendOptions: CompareFriendOption[];
   selectedWeeklyCompareKey: string;
   setSelectedWeeklyCompareKey: Dispatch<SetStateAction<string>>;
@@ -102,7 +92,6 @@ export default function NetworkInsightsSection({
   setInsightsOpen,
   isLoading,
   insightCharts,
-  topEarnedBadges,
   compareFriendOptions,
   selectedWeeklyCompareKey,
   setSelectedWeeklyCompareKey,
@@ -121,7 +110,7 @@ export default function NetworkInsightsSection({
         <button type="button" className="network-main-head" onClick={() => setInsightsOpen((p) => !p)}>
           <h2>Network Insights</h2>
           <div className="network-main-right">
-            <span className="pending-meta">Today + Weekly</span>
+            <span className="pending-meta">{insightsOpen ? "Collapse" : "Expand"} · Today + Weekly</span>
             <span className={`network-section-arrow ${insightsOpen ? "open" : ""}`}>▴</span>
           </div>
         </button>
@@ -131,17 +120,14 @@ export default function NetworkInsightsSection({
         ) : (
           <div className="network-card-content">
             {insightCharts.selected.length === 0 ? (
-              <div className="empty-state">No accepted friends yet. Add friends to see trend insights.</div>
+              <div className="empty-state network-empty-insights">
+                <div className="network-empty-state-icon" aria-hidden="true">👥</div>
+                <p className="network-empty-state-title">No friends in your network yet</p>
+                <p className="network-empty-state-copy">Add friends to unlock leaderboards, rivalry mode, and weekly insights.</p>
+              </div>
             ) : (
               <div className="network-combined-card">
                 <div className="network-trend-grid network-insights-grid">
-                  <NetworkPerformanceSnapshotCard
-                    todayRows={insightCharts.todayRows}
-                    average={insightCharts.todayStats.average}
-                    hasSingleLeader={insightCharts.todayLeader.hasSingleLeader}
-                    hiddenCount={insightCharts.todayStats.hiddenCount}
-                    topEarnedBadges={topEarnedBadges}
-                  />
                   <NetworkRivalryModeCard
                     compareFriendOptions={compareFriendOptions}
                     selectedWeeklyCompareKey={selectedWeeklyCompareKey}

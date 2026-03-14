@@ -43,6 +43,72 @@
   margin-top: 8px;
 }
 
+.network-rivalry-stat-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--bg-card-border) 70%, transparent);
+}
+
+.network-rivalry-stat-chip {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 8px 6px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+}
+
+.network-rivalry-stat-chip.is-winning,
+.network-rivalry-stat-chip.is-losing,
+.network-rivalry-stat-chip.is-tied,
+.network-rivalry-stat-chip.is-neutral {
+  background: color-mix(in srgb, var(--bg-card-elevated) 60%, transparent);
+  border-color: color-mix(in srgb, var(--bg-card-border) 70%, transparent);
+}
+
+.network-rivalry-stat-chip.is-winning .network-rivalry-stat-value {
+  color: #2563EB;
+}
+
+.network-rivalry-stat-chip.is-losing .network-rivalry-stat-value {
+  color: #8B5CF6;
+}
+
+:root[data-theme="light"] .network-rivalry-stat-chip.is-winning .network-rivalry-stat-value {
+  color: #1D4ED8;
+}
+
+:root[data-theme="light"] .network-rivalry-stat-chip.is-losing .network-rivalry-stat-value {
+  color: #7C3AED;
+}
+
+.network-rivalry-stat-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.network-rivalry-stat-value {
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+:root[data-theme="light"] .network-rivalry-stat-label {
+  color: #475569;
+}
+
+:root[data-theme="light"] .network-rivalry-stat-value {
+  color: #0f172a;
+}
+
 .network-badge-preview {
   margin-top: 10px;
   display: grid;

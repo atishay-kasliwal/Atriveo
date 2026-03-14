@@ -62,9 +62,21 @@ export default function NetworkRivalryModeCard({
           </select>
         </div>
       </div>
-      <p className="network-rivalry-subtitle network-rivalry-subtitle--below">
-        Compete with friends to track job application momentum.
-      </p>
+      {weeklyCompetition ? (
+        <p className="network-rivalry-subtitle network-rivalry-subtitle--below">
+          {weeklyCompetition.weekLead > 0 ? (
+            <>You're ahead of {weeklyCompetition.friendName} by <strong className="network-rivalry-subtitle-accent is-winning">+{weeklyCompetition.weekLead}</strong> this week — keep it up.</>
+          ) : weeklyCompetition.weekLead < 0 ? (
+            <>{weeklyCompetition.friendName} is ahead by <strong className="network-rivalry-subtitle-accent is-losing">+{Math.abs(weeklyCompetition.weekLead)}</strong> — time to catch up.</>
+          ) : (
+            <>You and {weeklyCompetition.friendName} are <strong className="network-rivalry-subtitle-accent is-tied">tied</strong> this week. Make your move.</>
+          )}
+        </p>
+      ) : (
+        <p className="network-rivalry-subtitle network-rivalry-subtitle--below">
+          Pick a rival to start competing on weekly application momentum.
+        </p>
+      )}
       <div className="network-weekly-line-layout">
         <div className="network-weekly-line-stage network-chart-stage">
           {weeklyCompetition ? (
@@ -84,28 +96,31 @@ export default function NetworkRivalryModeCard({
         </div>
       </div>
       {weeklyCompetition ? (
-        <div className="trend-uniform-foot network-rivalry-footer">
-          <span
-            className={`trend-uniform-foot-item ${weeklyCompetition.weekLead > 0 ? "trend-uniform-foot-item--applied" : weeklyCompetition.weekLead < 0 ? "trend-uniform-foot-item--rejected" : "trend-uniform-foot-item--muted"}`}
-          >
-            {weeklyCompetition.weekLead > 0
-              ? `You +${weeklyCompetition.weekLead} this week`
-              : weeklyCompetition.weekLead < 0
-                ? `${weeklyCompetition.friendName} +${Math.abs(weeklyCompetition.weekLead)} this week`
-                : "Week tie"}
-          </span>
-          <span
-            className={`trend-uniform-foot-item ${weeklyCompetition.todayLead > 0 ? "trend-uniform-foot-item--applied" : weeklyCompetition.todayLead < 0 ? "trend-uniform-foot-item--rejected" : "trend-uniform-foot-item--muted"}`}
-          >
-            {weeklyCompetition.todayLead > 0
-              ? `Today +${weeklyCompetition.todayLead}`
-              : weeklyCompetition.todayLead < 0
-                ? `Today -${Math.abs(weeklyCompetition.todayLead)}`
-                : "Today even"}
-          </span>
-          <span className="trend-uniform-foot-item trend-uniform-foot-item--muted">
-            Rival rank #{weeklyCompetition.friendRank}
-          </span>
+        <div className="network-rivalry-stat-row">
+          <div className={`network-rivalry-stat-chip ${weeklyCompetition.weekLead > 0 ? "is-winning" : weeklyCompetition.weekLead < 0 ? "is-losing" : "is-tied"}`}>
+            <span className="network-rivalry-stat-label">Week</span>
+            <span className="network-rivalry-stat-value">
+              {weeklyCompetition.weekLead > 0
+                ? `+${weeklyCompetition.weekLead} you`
+                : weeklyCompetition.weekLead < 0
+                  ? `+${Math.abs(weeklyCompetition.weekLead)} them`
+                  : "Tied"}
+            </span>
+          </div>
+          <div className={`network-rivalry-stat-chip ${weeklyCompetition.todayLead > 0 ? "is-winning" : weeklyCompetition.todayLead < 0 ? "is-losing" : "is-tied"}`}>
+            <span className="network-rivalry-stat-label">Today</span>
+            <span className="network-rivalry-stat-value">
+              {weeklyCompetition.todayLead > 0
+                ? `+${weeklyCompetition.todayLead}`
+                : weeklyCompetition.todayLead < 0
+                  ? `-${Math.abs(weeklyCompetition.todayLead)}`
+                  : "Even"}
+            </span>
+          </div>
+          <div className="network-rivalry-stat-chip is-neutral">
+            <span className="network-rivalry-stat-label">Rival rank</span>
+            <span className="network-rivalry-stat-value">#{weeklyCompetition.friendRank}</span>
+          </div>
         </div>
       ) : null}
     </div>

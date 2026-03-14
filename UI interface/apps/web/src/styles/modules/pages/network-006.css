@@ -76,7 +76,7 @@
 }
 
 .network-insights-grid {
-  grid-template-columns: minmax(280px, 2.8fr) minmax(460px, 6.5fr) minmax(220px, 2fr);
+  grid-template-columns: minmax(0, 7fr) minmax(260px, 2.4fr);
   gap: 24px;
   align-items: stretch;
 }

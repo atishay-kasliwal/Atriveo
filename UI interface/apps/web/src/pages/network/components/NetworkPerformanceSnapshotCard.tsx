@@ -103,7 +103,7 @@ export default function NetworkPerformanceSnapshotCard({
                     const y = Number(props.viewBox?.y ?? 0) - 8;
                     return (
                       <text x={x} y={y} fill="var(--text-secondary)" fontSize={11} fontWeight={600} textAnchor="middle">
-                        Avg {average}
+                        Avg {Math.round(average)}
                       </text>
                     );
                   }}

@@ -147,6 +147,23 @@
   padding-right: 4px;
 }
 
+.network-rivalry-subtitle-accent {
+  font-weight: 700;
+  font-style: normal;
+}
+
+.network-rivalry-subtitle-accent.is-winning {
+  color: #2563EB;
+}
+
+.network-rivalry-subtitle-accent.is-losing {
+  color: #8B5CF6;
+}
+
+.network-rivalry-subtitle-accent.is-tied {
+  color: var(--text-primary);
+}
+
 .network-rivalry-head {
   min-width: 0;
   display: grid;
