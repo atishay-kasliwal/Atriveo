@@ -4,6 +4,13 @@ export type DailyDigestFriendInput = {
   friendTargets?: number | null;
 };
 
+export type DailyDigestTargetHitInput = {
+  company: string;
+  role: string;
+  applicants: string;
+  lastAppliedAt: string;
+};
+
 export type DailyDigestRenderInput = {
   date?: string | null;
   firstName?: string | null;
@@ -15,6 +22,7 @@ export type DailyDigestRenderInput = {
   managePreferencesUrl?: string | null;
   unsubscribeUrl?: string | null;
   friends?: DailyDigestFriendInput[] | null;
+  targetHits?: DailyDigestTargetHitInput[] | null;
 };
 
 export type DailyDigestRenderModel = {
@@ -42,6 +50,13 @@ export type DailyDigestRenderModel = {
     friendTargets: number;
     friendTargetsPlural: string;
     friendBarPercent: number;
+  }>;
+  hasTargetHits: boolean;
+  targetHits: Array<{
+    company: string;
+    role: string;
+    applicants: string;
+    lastAppliedAt: string;
   }>;
 };
 
@@ -73,9 +88,8 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
 
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top: 24px;"><tr><td><h2 style="margin: 0 0 14px; font-size: 18px; color: #0b1220; font-weight: 700;">Your Progress Today</h2>
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-              <td width="32%" style="padding-right: 6px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; text-align: center;"><p style="margin: 0; font-size: 28px; font-weight: 800; color: #0066ff;">{{appsToday}}</p><p style="margin: 4px 0 0; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.7px;">Applications</p></td></tr></table></td>
-              <td width="32%" style="padding: 0 3px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; text-align: center;"><p style="margin: 0; font-size: 28px; font-weight: 800; color: #0066ff;">{{targetCompanyCount}}</p><p style="margin: 4px 0 0; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.7px;">Target Companies</p></td></tr></table></td>
-              <td width="32%" style="padding-left: 6px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; text-align: center;"><p style="margin: 0; font-size: 28px; font-weight: 800; color: #0066ff;">{{friendsTotalApps}}</p><p style="margin: 4px 0 0; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.7px;">Friends Total</p></td></tr></table></td>
+              <td width="48%" style="padding-right: 6px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; text-align: center;"><p style="margin: 0; font-size: 28px; font-weight: 800; color: #0066ff;">{{appsToday}}</p><p style="margin: 4px 0 0; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.7px;">Applications</p></td></tr></table></td>
+              <td width="48%" style="padding-left: 6px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; text-align: center;"><p style="margin: 0; font-size: 28px; font-weight: 800; color: #0066ff;">{{friendsTotalApps}}</p><p style="margin: 4px 0 0; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.7px;">Friends Total</p></td></tr></table></td>
             </tr></table>
             <p style="margin: 15px 0 8px; font-size: 14px; color: #475569;">Daily target: <strong style="color: #0b1220;">{{dailyTarget}} applications</strong></p>
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="background-color: #e2e8f0; border-radius: 999px; height: 10px; overflow: hidden;"><table role="presentation" width="{{progressPercent}}%" cellpadding="0" cellspacing="0" border="0"><tr><td style="background-color: #0066ff; border-radius: 999px; height: 10px;">&nbsp;</td></tr></table></td></tr></table>
@@ -106,13 +120,36 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
 
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 24px 0;"><tr><td style="border-top: 1px solid #e2e8f0;">&nbsp;</td></tr></table>
 
+          {{#hasTargetHits}}
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td>
+            <h2 style="margin: 0 0 4px; font-size: 18px; color: #0b1220; font-weight: 700;">Your Targets — Applied Today</h2>
+            <p style="margin: 0 0 14px; font-size: 13px; color: #64748b;">Your network is making moves — friends applied to top companies today.</p>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden;">
+              <tr style="background-color: #f8fafc;">
+                <th style="padding: 9px 12px; text-align: left; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e2e8f0; white-space: nowrap;">Company</th>
+                <th style="padding: 9px 12px; text-align: left; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e2e8f0;">Role</th>
+                <th style="padding: 9px 12px; text-align: left; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e2e8f0;">Who Applied</th>
+                <th style="padding: 9px 12px; text-align: left; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e2e8f0; white-space: nowrap;">Last At</th>
+                <th style="padding: 9px 12px; border-bottom: 1px solid #e2e8f0;"></th>
+              </tr>
+              {{#targetHits}}
+              <tr>
+                <td style="padding: 10px 12px; font-size: 14px; font-weight: 700; color: #0b1220; border-bottom: 1px solid #f1f5f9;">{{company}}</td>
+                <td style="padding: 10px 12px; font-size: 13px; color: #334155; border-bottom: 1px solid #f1f5f9;">{{role}}</td>
+                <td style="padding: 10px 12px; font-size: 13px; color: #475569; border-bottom: 1px solid #f1f5f9;">{{applicants}}</td>
+                <td style="padding: 10px 12px; font-size: 13px; color: #64748b; white-space: nowrap; border-bottom: 1px solid #f1f5f9;">{{lastAppliedAt}}</td>
+                <td style="padding: 10px 12px; border-bottom: 1px solid #f1f5f9; white-space: nowrap;"><a href="https://www.atriveo.com/dashboard/network" style="color: #0066ff; font-size: 13px; font-weight: 600; text-decoration: none;">View &rarr;</a></td>
+              </tr>
+              {{/targetHits}}
+            </table>
+          </td></tr></table>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 24px 0;"><tr><td style="border-top: 1px solid #e2e8f0;">&nbsp;</td></tr></table>
+          {{/hasTargetHits}}
+
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td>
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
               <td style="padding: 10px 0; color: #64748b; font-size: 16px; line-height: 1.2;">Total Applications</td>
               <td style="padding: 10px 0; color: #0b1220; font-size: 30px; font-weight: 800; line-height: 1; text-align: right; width: 1px;">{{totalApps}}</td>
-            </tr><tr>
-              <td style="padding: 8px 0; color: #64748b; font-size: 16px; line-height: 1.2;">In Target List</td>
-              <td style="padding: 8px 0; color: #0066ff; font-size: 30px; font-weight: 800; line-height: 1; text-align: right; width: 1px;">{{totalTargetApps}}</td>
             </tr></table>
           </td></tr></table>
 
@@ -137,7 +174,6 @@ YOUR PROGRESS TODAY
 --------------------------------------------
 
 Applications Today: {{appsToday}}
-Target Companies:   {{targetCompanyCount}}
 Friends Total Apps: {{friendsTotalApps}}
 
 Daily Target: {{dailyTarget}} applications
@@ -158,12 +194,22 @@ FRIENDS ACTIVITY (Top 5)
 No friend activity has been recorded yet today.
 {{/noFriends}}
 
+{{#hasTargetHits}}
+--------------------------------------------
+YOUR TARGETS — APPLIED TODAY
+--------------------------------------------
+
+{{#targetHits}}
+{{company}} | {{role}} | {{applicants}} | {{lastAppliedAt}}
+{{/targetHits}}
+Network page: https://www.atriveo.com/dashboard/network
+{{/hasTargetHits}}
+
 --------------------------------------------
 NETWORK TOTALS
 --------------------------------------------
 
 Total Applications: {{totalApps}}
-In Target List:     {{totalTargetApps}}
 
 --------------------------------------------
 
@@ -214,10 +260,17 @@ function resolveProgress(appsToday: number, dailyTarget: number): {
       statusMessage: "You are close. Keep pushing!",
     };
   }
+  if (appsToday === 0) {
+    return {
+      progressPercent: percent,
+      statusColor: "#6b7280",
+      statusMessage: "No applications yet today. Let us get one in!",
+    };
+  }
   return {
     progressPercent: percent,
     statusColor: "#6b7280",
-    statusMessage: "No applications yet today. Let us get one in!",
+    statusMessage: `Good start with ${appsToday} application${appsToday === 1 ? "" : "s"}! Keep the momentum going.`,
   };
 }
 
@@ -288,6 +341,13 @@ export function buildDailyDigestRenderModel(input: DailyDigestRenderInput): Dail
   const friends = buildFriends(input.friends ?? []);
   const friendsTotalApps = friends.reduce((sum, friend) => sum + friend.friendApps, 0);
 
+  const targetHits = (input.targetHits ?? []).map((h) => ({
+    company: String(h.company || ""),
+    role: String(h.role || "—"),
+    applicants: String(h.applicants || ""),
+    lastAppliedAt: String(h.lastAppliedAt || ""),
+  }));
+
   return {
     date: String(input.date || new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })),
     firstName: normalizeName(input.firstName),
@@ -305,6 +365,8 @@ export function buildDailyDigestRenderModel(input: DailyDigestRenderInput): Dail
     hasFriends: friends.length > 0,
     noFriends: friends.length === 0,
     friends,
+    hasTargetHits: targetHits.length > 0,
+    targetHits,
   };
 }
 
@@ -319,11 +381,13 @@ export function renderDailyDigestEmail(input: DailyDigestRenderInput): {
 
   let html = HTML_TEMPLATE;
   html = renderList(html, "friends", model.friends as Array<Record<string, unknown>>);
+  html = renderList(html, "targetHits", model.targetHits as Array<Record<string, unknown>>);
   html = renderConditions(html, renderVars);
   html = replaceVars(html, renderVars);
 
   let text = TEXT_TEMPLATE;
   text = renderList(text, "friends", model.friends as Array<Record<string, unknown>>);
+  text = renderList(text, "targetHits", model.targetHits as Array<Record<string, unknown>>);
   text = renderConditions(text, renderVars);
   text = replaceVars(text, renderVars);
 
