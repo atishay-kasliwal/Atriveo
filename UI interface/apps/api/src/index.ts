@@ -80,6 +80,17 @@ const dailyDigestPreviewInput = z.object({
     )
     .max(20)
     .optional(),
+  targetHits: z
+    .array(
+      z.object({
+        company: z.string().trim().max(120),
+        role: z.string().trim().max(200),
+        applicants: z.string().trim().max(500),
+        lastAppliedAt: z.string().trim().max(20),
+      }),
+    )
+    .max(20)
+    .optional(),
 });
 
 const dailyDigestSendTestInput = z.object({
@@ -1478,6 +1489,7 @@ app.post("/api/email/daily-digest/preview", async (c) => {
     managePreferencesUrl: parsed.data.managePreferencesUrl,
     unsubscribeUrl: parsed.data.unsubscribeUrl,
     friends: parsed.data.friends,
+    targetHits: parsed.data.targetHits,
   });
 
   return c.json({

@@ -1,5 +1,6 @@
 import { query } from "./db";
-import { renderDailyDigestEmail, type DailyDigestFriendInput, type DailyDigestRenderInput } from "./dailyDigestEmail";
+import { renderDailyDigestEmail, type DailyDigestFriendInput, type DailyDigestRenderInput, type DailyDigestTargetHitInput } from "./dailyDigestEmail";
+import { targetCompanyMatchList } from "./topTargetCompanies";
 import type { Bindings } from "./types";
 
 type SendDailyDigestArgs = {
@@ -162,6 +163,60 @@ async function buildDefaultDigestInput(
     friendTargets: 0,
   }));
 
+  // Target company hits: friends who applied to Atriveo's curated top companies today.
+  const targetMatchList = targetCompanyMatchList();
+  const targetHitRows = await query<{
+    company: string;
+    role: string;
+    applicants: string;
+    last_applied_at: string;
+  }>(
+    env,
+    `
+    WITH friends AS (
+      SELECT
+        CASE WHEN f.requester_id = $1 THEN f.receiver_id ELSE f.requester_id END AS friend_id,
+        COALESCE(NULLIF(TRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email) AS friend_name
+      FROM friendships f
+      JOIN dashboard_users u
+        ON u.id = CASE WHEN f.requester_id = $1 THEN f.receiver_id ELSE f.requester_id END
+      WHERE (f.requester_id = $1 OR f.receiver_id = $1)
+        AND f.status = 'accepted'
+    ),
+    friend_hits AS (
+      SELECT
+        j.company,
+        COALESCE(NULLIF(TRIM(j.role), ''), '—') AS role,
+        fr.friend_name,
+        MAX(j.date_saved) AS latest_saved
+      FROM friends fr
+      JOIN jobs j
+        ON j.user_id = fr.friend_id
+       AND j.date_saved IS NOT NULL
+       AND j.date_saved::date = $2::date
+       AND LOWER(TRIM(COALESCE(j.company, ''))) = ANY($3::text[])
+      GROUP BY j.company, j.role, fr.friend_name
+    )
+    SELECT
+      company,
+      role,
+      STRING_AGG(friend_name, ', ' ORDER BY friend_name) AS applicants,
+      TO_CHAR(MAX(latest_saved) AT TIME ZONE 'America/New_York', 'HH12:MI AM') AS last_applied_at
+    FROM friend_hits
+    GROUP BY company, role
+    ORDER BY MAX(latest_saved) DESC
+    LIMIT 5
+    `,
+    [userId, digestDate, targetMatchList],
+  );
+
+  const targetHits: DailyDigestTargetHitInput[] = targetHitRows.map((row) => ({
+    company: row.company,
+    role: row.role,
+    applicants: row.applicants,
+    lastAppliedAt: row.last_applied_at,
+  }));
+
   const appsToday = Number(selfStats?.apps_today ?? 0);
   const dailyTarget = Number(targetRow?.daily_target ?? 0);
   const firstName = String(user.first_name ?? "").trim() || "Friend";
@@ -180,6 +235,7 @@ async function buildDefaultDigestInput(
       managePreferencesUrl: "https://www.atriveo.com/email-preferences",
       unsubscribeUrl: "https://www.atriveo.com/unsubscribe",
       friends,
+      targetHits,
     },
   };
 }
