@@ -156,6 +156,8 @@
   gap: 14px;
   align-content: start;
   grid-auto-rows: max-content;
+  max-height: 360px;
+  overflow-y: auto;
 }
 
 .target-signal-card {
