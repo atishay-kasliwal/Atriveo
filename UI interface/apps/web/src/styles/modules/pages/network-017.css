@@ -49,7 +49,7 @@
 .target-signal-app-list {
   display: grid;
   gap: 7px;
-  max-height: 200px;
+  max-height: 360px;
   overflow-y: auto;
 }
 
