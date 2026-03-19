@@ -49,6 +49,8 @@
 .target-signal-app-list {
   display: grid;
   gap: 7px;
+  max-height: 180px;
+  overflow-y: auto;
 }
 
 .target-signal-app {
