@@ -5134,10 +5134,13 @@ app.get("/api/oa/active", async (c) => {
     c.env,
     `
     SELECT
-      j.*,
-      j.date_saved::text AS date_saved_text,
-      j.applied_at::text AS applied_at_text,
-      j.oa_deadline_date::text AS oa_deadline_date_text,
+      j.id,
+      j.role,
+      j.company,
+      j.oa_deadline_date::text AS oa_deadline_date,
+      j.notes,
+      j.date_saved::text AS date_saved,
+      j.job_application_id,
       CASE
         WHEN j.oa_deadline_date IS NULL THEN 'no_deadline'
         WHEN j.oa_deadline_date < COALESCE($2::date, CURRENT_DATE) THEN 'overdue'

@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
+import ErrorBoundary from "./components/ErrorBoundary";
 import Layout from "./components/Layout";
 import SiteShell from "./components/SiteShell";
 import DashboardPage from "./pages/DashboardPage";
@@ -171,14 +172,16 @@ export default function App() {
             path={`${DASHBOARD_BASE_PATH}/*`}
             element={
               session ? (
-                <Layout
-                  userEmail={session.user.email}
-                  userFirstName={session.user.first_name}
-                  userLastName={session.user.last_name}
-                  onLogout={handleLogout}
-                  theme={theme}
-                  onToggleTheme={handleToggleTheme}
-                />
+                <ErrorBoundary>
+                  <Layout
+                    userEmail={session.user.email}
+                    userFirstName={session.user.first_name}
+                    userLastName={session.user.last_name}
+                    onLogout={handleLogout}
+                    theme={theme}
+                    onToggleTheme={handleToggleTheme}
+                  />
+                </ErrorBoundary>
               ) : (
                 <Navigate to="/" replace />
               )

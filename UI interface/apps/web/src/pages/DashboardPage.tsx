@@ -39,6 +39,7 @@ import {
   trackProductEvent,
 } from "../analytics/events";
 import ApplicationsTrendCard from "./dashboard/components/ApplicationsTrendCard";
+import ErrorBoundary from "../components/ErrorBoundary";
 import DailyActivityHeatmapCard from "./dashboard/components/DailyActivityHeatmapCard";
 import Last24HoursChart from "../components/analytics/Last24HoursChart";
 import {
@@ -1079,10 +1080,10 @@ export default function DashboardPage() {
                     : "Recent activity"}
             </p>
             <div className="dashboard-panel-body">
-              {mobileDashboardPanel === "pending" ? <PendingPreview /> : null}
-              {mobileDashboardPanel === "referrals" ? <ReferralsPreview /> : null}
-              {mobileDashboardPanel === "oa" ? <OaPreview /> : null}
-              {mobileDashboardPanel === "notes" ? <NotesPreview /> : null}
+              {mobileDashboardPanel === "pending" ? <ErrorBoundary><PendingPreview /></ErrorBoundary> : null}
+              {mobileDashboardPanel === "referrals" ? <ErrorBoundary><ReferralsPreview /></ErrorBoundary> : null}
+              {mobileDashboardPanel === "oa" ? <ErrorBoundary><OaPreview /></ErrorBoundary> : null}
+              {mobileDashboardPanel === "notes" ? <ErrorBoundary><NotesPreview /></ErrorBoundary> : null}
             </div>
           </div>
         </section>
@@ -1092,28 +1093,28 @@ export default function DashboardPage() {
             <h2>Pending</h2>
             <p className="chart-subtitle">Outstanding items</p>
             <div className="dashboard-panel-body">
-              <PendingPreview />
+              <ErrorBoundary><PendingPreview /></ErrorBoundary>
             </div>
           </div>
           <div className="card dashboard-panel dashboard-panel--referrals">
             <h2>Referrals</h2>
             <p className="chart-subtitle">Open referral requests</p>
             <div className="dashboard-panel-body">
-              <ReferralsPreview />
+              <ErrorBoundary><ReferralsPreview /></ErrorBoundary>
             </div>
           </div>
           <div className="card dashboard-panel dashboard-panel--oa">
             <h2>OA Received</h2>
             <p className="chart-subtitle">Active online assessments</p>
             <div className="dashboard-panel-body">
-              <OaPreview />
+              <ErrorBoundary><OaPreview /></ErrorBoundary>
             </div>
           </div>
           <div className="card dashboard-panel dashboard-panel--notes">
             <h2>Notes</h2>
             <p className="chart-subtitle">Recent activity</p>
             <div className="dashboard-panel-body">
-              <NotesPreview />
+              <ErrorBoundary><NotesPreview /></ErrorBoundary>
             </div>
           </div>
         </section>
