@@ -5554,19 +5554,19 @@ app.get("/api/referrals", async (c) => {
   const filter = String(c.req.query("filter") ?? "").trim().toLowerCase();
   const searchQuery = String(c.req.query("search") ?? "").trim();
 
-  const whereParts: string[] = ["user_id = $1"];
+  const whereParts: string[] = ["r.user_id = $1"];
   const params: unknown[] = [userId];
   let paramIdx = 2;
   if (filter === "open") {
-    whereParts.push(`COALESCE(TRIM(referral_received), '') = 'Requested'`);
+    whereParts.push(`COALESCE(TRIM(r.referral_received), '') = 'Requested'`);
   } else if (filter === "applied") {
-    whereParts.push(`COALESCE(TRIM(referral_received), '') = 'Yes'`);
+    whereParts.push(`COALESCE(TRIM(r.referral_received), '') = 'Yes'`);
   }
   if (searchQuery) {
     whereParts.push(`(
-      COALESCE(company, '') ILIKE $${paramIdx}
-      OR COALESCE(request_log, '') ILIKE $${paramIdx}
-      OR COALESCE(referred_by_name, '') ILIKE $${paramIdx}
+      COALESCE(r.company, '') ILIKE $${paramIdx}
+      OR COALESCE(r.request_log, '') ILIKE $${paramIdx}
+      OR COALESCE(r.referred_by_name, '') ILIKE $${paramIdx}
     )`);
     params.push(`%${searchQuery}%`);
     paramIdx += 1;
@@ -5575,18 +5575,37 @@ app.get("/api/referrals", async (c) => {
   const whereClause = ` WHERE ${whereParts.join(" AND ")}`;
   const [countRow] = await query<{ total: number }>(
     c.env,
-    `SELECT COUNT(*)::int AS total FROM referrals${whereClause}`,
+    `SELECT COUNT(*)::int AS total FROM referrals r${whereClause}`,
     params as unknown[],
   );
   const total = Number(countRow?.total ?? 0);
 
   const orderBy = filter === "applied"
-    ? "ORDER BY COALESCE(updated_date, request_date) DESC NULLS LAST, id DESC"
-    : "ORDER BY request_date DESC NULLS LAST, id DESC";
+    ? "ORDER BY COALESCE(r.updated_date, r.request_date) DESC NULLS LAST, r.id DESC"
+    : "ORDER BY r.request_date DESC NULLS LAST, r.id DESC";
   params.push(limit, offset);
   const rows = await query(
     c.env,
-    `SELECT * FROM referrals${whereClause} ${orderBy} LIMIT $${params.length - 1} OFFSET $${params.length}`,
+    `
+    SELECT r.*, j.application_status AS application_status, j.id AS linked_job_id
+    FROM referrals r
+    LEFT JOIN LATERAL (
+      SELECT j.id, j.application_status
+      FROM jobs j
+      WHERE j.user_id = r.user_id
+        AND (
+          (NULLIF(TRIM(COALESCE(j.job_link, '')), '') IS NOT NULL
+           AND TRIM(COALESCE(j.job_link, '')) = TRIM(COALESCE(r.request_link, '')))
+          OR (LOWER(TRIM(COALESCE(j.company, ''))) = LOWER(TRIM(COALESCE(r.company, '')))
+              AND LOWER(TRIM(COALESCE(j.role, ''))) = LOWER(TRIM(COALESCE(r.request_log, ''))))
+        )
+      ORDER BY j.applied_at DESC NULLS LAST, j.id DESC
+      LIMIT 1
+    ) j ON TRUE
+    ${whereClause}
+    ${orderBy}
+    LIMIT $${params.length - 1} OFFSET $${params.length}
+    `,
     params as unknown[],
   );
   return c.json({ page, limit, total, data: rows });
