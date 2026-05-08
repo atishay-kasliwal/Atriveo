@@ -6,6 +6,7 @@ import SiteShell from "./components/SiteShell";
 import DashboardPage from "./pages/DashboardPage";
 import JobsPage from "./pages/JobsPage";
 import ReferralsPage from "./pages/ReferralsPage";
+import MyReferralsPage from "./pages/MyReferralsPage";
 import PendingPage from "./pages/PendingPage";
 import NotesPage from "./pages/NotesPage";
 import NetworkPage from "./pages/NetworkPage";
@@ -191,6 +192,7 @@ export default function App() {
             <Route path="jobs" element={<JobsPage />} />
             <Route path="archive" element={<JobsPage statusFilter="rejected" />} />
             <Route path="referrals" element={<ReferralsPage />} />
+            <Route path="my-referrals" element={<MyReferralsPage />} />
             <Route path="pending" element={<PendingPage />} />
             <Route path="notes" element={<NotesPage />} />
             <Route path="network" element={<NetworkPage />} />

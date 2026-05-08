@@ -779,6 +779,13 @@ export default function Layout({
               >
                 Follow Up
               </NavLink>
+              <NavLink
+                to="my-referrals"
+                className={({ isActive }) => (isActive ? "app-nav-link active" : "app-nav-link")}
+                onClick={() => setIsMobileNavOpen(false)}
+              >
+                My Referrals
+              </NavLink>
             </div>
           </div>
           <div className="app-nav-actions">

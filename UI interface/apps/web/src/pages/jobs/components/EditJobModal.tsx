@@ -174,12 +174,12 @@ export default function EditJobModal({
             </label>
             {editForm.referral_status === "Requested" && (
               <p className="new-app-alert">
-                Track requested referrals on the <Link to="/referrals" className="table-link">Referrals</Link> page.
+                Track requested referrals on the <Link to="/my-referrals" className="table-link">My Referrals</Link> page.
               </p>
             )}
             {editForm.referral_status === "Yes" && (
               <p className="new-app-alert">
-                Ensure this company has an entry on the <Link to="/referrals" className="table-link">Referrals</Link> page.
+                Ensure this company has an entry on the <Link to="/my-referrals" className="table-link">My Referrals</Link> page.
               </p>
             )}
           </section>

@@ -67,7 +67,7 @@ export default function ReferralsPreview() {
         </>
       )}
       <p className="panel-footer-right" style={{ marginTop: 12, fontSize: "0.85rem" }}>
-        <Link to="/referrals" className="table-link">
+        <Link to="/my-referrals" className="table-link">
           View all referrals
         </Link>
       </p>

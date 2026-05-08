@@ -87,7 +87,7 @@ export default function EditOaModal({
             </div>
             {oaEditForm.referral_status === "Yes" && (
               <p className="referral-hint">
-                Ensure this company has an entry on the <Link to="/referrals" className="table-link">Referrals</Link> page.
+                Ensure this company has an entry on the <Link to="/my-referrals" className="table-link">My Referrals</Link> page.
               </p>
             )}
             <div className="form-row">
