@@ -11,6 +11,7 @@ import EditReferralModal from "./referrals/components/EditReferralModal";
 import CreateReferralModal from "./referrals/components/CreateReferralModal";
 import { CREATE_REFERRAL_INITIAL } from "./referrals/constants";
 import type { CreateReferralForm } from "./referrals/types";
+import { getStatusMeta } from "./jobs/utils/tableMeta";
 
 type ReferralRow = Record<string, unknown>;
 
@@ -24,6 +25,8 @@ type DisplayRow = {
   role: string;
   company: string;
   status: DerivedStatus;
+  pillLabel: string;
+  pillCls: string;
   date: string;
   raw: ReferralRow;
 };
@@ -31,12 +34,22 @@ type DisplayRow = {
 const PAGE_SIZE = 10;
 
 function deriveStatus(row: ReferralRow): DerivedStatus {
+  const appStatus = String((row as Record<string, unknown>).application_status ?? "").trim().toLowerCase();
   const received = String(row.referral_received ?? "").trim().toLowerCase();
-  const stage = String((row as Record<string, unknown>).status ?? "").trim().toLowerCase();
-  if (stage === "offer") return "Offer";
-  if (received === "yes" || stage === "interviewing" || stage === "interview") return "Interviewing";
-  if (received === "no" || stage === "archived" || stage === "rejected") return "Archived";
+  if (appStatus === "rejected" || received === "no") return "Archived";
+  if (appStatus === "open") return "Offer";
+  if (appStatus === "under consideration" || appStatus === "applied" || received === "yes") return "Interviewing";
   return "Pending";
+}
+
+function pillFor(row: ReferralRow): { label: string; cls: string } {
+  const appStatus = String((row as Record<string, unknown>).application_status ?? "").trim();
+  if (appStatus) return getStatusMeta(appStatus);
+  const received = String(row.referral_received ?? "").trim().toLowerCase();
+  if (received === "yes") return { label: "Received", cls: "status-chip status-chip--applied" };
+  if (received === "requested") return { label: "Requested", cls: "status-chip status-chip--review" };
+  if (received === "no") return { label: "Declined", cls: "status-chip status-chip--rejected" };
+  return { label: "Pending", cls: "status-chip status-chip--applied" };
 }
 
 function getInitials(name: string): string {
@@ -86,6 +99,7 @@ function toIsoDateInput(value: unknown): string {
 
 function mapRow(row: ReferralRow): DisplayRow {
   const name = String(row.referred_by_name ?? "").trim() || "Unknown";
+  const pill = pillFor(row);
   return {
     id: (row.id as number | string | undefined) ?? `ref-${String(row.company ?? "")}-${String(row.request_log ?? "")}`,
     name,
@@ -94,6 +108,8 @@ function mapRow(row: ReferralRow): DisplayRow {
     role: String(row.request_log ?? "").trim() || "—",
     company: String(row.company ?? "").trim() || "—",
     status: deriveStatus(row),
+    pillLabel: pill.label,
+    pillCls: pill.cls,
     date: formatDate(row.updated_date ?? row.request_date),
     raw: row,
   };
@@ -480,9 +496,7 @@ export default function MyReferralsPage() {
                   <td className="my-ref-cell-strong">{row.role}</td>
                   <td className="my-ref-cell-strong">{row.company}</td>
                   <td>
-                    <span className={`my-ref-status my-ref-status--${row.status.toLowerCase()}`}>
-                      {row.status}
-                    </span>
+                    <span className={row.pillCls}>{row.pillLabel}</span>
                   </td>
                   <td className="my-ref-cell-muted">{row.date}</td>
                   <td className="my-ref-action-cell">
