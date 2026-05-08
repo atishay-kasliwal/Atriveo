@@ -72,6 +72,18 @@ function formatDate(value: unknown): string {
   });
 }
 
+function toIsoDateInput(value: unknown): string {
+  if (value == null || value === "") return "";
+  const raw = String(value);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return "";
+  const y = parsed.getFullYear();
+  const m = String(parsed.getMonth() + 1).padStart(2, "0");
+  const d = String(parsed.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 function mapRow(row: ReferralRow): DisplayRow {
   const name = String(row.referred_by_name ?? "").trim() || "Unknown";
   return {
@@ -107,6 +119,9 @@ export default function MyReferralsPage() {
   const [editing, setEditing] = useState<ReferralRow | null>(null);
   const [editStatus, setEditStatus] = useState("");
   const [editReferredByName, setEditReferredByName] = useState("");
+  const [editCompany, setEditCompany] = useState("");
+  const [editRole, setEditRole] = useState("");
+  const [editDate, setEditDate] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   const { confirm, confirmDialog } = useConfirmDialog();
@@ -259,6 +274,9 @@ export default function MyReferralsPage() {
     setEditing(row);
     setEditStatus(String(row.referral_received ?? ""));
     setEditReferredByName(String(row.referred_by_name ?? ""));
+    setEditCompany(String(row.company ?? ""));
+    setEditRole(String(row.request_log ?? ""));
+    setEditDate(toIsoDateInput(row.request_date));
   }
 
   async function onSaveEdit(e: React.FormEvent) {
@@ -269,6 +287,9 @@ export default function MyReferralsPage() {
       await updateReferral(String(editing.id), {
         referral_received: editStatus.trim() || null,
         referred_by_name: editReferredByName.trim() || null,
+        company: editCompany.trim() || undefined,
+        request_log: editRole.trim() || undefined,
+        request_date: editDate.trim() || undefined,
       });
       setEditing(null);
       await loadAll();
@@ -579,6 +600,12 @@ export default function MyReferralsPage() {
         setEditStatus={setEditStatus}
         editReferredByName={editReferredByName}
         setEditReferredByName={setEditReferredByName}
+        editCompany={editCompany}
+        setEditCompany={setEditCompany}
+        editRole={editRole}
+        setEditRole={setEditRole}
+        editDate={editDate}
+        setEditDate={setEditDate}
         setEditing={setEditing}
         onSaveEdit={onSaveEdit}
       />
