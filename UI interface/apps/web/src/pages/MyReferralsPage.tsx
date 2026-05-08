@@ -319,30 +319,8 @@ export default function MyReferralsPage() {
 
       {error ? <div className="error my-ref-error">{error}</div> : null}
 
-      <div className="my-ref-kpis">
-        <article className="my-ref-kpi my-ref-kpi--active">
-          <p className="my-ref-kpi-label">Active referrals</p>
-          <p className="my-ref-kpi-value">{counts.active}</p>
-          <p className="my-ref-kpi-sub">In progress</p>
-        </article>
-        <article className="my-ref-kpi my-ref-kpi--interview">
-          <p className="my-ref-kpi-label">Interviewing</p>
-          <p className="my-ref-kpi-value">{counts.interviewing}</p>
-          <p className="my-ref-kpi-sub">Live conversations</p>
-        </article>
-        <article className="my-ref-kpi my-ref-kpi--offer">
-          <p className="my-ref-kpi-label">Offers</p>
-          <p className="my-ref-kpi-value">{counts.offers}</p>
-          <p className="my-ref-kpi-sub">Pending decision</p>
-        </article>
-        <article className="my-ref-kpi my-ref-kpi--archive">
-          <p className="my-ref-kpi-label">Archived</p>
-          <p className="my-ref-kpi-value">{counts.archived}</p>
-          <p className="my-ref-kpi-sub">Closed referrals</p>
-        </article>
-      </div>
-
-      <section className="my-ref-card">
+      <div className="my-ref-content">
+        <section className="my-ref-card">
         <div className="my-ref-card-toolbar">
           <div className="my-ref-tabs" role="tablist">
             <button
@@ -560,6 +538,30 @@ export default function MyReferralsPage() {
           </div>
         </div>
       </section>
+
+      <aside className="my-ref-kpis" aria-label="Referral metrics">
+        <article className="my-ref-kpi my-ref-kpi--active">
+          <p className="my-ref-kpi-label">Active referrals</p>
+          <p className="my-ref-kpi-value">{counts.active}</p>
+          <p className="my-ref-kpi-sub">In progress</p>
+        </article>
+        <article className="my-ref-kpi my-ref-kpi--interview">
+          <p className="my-ref-kpi-label">Interviewing</p>
+          <p className="my-ref-kpi-value">{counts.interviewing}</p>
+          <p className="my-ref-kpi-sub">Live conversations</p>
+        </article>
+        <article className="my-ref-kpi my-ref-kpi--offer">
+          <p className="my-ref-kpi-label">Offers</p>
+          <p className="my-ref-kpi-value">{counts.offers}</p>
+          <p className="my-ref-kpi-sub">Pending decision</p>
+        </article>
+        <article className="my-ref-kpi my-ref-kpi--archive">
+          <p className="my-ref-kpi-label">Archived</p>
+          <p className="my-ref-kpi-value">{counts.archived}</p>
+          <p className="my-ref-kpi-sub">Closed referrals</p>
+        </article>
+      </aside>
+      </div>
 
       <CreateReferralModal
         showCreateModal={showCreateModal}
