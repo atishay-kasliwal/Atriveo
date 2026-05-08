@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import useConfirmDialog from "../components/ui/useConfirmDialog";
 import { getLocalISODate } from "../lib/formatDate";
 import {
@@ -116,6 +117,7 @@ function mapRow(row: ReferralRow): DisplayRow {
 }
 
 export default function MyReferralsPage() {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<ReferralRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -201,6 +203,68 @@ export default function MyReferralsPage() {
     }
     return { active, interviewing, offers, archived };
   }, [allDisplay]);
+
+  const insights = useMemo(() => {
+    const SPARK_DAYS = 14;
+    const dayMs = 86400000;
+    const today = new Date();
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const weekStart = new Date(todayStart.getTime() - 6 * dayMs);
+    const buckets = {
+      active: new Array<number>(SPARK_DAYS).fill(0),
+      interviewing: new Array<number>(SPARK_DAYS).fill(0),
+      offers: new Array<number>(SPARK_DAYS).fill(0),
+      archived: new Array<number>(SPARK_DAYS).fill(0),
+    };
+    let activeThisWeek = 0;
+    let interviewingToday = 0;
+    let offersToday = 0;
+    let archivedThisWeek = 0;
+    for (const row of allDisplay) {
+      const raw = String(row.raw.updated_date ?? row.raw.request_date ?? "");
+      if (!raw) continue;
+      const parsed = new Date(raw.length === 10 ? `${raw}T00:00:00` : raw);
+      if (Number.isNaN(parsed.getTime())) continue;
+      const diff = Math.floor((todayStart.getTime() - new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()).getTime()) / dayMs);
+      const inSpark = diff >= 0 && diff < SPARK_DAYS;
+      const inWeek = parsed >= weekStart;
+      const isToday = diff === 0;
+      const target = row.status === "Archived"
+        ? "archived"
+        : row.status === "Offer"
+          ? "offers"
+          : row.status === "Interviewing"
+            ? "interviewing"
+            : "active";
+      if (inSpark) buckets[target][SPARK_DAYS - 1 - diff] += 1;
+      if (target !== "archived" && inWeek) activeThisWeek += 1;
+      if (target === "interviewing" && isToday) interviewingToday += 1;
+      if (target === "offers" && isToday) offersToday += 1;
+      if (target === "archived" && inWeek) archivedThisWeek += 1;
+    }
+    return {
+      sparks: buckets,
+      activeThisWeek,
+      interviewingToday,
+      offersToday,
+      archivedThisWeek,
+    };
+  }, [allDisplay]);
+
+  function buildSparkPath(values: number[]): string {
+    if (!values.length) return "";
+    const w = 100;
+    const h = 30;
+    const max = Math.max(1, ...values);
+    const stepX = w / Math.max(1, values.length - 1);
+    return values
+      .map((v, i) => {
+        const x = i * stepX;
+        const y = h - (v / max) * (h - 4) - 2;
+        return `${i === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`;
+      })
+      .join(" ");
+  }
 
   const filteredRows = useMemo(() => {
     const matchesTab = (r: DisplayRow) =>
@@ -295,6 +359,16 @@ export default function MyReferralsPage() {
     setEditDate(toIsoDateInput(row.request_date));
   }
 
+  function openLinkedApplication(row: ReferralRow) {
+    const linkedId = (row as Record<string, unknown>).linked_job_id;
+    const company = String(row.company ?? "").trim();
+    const params = new URLSearchParams();
+    if (linkedId != null && linkedId !== "") params.set("openId", String(linkedId));
+    if (company) params.set("search", company);
+    const qs = params.toString();
+    navigate(`/dashboard/jobs${qs ? `?${qs}` : ""}`);
+  }
+
   async function onSaveEdit(e: React.FormEvent) {
     e.preventDefault();
     if (!editing?.id) return;
@@ -345,7 +419,7 @@ export default function MyReferralsPage() {
             My Referrals <span className="my-ref-title-count">({headerCount})</span>
           </h1>
         </div>
-        <button type="button" className="my-ref-add-btn" onClick={openCreate}>
+        <button type="button" className="jobs-search-btn my-ref-add-btn" onClick={openCreate}>
           + Add referral
         </button>
       </header>
@@ -489,8 +563,26 @@ export default function MyReferralsPage() {
                       </div>
                     </div>
                   </td>
-                  <td className="my-ref-cell-strong">{row.role}</td>
-                  <td className="my-ref-cell-strong">{row.company}</td>
+                  <td className="my-ref-cell-strong">
+                    <button
+                      type="button"
+                      className="my-ref-link-cell"
+                      onClick={() => openLinkedApplication(row.raw)}
+                      title="Open application"
+                    >
+                      {row.role}
+                    </button>
+                  </td>
+                  <td className="my-ref-cell-strong">
+                    <button
+                      type="button"
+                      className="my-ref-link-cell"
+                      onClick={() => openLinkedApplication(row.raw)}
+                      title="Open application"
+                    >
+                      {row.company}
+                    </button>
+                  </td>
                   <td>
                     <span className={row.pillCls}>{row.pillLabel}</span>
                   </td>
@@ -572,24 +664,76 @@ export default function MyReferralsPage() {
 
       <aside className="my-ref-kpis" aria-label="Referral metrics">
         <article className="my-ref-kpi my-ref-kpi--active">
-          <p className="my-ref-kpi-label">Active referrals</p>
+          <div className="my-ref-kpi-head">
+            <p className="my-ref-kpi-label">Active referrals</p>
+            <span className="my-ref-kpi-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M16 14a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm-8 0a3 3 0 1 0-3-3 3 3 0 0 0 3 3Zm0 2c-2.7 0-8 1.34-8 4v2h10v-2c0-1.06.74-2.21 2-3.16-1.1-.5-2.62-.84-4-.84Zm8 0c-3.31 0-8 1.34-8 4v2h16v-2c0-2.66-4.69-4-8-4Z" fill="currentColor"/>
+              </svg>
+            </span>
+          </div>
           <p className="my-ref-kpi-value">{counts.active}</p>
           <p className="my-ref-kpi-sub">In progress</p>
+          {insights.activeThisWeek > 0 ? (
+            <span className="my-ref-kpi-delta">↗ +{insights.activeThisWeek} this week</span>
+          ) : null}
+          <svg className="my-ref-kpi-spark" viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true">
+            <path d={buildSparkPath(insights.sparks.active)} fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
         </article>
         <article className="my-ref-kpi my-ref-kpi--interview">
-          <p className="my-ref-kpi-label">Interviewing</p>
+          <div className="my-ref-kpi-head">
+            <p className="my-ref-kpi-label">Interviewing</p>
+            <span className="my-ref-kpi-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H8l-4 4Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" fill="none"/>
+              </svg>
+            </span>
+          </div>
           <p className="my-ref-kpi-value">{counts.interviewing}</p>
           <p className="my-ref-kpi-sub">Live conversations</p>
+          {insights.interviewingToday > 0 ? (
+            <span className="my-ref-kpi-delta">↗ +{insights.interviewingToday} today</span>
+          ) : null}
+          <svg className="my-ref-kpi-spark" viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true">
+            <path d={buildSparkPath(insights.sparks.interviewing)} fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
         </article>
         <article className="my-ref-kpi my-ref-kpi--offer">
-          <p className="my-ref-kpi-label">Offers</p>
+          <div className="my-ref-kpi-head">
+            <p className="my-ref-kpi-label">Offers</p>
+            <span className="my-ref-kpi-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M12 2 14 8l6 1-4.5 4.2L17 20l-5-3-5 3 1.5-6.8L4 9l6-1 2-6Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" fill="none"/>
+              </svg>
+            </span>
+          </div>
           <p className="my-ref-kpi-value">{counts.offers}</p>
           <p className="my-ref-kpi-sub">Pending decision</p>
+          {insights.offersToday > 0 ? (
+            <span className="my-ref-kpi-delta">↗ +{insights.offersToday} today</span>
+          ) : null}
+          <svg className="my-ref-kpi-spark" viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true">
+            <path d={buildSparkPath(insights.sparks.offers)} fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
         </article>
         <article className="my-ref-kpi my-ref-kpi--archive">
-          <p className="my-ref-kpi-label">Archived</p>
+          <div className="my-ref-kpi-head">
+            <p className="my-ref-kpi-label">Archived</p>
+            <span className="my-ref-kpi-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M3 5h18v4H3Zm2 4h14v11H5Zm5 4h4" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" fill="none"/>
+              </svg>
+            </span>
+          </div>
           <p className="my-ref-kpi-value">{counts.archived}</p>
           <p className="my-ref-kpi-sub">Closed referrals</p>
+          {insights.archivedThisWeek > 0 ? (
+            <span className="my-ref-kpi-delta">↗ +{insights.archivedThisWeek} this week</span>
+          ) : null}
+          <svg className="my-ref-kpi-spark" viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true">
+            <path d={buildSparkPath(insights.sparks.archived)} fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
         </article>
       </aside>
       </div>

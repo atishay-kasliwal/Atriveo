@@ -207,6 +207,11 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
     const params = new URLSearchParams(location.search);
     return String(params.get("search") ?? "").trim();
   }, [location.search]);
+  const urlOpenId = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return String(params.get("openId") ?? "").trim();
+  }, [location.search]);
+  const [pendingOpenId, setPendingOpenId] = useState<string>(urlOpenId);
 
   const [data, setData] = useState<Array<Record<string, unknown>>>([]);
   const [totalRows, setTotalRows] = useState(0);
@@ -757,6 +762,22 @@ export default function JobsPage({ statusFilter }: { statusFilter?: string } = {
       notes: String(job.notes ?? ""),
     });
   }
+
+  useEffect(() => {
+    if (!pendingOpenId || editing) return;
+    const match = data.find((j) => String(j.id) === pendingOpenId);
+    if (match) {
+      openEdit(match);
+      setPendingOpenId("");
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("openId");
+        window.history.replaceState({}, "", url.toString());
+      } catch {
+        /* ignore URL cleanup failures */
+      }
+    }
+  }, [pendingOpenId, data, editing]);
 
   async function onSaveEdit(e: React.FormEvent) {
     e.preventDefault();
