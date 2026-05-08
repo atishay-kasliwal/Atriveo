@@ -13,7 +13,17 @@ export const CREATE_REFERRAL_INITIAL = {
   referred_by_name: "",
   comment: "",
   keyword_matching: "Medium",
+  source: "",
 };
+
+export const REFERRAL_SOURCE_OPTIONS = [
+  "LinkedIn",
+  "Email",
+  "Network",
+  "Conference",
+  "Direct",
+  "Manual",
+] as const;
 
 export const CHART_COLORS = {
   requestedLine: "#2563eb",

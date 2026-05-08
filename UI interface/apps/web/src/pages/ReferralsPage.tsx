@@ -306,6 +306,7 @@ export default function ReferralsPage() {
         referred_by_name: createForm.referred_by_name.trim() || undefined,
         keyword_matching: createForm.keyword_matching || "Medium",
         comment: createForm.comment.trim() || undefined,
+        source: createForm.source?.trim() || undefined,
       });
       setShowCreateModal(false);
       await Promise.all([loadOpen(), loadApplied(), loadTrend()]);

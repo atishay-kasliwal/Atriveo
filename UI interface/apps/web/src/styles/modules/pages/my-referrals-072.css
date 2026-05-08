@@ -1,0 +1,659 @@
+/* My Referrals page */
+
+.my-ref-page {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 28px 32px 48px;
+  max-width: 1180px;
+  margin: 0 auto;
+  color: var(--text-primary);
+}
+
+.my-ref-error {
+  margin: 0;
+}
+
+.my-ref-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.my-ref-breadcrumb {
+  margin: 0 0 10px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: 0.01em;
+}
+
+.my-ref-breadcrumb-icon {
+  display: inline-flex;
+  font-size: 0.95rem;
+}
+
+.my-ref-title {
+  margin: 0;
+  font-size: 1.85rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+
+.my-ref-title-count {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.my-ref-subtitle {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: 0.92rem;
+}
+
+.my-ref-add-btn {
+  appearance: none;
+  border: none;
+  cursor: pointer;
+  padding: 10px 18px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.92rem;
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.28);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.my-ref-add-btn:hover {
+  background: var(--accent-dim);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.34);
+}
+
+/* KPI cards */
+
+.my-ref-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.my-ref-kpi {
+  background: var(--bg-card);
+  border: 1px solid var(--bg-card-border);
+  border-radius: 14px;
+  padding: 18px 20px;
+  box-shadow: var(--card-shadow);
+  position: relative;
+  overflow: hidden;
+}
+
+.my-ref-kpi::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.55;
+  z-index: 0;
+}
+
+.my-ref-kpi--active::before {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.16), transparent 60%);
+}
+
+.my-ref-kpi--interview::before {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.18), transparent 60%);
+}
+
+.my-ref-kpi--offer::before {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.18), transparent 60%);
+}
+
+.my-ref-kpi--archive::before {
+  background: linear-gradient(135deg, rgba(148, 163, 184, 0.16), transparent 60%);
+}
+
+.my-ref-kpi > * {
+  position: relative;
+  z-index: 1;
+}
+
+.my-ref-kpi-label {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.my-ref-kpi-value {
+  margin: 6px 0 8px;
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.my-ref-kpi-sub {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+/* Card */
+
+.my-ref-card {
+  background: var(--bg-card);
+  border: 1px solid var(--bg-card-border);
+  border-radius: 14px;
+  box-shadow: var(--card-shadow);
+  overflow: hidden;
+}
+
+.my-ref-card-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px 12px;
+  flex-wrap: wrap;
+}
+
+.my-ref-tabs {
+  display: inline-flex;
+  gap: 24px;
+  border-bottom: 1px solid transparent;
+}
+
+.my-ref-tab {
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 8px 0;
+  font-size: 0.92rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  font-weight: 500;
+}
+
+.my-ref-tab.is-active {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.my-ref-tab.is-active::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -3px;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+.my-ref-tab-count {
+  background: rgba(37, 99, 235, 0.12);
+  color: var(--accent);
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  min-width: 22px;
+  text-align: center;
+}
+
+.my-ref-tab:not(.is-active) .my-ref-tab-count {
+  background: rgba(148, 163, 184, 0.18);
+  color: var(--text-secondary);
+}
+
+.my-ref-toolbar-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.my-ref-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-card-elevated);
+  border: 1px solid var(--bg-card-border);
+  border-radius: 8px;
+  padding: 7px 12px;
+  min-width: 280px;
+}
+
+.my-ref-search input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.88rem;
+}
+
+.my-ref-search-icon {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  color: var(--text-muted);
+}
+
+.my-ref-search-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.my-ref-toolbar-btn {
+  appearance: none;
+  border: 1px solid var(--bg-card-border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  padding: 7px 14px;
+  font-size: 0.86rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.my-ref-toolbar-btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.my-ref-toolbar-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.my-ref-toolbar-btn.is-active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.my-ref-filter-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.my-ref-filter-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 6px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 999px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.my-ref-filter-popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  background: var(--bg-card);
+  border: 1px solid var(--bg-card-border);
+  border-radius: 10px;
+  box-shadow: var(--card-shadow-strong);
+  min-width: 200px;
+  padding: 12px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.my-ref-filter-title {
+  margin: 0 0 4px;
+  font-size: 0.74rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.my-ref-filter-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+  color: var(--text-primary);
+  padding: 4px 2px;
+  cursor: pointer;
+}
+
+.my-ref-filter-option input {
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.my-ref-filter-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 8px;
+  margin-top: 4px;
+  border-top: 1px solid var(--bg-card-border);
+  gap: 8px;
+}
+
+.my-ref-filter-clear {
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+
+.my-ref-filter-clear:hover:not(:disabled) {
+  color: var(--text-primary);
+}
+
+.my-ref-filter-clear:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.my-ref-filter-done {
+  appearance: none;
+  background: var(--accent);
+  border: none;
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 5px 12px;
+  cursor: pointer;
+}
+
+.my-ref-filter-done:hover {
+  background: var(--accent-dim);
+}
+
+/* Table */
+
+.my-ref-table-wrap {
+  overflow-x: auto;
+  border-top: 1px solid var(--bg-card-border);
+}
+
+.my-ref-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.my-ref-table thead th {
+  text-align: left;
+  font-size: 0.74rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 600;
+  padding: 14px 18px;
+  background: var(--bg-card-elevated);
+  border-bottom: 1px solid var(--bg-card-border);
+}
+
+.my-ref-table tbody td {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--bg-card-border);
+  vertical-align: middle;
+  color: var(--text-secondary);
+}
+
+.my-ref-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.my-ref-table tbody tr:hover td {
+  background: var(--surface-hover);
+}
+
+.my-ref-cell-strong {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.my-ref-cell-muted {
+  color: var(--text-muted);
+}
+
+.my-ref-empty {
+  text-align: center;
+  padding: 32px;
+  color: var(--text-muted);
+  font-size: 0.92rem;
+}
+
+.my-ref-person {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.my-ref-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.22), rgba(56, 189, 248, 0.22));
+  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.78rem;
+  border: 1px solid var(--bg-card-border);
+  flex-shrink: 0;
+}
+
+.my-ref-person-meta {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.my-ref-person-meta strong {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.my-ref-person-meta span {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.my-ref-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  border: 1px solid transparent;
+}
+
+.my-ref-status--pending {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.28);
+}
+
+.my-ref-status--interviewing {
+  background: rgba(59, 130, 246, 0.12);
+  color: #3b82f6;
+  border-color: rgba(59, 130, 246, 0.32);
+}
+
+.my-ref-status--offer {
+  background: rgba(34, 197, 94, 0.14);
+  color: #22c55e;
+  border-color: rgba(34, 197, 94, 0.32);
+}
+
+.my-ref-status--archived {
+  background: rgba(148, 163, 184, 0.16);
+  color: var(--text-muted);
+  border-color: rgba(148, 163, 184, 0.28);
+}
+
+.my-ref-action-cell {
+  width: 48px;
+  text-align: right;
+  position: relative;
+}
+
+.my-ref-row-menu-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  padding: 4px 8px;
+  border-radius: 6px;
+  line-height: 1;
+}
+
+.my-ref-row-menu-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.my-ref-row-menu {
+  position: absolute;
+  right: 16px;
+  top: calc(100% - 4px);
+  background: var(--bg-card);
+  border: 1px solid var(--bg-card-border);
+  border-radius: 10px;
+  box-shadow: var(--card-shadow-strong);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  min-width: 130px;
+  overflow: hidden;
+}
+
+.my-ref-row-menu button {
+  appearance: none;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  padding: 9px 14px;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+}
+
+.my-ref-row-menu button:hover {
+  background: var(--surface-hover);
+}
+
+/* Footer / pagination */
+
+.my-ref-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  font-size: 0.84rem;
+  color: var(--text-muted);
+  border-top: 1px solid var(--bg-card-border);
+}
+
+.my-ref-pagination {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.my-ref-page-btn {
+  appearance: none;
+  border: 1px solid var(--bg-card-border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.my-ref-page-btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.my-ref-page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.my-ref-page-current {
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+}
+
+/* Responsive */
+
+@media (max-width: 1024px) {
+  .my-ref-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .my-ref-page {
+    padding: 20px 16px 40px;
+  }
+  .my-ref-card-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .my-ref-toolbar-actions {
+    justify-content: space-between;
+  }
+  .my-ref-search {
+    flex: 1;
+    min-width: 0;
+  }
+  .my-ref-kpis {
+    grid-template-columns: 1fr;
+  }
+  .my-ref-table thead {
+    display: none;
+  }
+  .my-ref-table tbody td {
+    display: block;
+    border-bottom: none;
+    padding: 6px 18px;
+  }
+  .my-ref-table tbody tr {
+    display: block;
+    border-bottom: 1px solid var(--bg-card-border);
+    padding: 10px 0;
+  }
+}

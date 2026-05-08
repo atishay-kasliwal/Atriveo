@@ -1,4 +1,5 @@
 import type { CreateReferralForm } from "../types";
+import { REFERRAL_SOURCE_OPTIONS } from "../constants";
 
 type Props = {
   showCreateModal: boolean;
@@ -49,6 +50,21 @@ export default function CreateReferralModal({
               value={createForm.referred_by_name}
               onChange={(e) => setCreateForm((p) => ({ ...p, referred_by_name: e.target.value }))}
             />
+            <div className="form-row">
+              <label className="form-label">Source</label>
+              <select
+                className="form-select"
+                value={createForm.source}
+                onChange={(e) => setCreateForm((p) => ({ ...p, source: e.target.value }))}
+              >
+                <option value="">Default (Manual)</option>
+                {REFERRAL_SOURCE_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           <div className="qa-right">
             <input

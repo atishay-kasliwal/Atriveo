@@ -166,6 +166,8 @@
   padding: 10px;
   background: color-mix(in srgb, var(--bg-card) 84%, transparent);
   min-height: 0;
+  max-height: 160px;
+  overflow: hidden;
   display: grid;
   gap: 6px;
   transition: border-color 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;

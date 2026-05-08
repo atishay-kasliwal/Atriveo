@@ -3766,7 +3766,8 @@ async function syncReferralFromJob(
   const requestDate = toIsoDate((job as any).date_saved) ?? toIsoDate((job as any).applied_at);
   const keywordMatching = normalizeKeywordMatching((job as any).keyword_matching) ?? "Medium";
   const comment = asTrimmedString((job as any).notes);
-  const referredByName = asTrimmedString(options?.referredByName);
+  const shouldUpdateReferredByName = Object.prototype.hasOwnProperty.call(options ?? {}, "referredByName");
+  const referredByName = shouldUpdateReferredByName ? asTrimmedString(options?.referredByName) : null;
 
   let existingId: number | null = null;
 
@@ -3821,7 +3822,10 @@ async function syncReferralFromJob(
         referral_received = $7,
         keyword_matching = COALESCE($8, keyword_matching, 'Medium'),
         comment = $9,
-        referred_by_name = $10,
+        referred_by_name = CASE
+          WHEN $10::boolean THEN $11
+          ELSE referred_by_name
+        END,
         updated_at = NOW()
       WHERE id = $1 AND user_id = $2
       `,
@@ -3835,6 +3839,7 @@ async function syncReferralFromJob(
         referralStatus,
         keywordMatching,
         comment,
+        shouldUpdateReferredByName,
         referredByName,
       ],
     );
@@ -4975,7 +4980,7 @@ app.patch("/api/jobs/:id", async (c) => {
     ],
   );
   if (!row) return c.json({ error: "Not found" }, 404);
-  await syncReferralFromJob(c.env, userId, row as Record<string, unknown>, { referredByName: p.referred_by_name ?? null });
+  await syncReferralFromJob(c.env, userId, row as Record<string, unknown>, { referredByName: p.referred_by_name });
   await syncCompanyDirectoryFromJob(c.env, row as Record<string, unknown>, { usageIncrement: 0 });
   return c.json(row);
 });
@@ -5134,10 +5139,13 @@ app.get("/api/oa/active", async (c) => {
     c.env,
     `
     SELECT
-      j.*,
-      j.date_saved::text AS date_saved_text,
-      j.applied_at::text AS applied_at_text,
-      j.oa_deadline_date::text AS oa_deadline_date_text,
+      j.id,
+      j.role,
+      j.company,
+      j.oa_deadline_date::text AS oa_deadline_date,
+      j.notes,
+      j.date_saved::text AS date_saved,
+      j.job_application_id,
       CASE
         WHEN j.oa_deadline_date IS NULL THEN 'no_deadline'
         WHEN j.oa_deadline_date < COALESCE($2::date, CURRENT_DATE) THEN 'overdue'
@@ -5535,6 +5543,7 @@ const referralInput = z.object({
   keyword_matching: z.enum(["Strong", "Medium", "Weak", "Week"]).optional(),
   referred_by_name: z.string().optional(),
   comment: z.string().optional(),
+  source: z.string().max(120).optional(),
 });
 
 app.get("/api/referrals", async (c) => {
@@ -5588,11 +5597,12 @@ app.post("/api/referrals", async (c) => {
   const parsed = referralInput.safeParse(await c.req.json());
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
   const p = parsed.data;
+  const sourceValue = (p.source ?? "").trim() || "manual";
   const [row] = await query(
     c.env,
     `
     INSERT INTO referrals (user_id, source, company, request_log, request_date, updated_date, request_link, referral_received, keyword_matching, referred_by_name, comment)
-    VALUES ($1, 'manual', $2, $3, $4::date, COALESCE($4::date, CURRENT_DATE), $5, $6, COALESCE($7, 'Medium'), $8, $9)
+    VALUES ($1, $10, $2, $3, $4::date, COALESCE($4::date, CURRENT_DATE), $5, $6, COALESCE($7, 'Medium'), $8, $9)
     RETURNING *
     `,
     [
@@ -5605,6 +5615,7 @@ app.post("/api/referrals", async (c) => {
       normalizeKeywordMatching(p.keyword_matching),
       p.referred_by_name ?? null,
       p.comment ?? null,
+      sourceValue,
     ],
   );
   return c.json(row, 201);
@@ -5674,6 +5685,7 @@ const referralUpdateInput = z.object({
   keyword_matching: z.enum(["Strong", "Medium", "Weak", "Week"]).optional().nullable(),
   referred_by_name: z.string().optional().nullable(),
   comment: z.string().optional(),
+  source: z.string().max(120).optional().nullable(),
 });
 
 app.patch("/api/referrals/:id", async (c) => {
@@ -5716,6 +5728,10 @@ app.patch("/api/referrals/:id", async (c) => {
   if (p.comment !== undefined) {
     updates.push(`comment = $${i++}`);
     values.push(p.comment);
+  }
+  if (p.source !== undefined) {
+    updates.push(`source = $${i++}`);
+    values.push(p.source == null ? null : p.source.trim() || null);
   }
   if (updates.length === 0) return c.json({ error: "No fields to update" }, 400);
   values.push(id);
