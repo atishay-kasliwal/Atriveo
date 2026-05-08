@@ -341,13 +341,9 @@ export default function MyReferralsPage() {
     <section className="my-ref-page">
       <header className="my-ref-header">
         <div>
-          <p className="my-ref-breadcrumb">
-            <span className="my-ref-breadcrumb-icon" aria-hidden="true">🏛</span> Referrals
-          </p>
           <h1 className="my-ref-title">
             My Referrals <span className="my-ref-title-count">({headerCount})</span>
           </h1>
-          <p className="my-ref-subtitle">Track every introduction — from first ping to final outcome.</p>
         </div>
         <button type="button" className="my-ref-add-btn" onClick={openCreate}>
           + Add referral
