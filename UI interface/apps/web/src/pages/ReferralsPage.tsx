@@ -35,6 +35,9 @@ export default function ReferralsPage() {
   const [editing, setEditing] = useState<Record<string, unknown> | null>(null);
   const [editStatus, setEditStatus] = useState("");
   const [editReferredByName, setEditReferredByName] = useState("");
+  const [editCompany, setEditCompany] = useState("");
+  const [editRole, setEditRole] = useState("");
+  const [editDate, setEditDate] = useState("");
   const [showCreateRecordModal, setShowCreateRecordModal] = useState(false);
   const [isCreatingRecord, setIsCreatingRecord] = useState(false);
   const [createRecordError, setCreateRecordError] = useState("");
@@ -152,17 +155,44 @@ export default function ReferralsPage() {
     setEditing(r);
     setEditStatus(String(r.referral_received ?? ""));
     setEditReferredByName(String(r.referred_by_name ?? ""));
+    setEditCompany(String(r.company ?? ""));
+    setEditRole(String(r.request_log ?? ""));
+    const rawDate = r.request_date;
+    if (rawDate == null || rawDate === "") {
+      setEditDate("");
+    } else {
+      const raw = String(rawDate);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+        setEditDate(raw);
+      } else {
+        const parsed = new Date(raw);
+        if (Number.isNaN(parsed.getTime())) {
+          setEditDate("");
+        } else {
+          const y = parsed.getFullYear();
+          const m = String(parsed.getMonth() + 1).padStart(2, "0");
+          const d = String(parsed.getDate()).padStart(2, "0");
+          setEditDate(`${y}-${m}-${d}`);
+        }
+      }
+    }
   }
 
   async function onSaveEdit(e: React.FormEvent) {
     e.preventDefault();
     if (!editing?.id) return;
     const newStatus = editStatus.trim();
+    const newCompany = editCompany.trim();
+    const newRole = editRole.trim();
+    const newDate = editDate.trim();
     try {
       setIsSaving(true);
       await updateReferral(String(editing.id), {
         referral_received: newStatus || null,
         referred_by_name: editReferredByName.trim() || null,
+        company: newCompany || undefined,
+        request_log: newRole || undefined,
+        request_date: newDate || undefined,
       });
       const movesToJobs = JOB_STATUSES.includes(newStatus as (typeof JOB_STATUSES)[number]);
       if (movesToJobs) {
@@ -174,8 +204,8 @@ export default function ReferralsPage() {
           /* omit invalid URL */
         }
         await createJob({
-          company: String(editing.company ?? "").trim(),
-          role: (editing.request_log as string)?.trim() || "(From referral)",
+          company: newCompany || String(editing.company ?? "").trim(),
+          role: newRole || (editing.request_log as string)?.trim() || "(From referral)",
           job_link: jobLink,
           keyword_matching: String((editing as any).keyword_matching ?? "Medium"),
           referral_status: newStatus,
@@ -375,6 +405,12 @@ export default function ReferralsPage() {
         setEditStatus={setEditStatus}
         editReferredByName={editReferredByName}
         setEditReferredByName={setEditReferredByName}
+        editCompany={editCompany}
+        setEditCompany={setEditCompany}
+        editRole={editRole}
+        setEditRole={setEditRole}
+        editDate={editDate}
+        setEditDate={setEditDate}
         setEditing={setEditing}
         onSaveEdit={onSaveEdit}
       />
