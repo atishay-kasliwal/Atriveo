@@ -28,7 +28,7 @@ type DisplayRow = {
   raw: ReferralRow;
 };
 
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 10;
 
 function deriveStatus(row: ReferralRow): DerivedStatus {
   const received = String(row.referral_received ?? "").trim().toLowerCase();
@@ -96,8 +96,8 @@ export default function MyReferralsPage() {
   const [activeTab, setActiveTab] = useState<"active" | "archive">("active");
   const [page, setPage] = useState(1);
   const [sortDesc, setSortDesc] = useState(true);
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | string | null>(null);
   const [statusFilters, setStatusFilters] = useState<Set<DerivedStatus>>(() => new Set());
 
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -140,15 +140,14 @@ export default function MyReferralsPage() {
 
   useEffect(() => {
     function onDocClick() {
-      setOpenMenuId(null);
       setIsFilterOpen(false);
     }
-    if (openMenuId || isFilterOpen) {
+    if (isFilterOpen) {
       document.addEventListener("click", onDocClick);
       return () => document.removeEventListener("click", onDocClick);
     }
     return undefined;
-  }, [openMenuId, isFilterOpen]);
+  }, [isFilterOpen]);
 
   useEffect(() => {
     const onRefresh = () => loadAll();
@@ -282,7 +281,6 @@ export default function MyReferralsPage() {
   }
 
   async function onDelete(row: DisplayRow) {
-    setOpenMenuId(null);
     const label = [row.company, row.role].filter(Boolean).join(" — ");
     const ok = await confirm({
       title: "Delete Referral",
@@ -292,10 +290,13 @@ export default function MyReferralsPage() {
     });
     if (!ok) return;
     try {
+      setPendingDeleteId(row.id);
       await deleteReferral(row.id);
       await loadAll();
     } catch (err) {
       setError((err as Error).message);
+    } finally {
+      setPendingDeleteId(null);
     }
   }
 
@@ -486,33 +487,43 @@ export default function MyReferralsPage() {
                   </td>
                   <td className="my-ref-cell-muted">{row.date}</td>
                   <td className="my-ref-action-cell">
-                    <button
-                      type="button"
-                      className="my-ref-row-menu-btn"
-                      aria-label="Row actions"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setOpenMenuId((current) => (current === String(row.id) ? null : String(row.id)));
-                      }}
-                    >
-                      ⋯
-                    </button>
-                    {openMenuId === String(row.id) ? (
-                      <div className="my-ref-row-menu" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setOpenMenuId(null);
-                            openEdit(row.raw);
-                          }}
-                        >
-                          Edit
-                        </button>
-                        <button type="button" onClick={() => onDelete(row)}>
-                          Delete
-                        </button>
-                      </div>
-                    ) : null}
+                    <div className="my-ref-row-actions">
+                      <button
+                        type="button"
+                        className="my-ref-row-action my-ref-row-action--edit"
+                        aria-label={`Edit referral for ${row.company}`}
+                        title="Edit"
+                        onClick={() => openEdit(row.raw)}
+                      >
+                        <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                          <path
+                            d="M11.5 2.5l2 2-7.5 7.5H4v-2L11.5 2.5z"
+                            stroke="currentColor"
+                            strokeWidth="1.4"
+                            strokeLinejoin="round"
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        className="my-ref-row-action my-ref-row-action--delete"
+                        aria-label={`Delete referral for ${row.company}`}
+                        title="Delete"
+                        disabled={pendingDeleteId === row.id}
+                        onClick={() => onDelete(row)}
+                      >
+                        <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                          <path
+                            d="M3.5 4.5h9m-7 0v-1a1 1 0 011-1h3a1 1 0 011 1v1m-5 0v8a1 1 0 001 1h4a1 1 0 001-1v-8M7 7v5M9 7v5"
+                            stroke="currentColor"
+                            strokeWidth="1.4"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
