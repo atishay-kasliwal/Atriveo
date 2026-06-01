@@ -16,13 +16,13 @@ function toHex(bytes: ArrayBuffer): string {
     .join("");
 }
 
-function fromHex(hex: string): Uint8Array {
+function fromHex(hex: string): Uint8Array<ArrayBuffer> {
   const clean = hex.trim();
   const out = new Uint8Array(clean.length / 2);
   for (let i = 0; i < clean.length; i += 2) {
     out[i / 2] = parseInt(clean.slice(i, i + 2), 16);
   }
-  return out;
+  return out as Uint8Array<ArrayBuffer>;
 }
 
 function randomHex(bytes = 16): string {
