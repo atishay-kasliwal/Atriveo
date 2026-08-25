@@ -27,7 +27,7 @@ EMAIL_FROM=noreply@atriveo.com
 # Optional: reset link base used in emails.
 # Examples:
 # RESET_PASSWORD_URL_BASE=http://localhost:5173/?token=
-# RESET_PASSWORD_URL_BASE=https://www.atriveo.com/?token=
+# RESET_PASSWORD_URL_BASE=https://tracker.atriveo.com/?token=
 RESET_PASSWORD_URL_BASE=
 
 # Optional: reset token expiry in minutes (default 10, max 120).

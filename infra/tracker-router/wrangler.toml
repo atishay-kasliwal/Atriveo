@@ -1,0 +1,8 @@
+name = "atriveo-tracker-router"
+main = "src/index.ts"
+compatibility_date = "2026-08-25"
+workers_dev = true
+
+[[routes]]
+pattern = "tracker.atriveo.com"
+custom_domain = true

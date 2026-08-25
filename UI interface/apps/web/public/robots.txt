@@ -5,4 +5,4 @@ Disallow: /.env
 Disallow: /api
 Disallow: /dashboard/settings
 
-Sitemap: https://www.atriveo.com/sitemap.xml
+Sitemap: https://tracker.atriveo.com/sitemap.xml

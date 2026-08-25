@@ -18,27 +18,17 @@ Private repository metadata must never be discovered or published automatically.
 ## Current verified state
 
 - The tracker is deployed from this repository to the Cloudflare Pages project `noobly`.
-- `atriveo.com` and `www.atriveo.com` are active custom domains on `noobly`.
-- `tracker.atriveo.com` has been attached to `noobly`, but is pending DNS validation.
-- The required DNS record is:
-
-  ```text
-  Type: CNAME
-  Name: tracker
-  Target: noobly.pages.dev
-  Proxy: Proxied
-  TTL: Auto
-  ```
-
-- The authenticated Cloudflare credential can manage Pages but cannot create DNS records. A credential with DNS Edit permission, or a one-time dashboard change, is required to add the CNAME.
+- `atriveo.com` and `www.atriveo.com` remain active on `noobly` during the compatibility window.
+- `tracker.atriveo.com` is active as a custom domain on the `atriveo-tracker-router` Worker.
+- The router in `infra/tracker-router` transparently serves `noobly.pages.dev`; Cloudflare manages its DNS record and certificate.
 - The GitHub organization/user already has a repository named `Atriveo`; it is this tracker repository. That name cannot simultaneously be used by the new brand-site repository.
 
 ## Phase 0: move the tracker safely
 
 ### 0.1 Make the new hostname live
 
-1. Add the CNAME above in the `atriveo.com` Cloudflare DNS zone.
-2. Wait until the Pages custom-domain status and certificate status are both `active`.
+1. Deploy the tracker router and verify its custom domain and certificate are active.
+2. Confirm `tracker.atriveo.com` resolves through public DNS.
 3. Verify these routes on the new origin:
 
    - `/`
@@ -174,12 +164,8 @@ The GitHub and Cloudflare inventories show these likely candidates. Titles, desc
 | Atriveo Knowledge | Public source; no verified live URL yet | Intelligence |
 | Audiobook Atriveo | Public source; no verified live URL yet | Creative |
 | Atriveo Reel | Public source; README describes a self-hosted version; public URL needs confirmation | Creative |
-| Atriveo Dance | Private source; publication needs an explicit opt-in | Creative |
-| Atriveo Resume | Private source; publication needs an explicit opt-in | Career |
-| Atriveo Trading Agent | Private source; publication needs an explicit opt-in | Finance |
-| Atriveo Maps | Private source; publication needs an explicit opt-in | Research |
-| Atriveo Dock | Private source; publication needs an explicit opt-in | Infrastructure |
-| Atriveo Capture Agent | Private source; publication needs an explicit opt-in | Intelligence |
+
+Private candidates are intentionally omitted from the public catalog until each project has an explicit publication decision.
 
 Cloudflare also contains `grant.atriveo.com` and an `atriveo-h1b` Pages project. They should be matched to their source repositories and reviewed before they enter the catalog.
 
@@ -278,4 +264,3 @@ A React/Vite implementation is also viable if keeping one frontend stack is more
 2. Which private repositories may appear as named projects on the public site?
 3. Which two or three projects should be featured on the homepage?
 4. Should project detail pages ship in version one, or should cards link directly to live/source destinations?
-

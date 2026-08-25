@@ -103,7 +103,7 @@ const GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo";
 
 const MAX_FRIENDS = 10;
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
-const ATRIVEO_APP_URL = "https://www.atriveo.com";
+const ATRIVEO_APP_URL = "https://tracker.atriveo.com";
 const ATRIVEO_NETWORK_URL = `${ATRIVEO_APP_URL}/dashboard/network`;
 const DIGEST_SCHEDULE_TIME_ZONE = "America/New_York";
 const DIGEST_ONE_TIME_CRON_UTC = "30 2 * * *";
@@ -644,7 +644,7 @@ function getPasswordResetTtlMinutes(env: Bindings): number {
 function getResetPasswordBaseUrl(env: Bindings): string {
   const configured = String(env.RESET_PASSWORD_URL_BASE ?? "").trim();
   if (configured) return configured;
-  return "https://www.atriveo.com/?token=";
+  return "https://tracker.atriveo.com/?token=";
 }
 
 function makeRandomToken(bytes = 32): string {

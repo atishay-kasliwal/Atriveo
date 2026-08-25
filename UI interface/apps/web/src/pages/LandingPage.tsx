@@ -813,11 +813,11 @@ export default function LandingPage({
           <p>© 2026 Atriveo. Built for ambitious students.</p>
           <div className="lv-footer-mini-actions">
             <nav className="lv-footer-mini-legal" aria-label="Legal links">
-              <a href="https://www.atriveo.com/privacy" target="_blank" rel="noreferrer">
+              <a href="/privacy" target="_blank" rel="noreferrer">
                 Privacy Policy
               </a>
               <span aria-hidden="true">•</span>
-              <a href="https://www.atriveo.com/terms" target="_blank" rel="noreferrer">
+              <a href="/terms" target="_blank" rel="noreferrer">
                 Terms of Service
               </a>
             </nav>

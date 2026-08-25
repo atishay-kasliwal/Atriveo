@@ -15,7 +15,7 @@ An end-to-end system that auto-captures job applications via a Chrome extension,
 **Active jobs + momentum chart**
 ![Active Jobs](release/store-assets/atriveo-store-shot-3-1280x800.jpg)
 
-Live: [atriveo.com](https://atriveo.com)  
+Live: [tracker.atriveo.com](https://tracker.atriveo.com)
 Chrome Extension: [Atriveo Job Assistant](https://chromewebstore.google.com)
 
 ---

@@ -38,7 +38,7 @@ In Target List:     {{totalTargetApps}}
 
 --------------------------------------------
 
-Open Dashboard: https://www.atriveo.com/dashboard
+Open Dashboard: https://tracker.atriveo.com/dashboard
 
 --------------------------------------------
 

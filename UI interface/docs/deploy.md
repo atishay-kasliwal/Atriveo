@@ -46,7 +46,7 @@ Notes:
 
 ## 5) Deploy React app to Cloudflare Pages
 
-The marketing landing now lives at `/` and the authenticated dashboard continues at **`/dashboard`** (e.g. `atishaykasliwal.com/dashboard`).
+The tracker landing lives at `/` and the authenticated dashboard continues at **`/dashboard`** on `tracker.atriveo.com`.
 Keep `VITE_APP_BASE=/` so assets resolve from the root while routes handle the `/dashboard` prefix.
 
 1. Connect the repo to Cloudflare Pages.
@@ -67,15 +67,13 @@ Use Cloudflare Access in front of the Pages project:
 - Policy: allow only your email(s).
 - API still requires token/bearer for direct calls.
 
-## 7) Map domain to atishaykasliwal.com/dashboard
+## 7) Map the tracker domain
 
-**Landing at `/`, dashboard at `/dashboard` on the same Pages project**
+**Tracker landing at `/`, dashboard at `/dashboard` on the same Pages deployment**
 
-- Add custom domains to the Pages project (examples):
-  - **`atriveo.com`** (new primary)
-  - **`production.atishaykasliwal.com`** (keep live during transition)
-- Pages handles `/` (landing) and `/dashboard` (app) automatically because the SPA uses client-side routing and `VITE_APP_BASE=/`.
-- Optional: when ready, add a Cloudflare redirect rule from `production.atishaykasliwal.com/*` to `https://atriveo.com/$1` while keeping a 30-day grace period for existing users.
+- Production is exposed at **`tracker.atriveo.com`** through the `atriveo-tracker-router` Cloudflare Worker in `infra/tracker-router`.
+- The router proxies the existing `noobly.pages.dev` deployment and lets `atriveo.com` serve the separate brand site.
+- The Pages SPA handles `/` and `/dashboard` automatically because client-side routing uses `VITE_APP_BASE=/`.
 
 **If another site already lives at the apex:**
 
@@ -86,10 +84,11 @@ Use Cloudflare Access in front of the Pages project:
 - Run the web app: `npm run dev:web` (from repo root).
 - Open **http://localhost:5173/dashboard/** (Vite serves the app under the same base path).
 
-## 8) Atriveo.com cutover checklist
+## 8) Tracker cutover checklist
 
-- **DNS**: point `atriveo.com` (and `www`) to the Cloudflare Pages project; keep `production.atishaykasliwal.com` CNAMEd to the same Pages project for a parallel run.
+- **Domain**: deploy `infra/tracker-router/wrangler.toml`; its Worker custom domain provisions DNS and TLS for `tracker.atriveo.com`.
 - **API**: Workers stay on `job-tracker-api` / `job-tracker-api-staging`. If you want a branded hostname, add a Worker route like `api.atriveo.com/*` pointing to the production Worker.
-- **Env**: confirm `SIGNUPS_ENABLED=true` in Wrangler (`wrangler.toml` already sets it) and set `VITE_APP_BASE=/` in Pages env vars.
-- **Analytics/GA allowed hosts**: include both `atriveo.com` and `production.atishaykasliwal.com` if GA is enabled.
-- **Graceful migration**: after verifying atriveo.com, keep the old domain live for ~30 days; then add 301 redirects from `production.atishaykasliwal.com/*` to `atriveo.com/$1`.
+- **Env**: confirm `SIGNUPS_ENABLED=true`, set `RESET_PASSWORD_URL_BASE=https://tracker.atriveo.com/?token=`, and keep `VITE_APP_BASE=/`.
+- **OAuth**: authorize `https://tracker.atriveo.com` in the Google OAuth web client.
+- **Analytics**: report the tracker and brand hosts separately.
+- **Graceful migration**: redirect legacy `/dashboard/*` requests on the apex to the same tracker path when the brand site takes over.
