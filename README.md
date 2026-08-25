@@ -1,4 +1,4 @@
-# Atriveo — Job Application Intelligence Platform
+# Atriveo Tracker — Job Application Intelligence Platform
 
 An end-to-end system that auto-captures job applications via a Chrome extension, tracks them through a full-featured dashboard, and surfaces network-level insights through a social layer — all running on a serverless edge stack.
 

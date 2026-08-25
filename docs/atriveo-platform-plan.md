@@ -1,6 +1,6 @@
 # Atriveo platform and domain plan
 
-Status: planning baseline, 2026-08-25
+Status: executed baseline, 2026-08-25
 
 ## Product decision
 
@@ -21,6 +21,10 @@ Private repository metadata must never be discovered or published automatically.
 - `atriveo.com` and `www.atriveo.com` remain active on `noobly` during the compatibility window.
 - `tracker.atriveo.com` is active as a custom domain on the `atriveo-tracker-router` Worker.
 - The router in `infra/tracker-router` transparently serves `noobly.pages.dev`; Cloudflare manages its DNS record and certificate.
+- `atriveo.com` is routed through the separate `atriveo-site` Worker and serves the new ecosystem site.
+- The brand source is public at `atishay-kasliwal/atriveo-site`.
+- `www.atriveo.com` intentionally remains on the tracker during the extension transition window.
+- Legacy apex `/dashboard/*`, `/app/*`, `/extension-install`, and password-reset token requests redirect to `tracker.atriveo.com`.
 - The GitHub organization/user already has a repository named `Atriveo`; it is this tracker repository. That name cannot simultaneously be used by the new brand-site repository.
 
 ## Phase 0: move the tracker safely
@@ -192,11 +196,11 @@ The homepage should feel like a living studio index, not another job-tracker sal
 
 ### Repository naming decision
 
-Recommended low-risk choice:
+Implemented low-risk choice:
 
-- Keep the current `atishay-kasliwal/Atriveo` repository name until all old source links and deployments have been updated.
-- Create the brand implementation as `atishay-kasliwal/atriveo-site`; the public product and domain still use the name **Atriveo**.
-- Rename the current repository to `atriveo-tracker` only when the migration is stable.
+- The tracker remains at `atishay-kasliwal/Atriveo` so existing source links continue to work.
+- The brand implementation lives at `atishay-kasliwal/atriveo-site`; the public product and domain use the name **Atriveo**.
+- A later tracker-repository rename is optional and is not required for the domain architecture.
 
 If the new repository must be named exactly `Atriveo`, rename the current repository first and immediately reuse the old name. This disables GitHub's redirect from the old tracker repository URL, so documentation, badges, clones, Pages integrations, and external links must be updated in the same cutover.
 
@@ -258,9 +262,16 @@ A React/Vite implementation is also viable if keeping one frontend stack is more
 6. Verify SEO metadata, analytics, legal links, and every project action.
 7. Monitor 404s, authentication failures, extension sync, and password-reset traffic for at least one release cycle.
 
-## Decisions required before implementation
+## Implemented decisions
 
-1. Should the brand repository use the low-risk name `atriveo-site`, or must it be exactly `Atriveo`?
-2. Which private repositories may appear as named projects on the public site?
-3. Which two or three projects should be featured on the homepage?
-4. Should project detail pages ship in version one, or should cards link directly to live/source destinations?
+1. The brand repository uses the low-risk name `atriveo-site`.
+2. Only verified public projects are named in the public catalog.
+3. Tracker, Applications, and Cortex are featured on the homepage.
+4. Version one includes project detail pages plus direct live/source actions.
+5. Public GitHub metadata and activity are refreshed at build time; private metadata is excluded.
+
+## Remaining operational follow-up
+
+- Add `https://tracker.atriveo.com` to the Google OAuth web client's authorized JavaScript origins if it is not already present.
+- Publish Chrome extension v1.0.7 from `release/atriveo-job-assistant-v1.0.7.zip`.
+- After extension adoption, route `www.atriveo.com` to the brand site or redirect it to the apex.
