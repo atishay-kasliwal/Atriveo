@@ -157,7 +157,7 @@ Shows top 3 target companies they applied to today.
 Single button centered below content.
 
 - **Text**: "View Full Dashboard →"
-- **Link**: `https://www.atriveo.com/dashboard`
+- **Link**: `https://tracker.atriveo.com/dashboard`
 - **Style**:
   - Background: Purple gradient (`linear-gradient(135deg, #667eea 0%, #764ba2 100%)`)
   - Color: White

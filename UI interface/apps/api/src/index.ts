@@ -103,7 +103,7 @@ const GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo";
 
 const MAX_FRIENDS = 10;
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
-const ATRIVEO_APP_URL = "https://www.atriveo.com";
+const ATRIVEO_APP_URL = "https://tracker.atriveo.com";
 const ATRIVEO_NETWORK_URL = `${ATRIVEO_APP_URL}/dashboard/network`;
 const DIGEST_SCHEDULE_TIME_ZONE = "America/New_York";
 const DIGEST_ONE_TIME_CRON_UTC = "30 2 * * *";
@@ -644,7 +644,7 @@ function getPasswordResetTtlMinutes(env: Bindings): number {
 function getResetPasswordBaseUrl(env: Bindings): string {
   const configured = String(env.RESET_PASSWORD_URL_BASE ?? "").trim();
   if (configured) return configured;
-  return "https://www.atriveo.com/?token=";
+  return "https://tracker.atriveo.com/?token=";
 }
 
 function makeRandomToken(bytes = 32): string {
@@ -4547,6 +4547,11 @@ const extensionApplicationInputV1 = z.object({
   }),
 });
 
+const atriveoIntegrationApplicationInput = extensionApplicationInputV1.extend({
+  user_email: z.string().email(),
+  user_name: z.string().trim().max(160).optional(),
+});
+
 function mapExtensionV1ToCreateJobInput(
   userId: number,
   payload: z.infer<typeof extensionApplicationInputV1>,
@@ -4576,6 +4581,82 @@ function mapExtensionV1ToCreateJobInput(
     referred_by_name: referralName,
   };
 }
+
+async function ensureDashboardUserForIntegration(
+  env: Bindings,
+  email: string,
+  name?: string,
+): Promise<{ id: number; email: string; first_name: string | null; last_name: string | null } | null> {
+  const normalizedEmail = normalizeEmail(email);
+  const nameParts = String(name ?? "").trim().split(/\s+/).filter(Boolean);
+  const firstName = nameParts[0] ?? "";
+  const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
+  const [user] = await query<{ id: number; email: string; first_name: string | null; last_name: string | null }>(
+    env,
+    `
+    INSERT INTO dashboard_users (email, first_name, last_name)
+    VALUES ($1, NULLIF($2, ''), NULLIF($3, ''))
+    ON CONFLICT (email)
+    DO UPDATE SET
+      first_name = COALESCE(NULLIF(dashboard_users.first_name, ''), NULLIF(EXCLUDED.first_name, '')),
+      last_name = COALESCE(NULLIF(dashboard_users.last_name, ''), NULLIF(EXCLUDED.last_name, '')),
+      updated_at = NOW()
+    RETURNING id, email, first_name, last_name
+    `,
+    [normalizedEmail, firstName, lastName],
+  );
+  return user ?? null;
+}
+
+app.post("/integrations/atriveo/applications", async (c) => {
+  const bearer = c.req.header("authorization")?.replace(/^Bearer\s+/i, "").trim();
+  const sharedToken = c.env.API_SHARED_TOKEN?.trim();
+  if (!sharedToken || bearer !== sharedToken) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+
+  const parsed = atriveoIntegrationApplicationInput.safeParse(await c.req.json());
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
+
+  const user = await ensureDashboardUserForIntegration(
+    c.env,
+    parsed.data.user_email,
+    parsed.data.user_name,
+  );
+  if (!user) return c.json({ error: "Unable to resolve integration user." }, 500);
+
+  const createInput = mapExtensionV1ToCreateJobInput(Number(user.id), parsed.data);
+  const duplicate = await findDuplicateJobForUser(c.env, createInput);
+  if (duplicate) {
+    return c.json(
+      {
+        error: "Application already exists for this job.",
+        code: "DUPLICATE_APPLICATION",
+        payload_version: "v1",
+        existing_job: duplicate,
+      },
+      409,
+    );
+  }
+
+  const row = await createJobRecord(c.env, createInput);
+  if (!row) return c.json({ error: "Unable to create Atriveo application right now." }, 500);
+
+  return c.json(
+    {
+      payload_version: "v1",
+      source: parsed.data.source ?? "atriveo-app",
+      user: {
+        id: Number(user.id),
+        email: String(user.email),
+        first_name: user.first_name ?? null,
+        last_name: user.last_name ?? null,
+      },
+      job: row,
+    },
+    201,
+  );
+});
 
 app.post("/api/jobs", async (c) => {
   const userId = c.get("authUser").id;

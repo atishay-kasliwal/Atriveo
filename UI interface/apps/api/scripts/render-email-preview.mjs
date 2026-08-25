@@ -132,8 +132,8 @@ function renderEmail(variantName, input) {
     progressPercent: progress.progressPercent,
     statusColor: progress.statusColor,
     statusMessage: progress.statusMessage,
-    managePreferencesUrl: String(input.managePreferencesUrl || 'https://www.atriveo.com/email-preferences'),
-    unsubscribeUrl: String(input.unsubscribeUrl || 'https://www.atriveo.com/unsubscribe?token=demo-token'),
+    managePreferencesUrl: String(input.managePreferencesUrl || 'https://tracker.atriveo.com/email-preferences'),
+    unsubscribeUrl: String(input.unsubscribeUrl || 'https://tracker.atriveo.com/unsubscribe?token=demo-token'),
     hasFriends: friends.length > 0,
     noFriends: friends.length === 0,
   };
@@ -166,8 +166,8 @@ const baseInput = {
   totalApps: 8,
   totalTargetApps: 4,
   dailyTarget: 8,
-  managePreferencesUrl: 'https://www.atriveo.com/email-preferences',
-  unsubscribeUrl: 'https://www.atriveo.com/unsubscribe?token=test-token',
+  managePreferencesUrl: 'https://tracker.atriveo.com/email-preferences',
+  unsubscribeUrl: 'https://tracker.atriveo.com/unsubscribe?token=test-token',
 };
 
 const friendPool = [

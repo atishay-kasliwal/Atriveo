@@ -76,7 +76,7 @@ export default function AuthPage({ onAuthenticated, theme, onToggleTheme }: Auth
           kicker="Welcome back"
           title="Sign in to Atriveo"
           subtitle="Continue your job search workflow with one focused workspace."
-          description="Use your existing account on atriveo.com. Your data remains scoped to your login."
+          description="Use your existing account on tracker.atriveo.com. Your data remains scoped to your login."
           footnote="Use your account credentials to access your dashboard."
         />
 

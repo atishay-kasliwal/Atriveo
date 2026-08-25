@@ -138,7 +138,7 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
                 <td style="padding: 10px 12px; font-size: 13px; color: #334155; border-bottom: 1px solid #f1f5f9;">{{role}}</td>
                 <td style="padding: 10px 12px; font-size: 13px; color: #475569; border-bottom: 1px solid #f1f5f9;">{{applicants}}</td>
                 <td style="padding: 10px 12px; font-size: 13px; color: #64748b; white-space: nowrap; border-bottom: 1px solid #f1f5f9;">{{lastAppliedAt}}</td>
-                <td style="padding: 10px 12px; border-bottom: 1px solid #f1f5f9; white-space: nowrap;"><a href="https://www.atriveo.com/dashboard/network" style="color: #0066ff; font-size: 13px; font-weight: 600; text-decoration: none;">View &rarr;</a></td>
+                <td style="padding: 10px 12px; border-bottom: 1px solid #f1f5f9; white-space: nowrap;"><a href="https://tracker.atriveo.com/dashboard/network" style="color: #0066ff; font-size: 13px; font-weight: 600; text-decoration: none;">View &rarr;</a></td>
               </tr>
               {{/targetHits}}
             </table>
@@ -153,7 +153,7 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
             </tr></table>
           </td></tr></table>
 
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top: 30px;"><tr><td align="center"><a href="https://www.atriveo.com/dashboard" target="_blank" style="display: inline-block; background-color: #0066ff; color: #ffffff; padding: 13px 34px; border-radius: 10px; font-size: 15px; font-weight: 700; text-decoration: none; line-height: 1.4;">Open Atriveo Dashboard</a></td></tr></table>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top: 30px;"><tr><td align="center"><a href="https://tracker.atriveo.com/dashboard" target="_blank" style="display: inline-block; background-color: #0066ff; color: #ffffff; padding: 13px 34px; border-radius: 10px; font-size: 15px; font-weight: 700; text-decoration: none; line-height: 1.4;">Open Atriveo Dashboard</a></td></tr></table>
 
         </td>
       </tr>
@@ -202,7 +202,7 @@ YOUR TARGETS — APPLIED TODAY
 {{#targetHits}}
 {{company}} | {{role}} | {{applicants}} | {{lastAppliedAt}}
 {{/targetHits}}
-Network page: https://www.atriveo.com/dashboard/network
+Network page: https://tracker.atriveo.com/dashboard/network
 {{/hasTargetHits}}
 
 --------------------------------------------
@@ -213,7 +213,7 @@ Total Applications: {{totalApps}}
 
 --------------------------------------------
 
-Open Dashboard: https://www.atriveo.com/dashboard
+Open Dashboard: https://tracker.atriveo.com/dashboard
 Manage Preferences: {{managePreferencesUrl}}
 Unsubscribe: {{unsubscribeUrl}}
 `;
@@ -360,8 +360,8 @@ export function buildDailyDigestRenderModel(input: DailyDigestRenderInput): Dail
     progressPercent: progress.progressPercent,
     statusColor: progress.statusColor,
     statusMessage: progress.statusMessage,
-    managePreferencesUrl: String(input.managePreferencesUrl || "https://www.atriveo.com/email-preferences"),
-    unsubscribeUrl: String(input.unsubscribeUrl || "https://www.atriveo.com/unsubscribe"),
+    managePreferencesUrl: String(input.managePreferencesUrl || "https://tracker.atriveo.com/email-preferences"),
+    unsubscribeUrl: String(input.unsubscribeUrl || "https://tracker.atriveo.com/unsubscribe"),
     hasFriends: friends.length > 0,
     noFriends: friends.length === 0,
     friends,
