@@ -1,6 +1,6 @@
 # Atriveo platform and domain plan
 
-Status: executed baseline, 2026-08-25
+Status: domain separation complete, 2026-08-26
 
 ## Product decision
 
@@ -18,12 +18,12 @@ Private repository metadata must never be discovered or published automatically.
 ## Current verified state
 
 - The tracker is deployed from this repository to the Cloudflare Pages project `noobly`.
-- `atriveo.com` and `www.atriveo.com` remain active on `noobly` during the compatibility window.
+- `atriveo.com` serves the brand hub, and `www.atriveo.com` redirects to the canonical apex.
 - `tracker.atriveo.com` is active as a custom domain on the `atriveo-tracker-router` Worker.
 - The router in `infra/tracker-router` transparently serves `noobly.pages.dev`; Cloudflare manages its DNS record and certificate.
 - `atriveo.com` is routed through the separate `atriveo-site` Worker and serves the new ecosystem site.
 - The brand source is public at `atishay-kasliwal/atriveo-site`.
-- `www.atriveo.com` intentionally remains on the tracker during the extension transition window.
+- Tracker traffic is isolated to `tracker.atriveo.com`; legacy tracker paths still redirect there.
 - Legacy apex `/dashboard/*`, `/app/*`, `/extension-install`, and password-reset token requests redirect to `tracker.atriveo.com`.
 - The GitHub organization/user already has a repository named `Atriveo`; it is this tracker repository. That name cannot simultaneously be used by the new brand-site repository.
 
@@ -257,7 +257,7 @@ A React/Vite implementation is also viable if keeping one frontend stack is more
 1. Verify the brand site on its Pages preview domain.
 2. Confirm tracker migration acceptance criteria.
 3. Attach `atriveo.com` to the brand Pages project.
-4. Keep or redirect `www` according to the extension transition window.
+4. Redirect `www.atriveo.com` to the canonical brand apex.
 5. Add path redirects from legacy tracker routes to `tracker.atriveo.com`.
 6. Verify SEO metadata, analytics, legal links, and every project action.
 7. Monitor 404s, authentication failures, extension sync, and password-reset traffic for at least one release cycle.
@@ -274,4 +274,3 @@ A React/Vite implementation is also viable if keeping one frontend stack is more
 
 - Add `https://tracker.atriveo.com` to the Google OAuth web client's authorized JavaScript origins if it is not already present.
 - Publish Chrome extension v1.0.7 from `release/atriveo-job-assistant-v1.0.7.zip`.
-- After extension adoption, route `www.atriveo.com` to the brand site or redirect it to the apex.
