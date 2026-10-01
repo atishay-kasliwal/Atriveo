@@ -1,6 +1,8 @@
 export type Bindings = {
   NEON_DATABASE_URL: string;
   API_SHARED_TOKEN: string;
+  /** Bearer token for the inbox watcher's /integrations/atriveo/inbox routes. */
+  INBOX_API_TOKEN?: string;
   MEDIA_BUCKET?: R2Bucket;
   MEDIA_URL_SIGNING_SECRET?: string;
   MEDIA_PUBLIC_BASE_URL?: string;
