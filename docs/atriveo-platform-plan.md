@@ -168,8 +168,13 @@ The GitHub and Cloudflare inventories show these likely candidates. Titles, desc
 | Atriveo Knowledge | Public source; no verified live URL yet | Intelligence |
 | Audiobook Atriveo | Public source; no verified live URL yet | Creative |
 | Atriveo Reel | Public source; README describes a self-hosted version; public URL needs confirmation | Creative |
+| Atriveo Dock | Public source at `atriveo-job-dock`; macOS releases on GitHub | Career |
+| Job Pipeline | Public source; feeds `application.atriveo.com`, linked from Atriveo Applications | Career |
+| Playatriveo | Private source; listed without links, in development | Career |
+| Atriveo Dance | Private source; `dance.atriveo.com` is live | Creative |
+| Atriveo Maps | Private source; wraps the MIT `maptoposter` renderer, listed without links | Creative |
 
-Private candidates are intentionally omitted from the public catalog until each project has an explicit publication decision.
+Private candidates are omitted from the public catalog until each project has an explicit publication decision. Playatriveo, Atriveo Dance, and Atriveo Maps were approved on 2026-10-01 and are listed without source links. `atriveo-sound`, `atriveo-tradingagent`, and `ai-job-search` are copies of third-party projects (Chatterbox TTS, TradingAgents, and ai-job-search) and stay out of the catalog unless they diverge into original work.
 
 Cloudflare also contains `grant.atriveo.com` and an `atriveo-h1b` Pages project. They should be matched to their source repositories and reviewed before they enter the catalog.
 
