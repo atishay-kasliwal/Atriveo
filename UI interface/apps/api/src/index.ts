@@ -4608,10 +4608,84 @@ async function ensureDashboardUserForIntegration(
   return user ?? null;
 }
 
+/** Shared-token check for /integrations/* (the inbox token only where allowed). */
+function integrationAuthorized(env: Bindings, header: string | undefined, opts: { allowInbox?: boolean } = {}): boolean {
+  const bearer = header?.replace(/^Bearer\s+/i, "").trim();
+  if (!bearer) return false;
+  const shared = env.API_SHARED_TOKEN?.trim();
+  const inbox = env.INBOX_API_TOKEN?.trim();
+  return Boolean((shared && bearer === shared) || (opts.allowInbox && inbox && bearer === inbox));
+}
+
+async function integrationUserId(env: Bindings, email: string): Promise<number | null> {
+  const [user] = await query<{ id: number }>(env, `SELECT id FROM dashboard_users WHERE email = $1`, [normalizeEmail(email)]);
+  return user ? Number(user.id) : null;
+}
+
+// Inbox watcher (playatriveo): reads confirmation / rejection mails and keeps statuses current.
+// It lists your applications, matches mails to them itself, and sets the status of the ones it is sure about.
+app.get("/integrations/atriveo/inbox/applications", async (c) => {
+  if (!integrationAuthorized(c.env, c.req.header("authorization"), { allowInbox: true })) return c.json({ error: "Unauthorized" }, 401);
+  const email = String(c.req.query("user_email") ?? "").trim();
+  const since = String(c.req.query("since") ?? "").trim();
+  if (!email) return c.json({ error: "user_email is required" }, 400);
+  if (since && !/^\d{4}-\d{2}-\d{2}$/.test(since)) return c.json({ error: "since must be YYYY-MM-DD" }, 400);
+  const userId = await integrationUserId(c.env, email);
+  if (!userId) return c.json({ applications: [] });
+  const rows = await query(
+    c.env,
+    `
+    SELECT id, role, company, job_link, application_status, response_status, date_saved::text, archive_date::text
+    FROM jobs
+    WHERE user_id = $1
+      AND ($2::date IS NULL OR COALESCE(date_saved, created_at::date) >= $2::date)
+    ORDER BY COALESCE(date_saved, created_at::date) DESC, id DESC
+    LIMIT 5000
+    `,
+    [userId, since || null],
+  );
+  return c.json({ applications: rows });
+});
+
+const inboxStatusInput = z.object({
+  user_email: z.string().email(),
+  application_status: z.enum(["Applied", "Rejected"]),
+  /** One line added to the notes, e.g. 'Rejected by email 2026-09-12: "Your Acme application"'. */
+  note: z.string().trim().max(500).optional(),
+});
+
+app.patch("/integrations/atriveo/inbox/applications/:id", async (c) => {
+  if (!integrationAuthorized(c.env, c.req.header("authorization"), { allowInbox: true })) return c.json({ error: "Unauthorized" }, 401);
+  const parsed = inboxStatusInput.safeParse(await c.req.json());
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
+  const userId = await integrationUserId(c.env, parsed.data.user_email);
+  if (!userId) return c.json({ error: "Not found" }, 404);
+  const note = parsed.data.note?.trim() || null;
+  const [row] = await query(
+    c.env,
+    `
+    UPDATE jobs SET
+      application_status = $1::text,
+      notes = CASE
+        WHEN $2::text IS NULL THEN notes
+        WHEN COALESCE(notes, '') = '' THEN $2::text
+        WHEN POSITION($2::text IN notes) > 0 THEN notes
+        ELSE notes || E'\n' || $2::text
+      END,
+      archive_date = CASE WHEN $1::text = 'Rejected' THEN COALESCE(archive_date, CURRENT_DATE) ELSE archive_date END,
+      updated_at = NOW()
+    WHERE id = $3 AND user_id = $4
+    RETURNING *
+    `,
+    [parsed.data.application_status, note, c.req.param("id"), userId],
+  );
+  if (!row) return c.json({ error: "Not found" }, 404);
+  await syncReferralFromJob(c.env, userId, row as Record<string, unknown>);
+  return c.json({ job: row });
+});
+
 app.post("/integrations/atriveo/applications", async (c) => {
-  const bearer = c.req.header("authorization")?.replace(/^Bearer\s+/i, "").trim();
-  const sharedToken = c.env.API_SHARED_TOKEN?.trim();
-  if (!sharedToken || bearer !== sharedToken) {
+  if (!integrationAuthorized(c.env, c.req.header("authorization"), { allowInbox: true })) {
     return c.json({ error: "Unauthorized" }, 401);
   }
 
